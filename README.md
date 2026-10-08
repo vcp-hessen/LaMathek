@@ -2,7 +2,11 @@
 
 Material inventory for VCP Hessen. Domain language is in [CONTEXT.md](CONTEXT.md). Product and architecture decisions are in [docs/software.md](docs/software.md) and [docs/adr/](docs/adr/).
 
+**Version:** [CalVer](https://calver.org/) `YYYY.MM.MICRO` (see [CHANGELOG.md](CHANGELOG.md)).
+
 ## Development
+
+Python dependencies are declared in [server/pyproject.toml](server/pyproject.toml).
 
 Copy `.env.example` to `.env`. Use either OpenID Connect or the development bypass below.
 
@@ -24,7 +28,7 @@ Click **Anmelden** as usual; `/login` skips the IdP and signs you in as that dev
 cd server
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e .
+pip install -e ".[dev]"
 lamathek
 ```
 
