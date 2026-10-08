@@ -16,3 +16,4 @@ LaMathek uses [CalVer](https://calver.org/) as `YYYY.MM.MICRO`. Nothing has been
 - ADRs for SQLAlchemy, configuration split, and dev auth bypass.
 - Inventare with per-user Berechtigungen and roles Materialwart*in / Verantwortliche*r (UI).
 - `scripts/dev.sh` to run API, web, and migrations for local UI testing.
+- App shell with toggleable, pinnable sidebar navigation and light/dark theme.

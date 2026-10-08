@@ -2,6 +2,20 @@
   "app": {
     "productName": "LaMathek"
   },
+  "nav": {
+    "home": "Start"
+  },
+  "shell": {
+    "menu": "Menü",
+    "closeMenu": "Menü schließen",
+    "pinSidebar": "Seitenleiste anheften",
+    "unpinSidebar": "Seitenleiste lösen"
+  },
+  "theme": {
+    "light": "Helles Design",
+    "dark": "Dunkles Design",
+    "toggle": "Design umschalten"
+  },
   "dev": {
     "authBypass": "Entwicklungsanmeldung aktiv (ohne OpenID Connect)."
   },

@@ -5,7 +5,6 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { fetchInventory, renameInventory } from '../api/inventories'
 import { fetchMe } from '../api/me'
-import AppNavbar from '../components/AppNavbar.vue'
 import InventoryPermissionEditor from '../components/InventoryPermissionEditor.vue'
 
 const route = useRoute()
@@ -40,9 +39,7 @@ const renameMutation = useMutation({
 </script>
 
 <template>
-  <div class="min-h-screen bg-base-200">
-    <AppNavbar />
-    <main class="mx-auto max-w-lg space-y-6 p-6">
+  <div class="mx-auto max-w-lg space-y-6 p-6">
       <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
       <template v-else-if="inventory">
         <h1 class="text-2xl font-bold">{{ t('inventories.detail') }}</h1>
@@ -57,6 +54,5 @@ const renameMutation = useMutation({
           :inventory-id="inventory.id"
         />
       </template>
-    </main>
   </div>
 </template>

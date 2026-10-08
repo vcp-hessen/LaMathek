@@ -5,7 +5,6 @@ import { useI18n } from 'vue-i18n'
 import { fetchAuthMode } from '../api/authMode'
 import { fetchInstallationSettings } from '../api/settings'
 import { fetchMe } from '../api/me'
-import AppNavbar from '../components/AppNavbar.vue'
 import InstallationSettingsForm from '../components/InstallationSettingsForm.vue'
 import SuperuserList from '../components/SuperuserList.vue'
 
@@ -41,10 +40,7 @@ watchEffect(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-base-200">
-    <AppNavbar />
-
-    <main class="hero min-h-[70vh]">
+  <div class="hero min-h-[calc(100vh-4rem)]">
       <div class="hero-content flex-col gap-8">
         <div class="max-w-md text-center">
           <h1 class="text-4xl font-bold">{{ title }}</h1>
@@ -67,6 +63,5 @@ watchEffect(() => {
           <SuperuserList />
         </div>
       </div>
-    </main>
   </div>
 </template>

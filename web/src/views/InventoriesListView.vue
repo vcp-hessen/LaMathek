@@ -5,8 +5,6 @@ import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { createInventory, fetchInventories } from '../api/inventories'
 import { fetchMe } from '../api/me'
-import AppNavbar from '../components/AppNavbar.vue'
-
 const { t } = useI18n()
 const queryClient = useQueryClient()
 const newName = ref('')
@@ -28,9 +26,7 @@ const createMutation = useMutation({
 </script>
 
 <template>
-  <div class="min-h-screen bg-base-200">
-    <AppNavbar />
-    <main class="mx-auto max-w-2xl p-6">
+  <div class="mx-auto max-w-2xl p-6">
       <h1 class="mb-4 text-2xl font-bold">{{ t('inventories.title') }}</h1>
       <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
       <ul v-else class="menu rounded-box bg-base-100 shadow">
@@ -58,6 +54,5 @@ const createMutation = useMutation({
           {{ t('inventories.create') }}
         </button>
       </form>
-    </main>
   </div>
 </template>
