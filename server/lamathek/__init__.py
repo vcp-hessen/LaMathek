@@ -1,0 +1,1 @@
+"""LaMathek Flask application."""

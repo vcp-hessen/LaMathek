@@ -1,0 +1,26 @@
+{
+  "app": {
+    "productName": "LaMathek"
+  },
+  "dev": {
+    "authBypass": "Entwicklungsanmeldung aktiv (ohne OpenID Connect)."
+  },
+  "auth": {
+    "signIn": "Anmelden",
+    "signOut": "Abmelden",
+    "signedInAs": "Angemeldet als {name}",
+    "loading": "Lade …"
+  },
+  "settings": {
+    "heading": "Installation",
+    "titleLabel": "Titel",
+    "subtitleLabel": "Untertitel",
+    "save": "Speichern",
+    "saveFailed": "Speichern fehlgeschlagen."
+  },
+  "superusers": {
+    "heading": "Superuser",
+    "role": "Superuser",
+    "updateFailed": "Änderung fehlgeschlagen."
+  }
+}

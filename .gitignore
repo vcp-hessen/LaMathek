@@ -1,0 +1,13 @@
+.env
+.env.local
+__pycache__/
+*.py[cod]
+.Python
+
+server/.venv/
+server/*.egg-info/
+server/*.sqlite3
+server/lamathek.sqlite3
+
+web/node_modules/
+web/dist/

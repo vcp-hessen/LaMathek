@@ -1,0 +1,17 @@
+---
+status: accepted
+---
+
+# Configuration: environment versus database
+
+Each LaMathek installation is deployed once and then run by Materialwarte. Some settings belong to the host and must not be editable in the UI. Others describe this installation and should default sensibly, then be changed in the app by superusers.
+
+**Environment** holds what ties the process to infrastructure and identity: database location, Flask secret, OpenID Connect client credentials and metadata URL, redirect URI, and frontend URL. These values are set when the instance is deployed. Changing them requires a redeploy or a restart, not a screen in LaMathek. For local development only, optional `AUTH_DEV_*` variables can skip OIDC; see [0012-dev-auth-bypass.md](./0012-dev-auth-bypass.md).
+
+**Database** holds installation settings that operators may change without touching the server: at minimum the display title and subtitle shown in the UI (today hardcoded in German locale files), and room for further per-installation options later. Rows are created with defaults on first migration or first boot. Superusers edit them in the application.
+
+A **superuser** is an installation-wide administrator, not a Materialwart role and not tied to one Inventar. The first person who signs in with OpenID Connect while no superuser exists becomes a superuser. Later superusers are appointed by existing superusers. Superusers manage installation settings and can grant Berechtigungen; ordinary Materialwarte only manage Inventare they are allowed to.
+
+The product name LaMathek can stay in code and i18n as the software name; the database title and subtitle identify this deployment (for example VCP Hessen and Landesmaterial).
+
+**Considered options:** Putting branding only in locale files was rejected because another group’s copy should not require a rebuild to rename the UI. Putting OIDC secrets in the database was rejected because they are deployment secrets and belong in the environment.
