@@ -65,12 +65,12 @@ _English_: repair
 _Avoid_: fix, Instandsetzung
 
 **Gruppe**:
-A scouting group on whose behalf material is handed to a Verantwortliche. A Gruppe does not use LaMathek.
+A scouting group on whose behalf material is handed to a Verantwortliche*r. A Gruppe does not use LaMathek.
 _English_: group
 _Avoid_: Stamm, team, borrower
 
 **Verantwortliche**:
-The person material is handed to, and who is in charge of it, on behalf of a Gruppe. Verantwortliche is also a user role.
+The person material is handed to, and who is in charge of it, on behalf of a Gruppe. Verantwortliche is also a user role (`verantwortliche` in code). In the German UI: **Verantwortliche*r**.
 _English_: person in charge
 _Avoid_: Empfänger, borrower, contact
 
@@ -80,7 +80,7 @@ _English_: event
 _Avoid_: Lager, camp, Fahrt
 
 **Verleih**:
-Material for a Verantwortliche on behalf of a Gruppe for a short time, usually about two weeks. It can be recorded before handout, usually belongs to a Veranstaltung, and ends with a Rückgabe.
+Material for a Verantwortliche*r on behalf of a Gruppe for a short time, usually about two weeks. It can be recorded before handout, usually belongs to a Veranstaltung, and ends with a Rückgabe.
 _English_: loan
 _Avoid_: Ausleihe, rental, booking, reservation
 
@@ -95,12 +95,12 @@ _English_: loss
 _Avoid_: Schwund, Fehlmenge, open loan
 
 **Dauerleihgabe**:
-Material handed to a Verantwortliche on behalf of a Gruppe for a long time. It stays held by VCP Hessen.
+Material handed to a Verantwortliche*r on behalf of a Gruppe for a long time. It stays held by VCP Hessen.
 _English_: permanent loan
 _Avoid_: Starterset, starter set, Grundausstattung
 
 **Materialwart**:
-A user role for someone who manages material in the Inventare covered by their Berechtigungen. On the Donnerskopf Inventar, this office is the Beauftragte für Landesmaterial.
+A user role for someone who manages material in the Inventare covered by their Berechtigungen. On the Donnerskopf Inventar, this office is the Beauftragte für Landesmaterial (`materialwart` in code). In the German UI: **Materialwart*in**.
 _English_: quartermaster
 _Avoid_: Beauftragte für Landesmaterial, Materialteam, admin, staff
 

@@ -19,8 +19,8 @@
     "saveFailed": "Speichern fehlgeschlagen."
   },
   "roles": {
-    "materialwart": "Materialwart",
-    "verantwortliche": "Verantwortliche"
+    "materialwart": "Materialwart*in",
+    "verantwortliche": "Verantwortliche*r"
   },
   "inventories": {
     "nav": "Inventare",
@@ -34,8 +34,8 @@
     "savePermissions": "Berechtigungen speichern"
   },
   "superusers": {
-    "heading": "Superuser",
-    "role": "Superuser",
+    "heading": "Superuser*innen",
+    "role": "Superuser*in",
     "updateFailed": "Änderung fehlgeschlagen."
   }
 }
