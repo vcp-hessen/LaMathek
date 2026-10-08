@@ -3,17 +3,31 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
-
 SERVER_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = SERVER_ROOT.parent
+
+if os.environ.get("LAMATHEK_ENV") == "dev":
+    load_dotenv(REPO_ROOT / ".env.dev")
+    load_dotenv(REPO_ROOT / ".env", override=True)
+else:
+    load_dotenv(REPO_ROOT / ".env")
+load_dotenv(SERVER_ROOT / ".env", override=True)
+
+
+def _sqlite_path() -> Path:
+    raw = os.environ.get("SQLITE_PATH", "lamathek.sqlite3")
+    path = Path(raw)
+    if not path.is_absolute():
+        path = (REPO_ROOT / path).resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def _database_url() -> str:
     explicit = os.environ.get("DATABASE_URL")
     if explicit:
         return explicit
-    path = os.environ.get("SQLITE_PATH", str(SERVER_ROOT / "lamathek.sqlite3"))
-    return f"sqlite:///{path}"
+    return f"sqlite:///{_sqlite_path()}"
 
 
 def _env_bool(name: str, default: bool = False) -> bool:

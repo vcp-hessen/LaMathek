@@ -18,6 +18,21 @@
     "save": "Speichern",
     "saveFailed": "Speichern fehlgeschlagen."
   },
+  "roles": {
+    "materialwart": "Materialwart",
+    "verantwortliche": "Verantwortliche"
+  },
+  "inventories": {
+    "nav": "Inventare",
+    "title": "Inventare",
+    "empty": "Keine Inventare.",
+    "newName": "Name des Inventars",
+    "create": "Anlegen",
+    "detail": "Inventar",
+    "rename": "Speichern",
+    "permissionsHeading": "Berechtigungen",
+    "savePermissions": "Berechtigungen speichern"
+  },
   "superusers": {
     "heading": "Superuser",
     "role": "Superuser",

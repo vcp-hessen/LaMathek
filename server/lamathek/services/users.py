@@ -2,6 +2,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from lamathek.models.user import User
+from lamathek.services.inventories import VALID_ROLES
 
 
 def upsert_user_from_oidc(
@@ -51,4 +52,11 @@ def set_superuser(session: Session, user: User, is_superuser: bool) -> None:
     if user.is_superuser and not is_superuser and count_superusers(session) <= 1:
         raise ValueError("cannot_remove_last_superuser")
     user.is_superuser = is_superuser
+    session.commit()
+
+
+def set_user_role(session: Session, user: User, role: str) -> None:
+    if role not in VALID_ROLES:
+        raise ValueError("invalid_role")
+    user.role = role
     session.commit()

@@ -13,3 +13,11 @@ export async function setUserSuperuser(
   const response = await api.patch(`/api/users/${userId}`, { isSuperuser })
   return userSchema.parse(response.data)
 }
+
+export async function setUserRole(
+  userId: number,
+  role: 'materialwart' | 'verantwortliche',
+): Promise<User> {
+  const response = await api.patch(`/api/users/${userId}`, { role })
+  return userSchema.parse(response.data)
+}

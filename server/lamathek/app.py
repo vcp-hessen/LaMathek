@@ -7,6 +7,7 @@ from lamathek.config import Config
 from lamathek.db import init_db
 from lamathek.routes.api import api_bp
 from lamathek.routes.auth_routes import auth_bp
+from lamathek.routes.inventories_routes import inventories_bp
 from lamathek.routes.settings_routes import settings_bp
 from lamathek.routes.users_routes import users_bp
 
@@ -22,6 +23,7 @@ def create_app(config: type[Config] = Config) -> Flask:
     init_auth(app)
 
     app.register_blueprint(api_bp)
+    app.register_blueprint(inventories_bp)
     app.register_blueprint(settings_bp)
     app.register_blueprint(users_bp)
     app.register_blueprint(auth_bp)

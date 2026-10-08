@@ -14,3 +14,5 @@ LaMathek uses [CalVer](https://calver.org/) as `YYYY.MM.MICRO`. Nothing has been
 - Installation settings (title, subtitle) and superuser management in the database.
 - Development auth bypass (`AUTH_DEV_*`) for local login without an IdP.
 - ADRs for SQLAlchemy, configuration split, and dev auth bypass.
+- Inventare with per-user Berechtigungen and roles Materialwart / Verantwortliche.
+- `scripts/dev.sh` to run API, web, and migrations for local UI testing.

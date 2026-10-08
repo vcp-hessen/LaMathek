@@ -1,16 +1,15 @@
 <script setup lang="ts">
-import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useQuery } from '@tanstack/vue-query'
 import { computed, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { fetchAuthMode } from '../api/authMode'
 import { fetchInstallationSettings } from '../api/settings'
-import { fetchMe, logout } from '../api/me'
+import { fetchMe } from '../api/me'
+import AppNavbar from '../components/AppNavbar.vue'
 import InstallationSettingsForm from '../components/InstallationSettingsForm.vue'
 import SuperuserList from '../components/SuperuserList.vue'
 
 const { t } = useI18n()
-const queryClient = useQueryClient()
-
 const { data: settings, isLoading: settingsLoading } = useQuery({
   queryKey: ['settings'],
   queryFn: fetchInstallationSettings,
@@ -39,33 +38,11 @@ watchEffect(() => {
   }
 })
 
-async function onSignOut() {
-  await logout()
-  await queryClient.invalidateQueries({ queryKey: ['me'] })
-}
 </script>
 
 <template>
   <div class="min-h-screen bg-base-200">
-    <div class="navbar bg-base-100 shadow-sm">
-      <div class="flex-1 flex-col items-start px-2 py-1">
-        <span class="text-xl font-semibold">{{ title }}</span>
-        <span v-if="subtitle" class="text-xs text-base-content/60">{{ subtitle }}</span>
-      </div>
-      <div class="flex-none gap-2 pr-2">
-        <a v-if="!me && !meLoading" class="btn btn-primary" href="/login">
-          {{ t('auth.signIn') }}
-        </a>
-        <button
-          v-else-if="me"
-          type="button"
-          class="btn btn-ghost"
-          @click="onSignOut"
-        >
-          {{ t('auth.signOut') }}
-        </button>
-      </div>
-    </div>
+    <AppNavbar />
 
     <main class="hero min-h-[70vh]">
       <div class="hero-content flex-col gap-8">

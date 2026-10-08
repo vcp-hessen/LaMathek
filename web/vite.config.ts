@@ -2,14 +2,17 @@ import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
 
+const apiPort = process.env.LAMATHEK_API_PORT ?? '5001'
+const apiOrigin = `http://127.0.0.1:${apiPort}`
+
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
   server: {
     proxy: {
-      '/api': 'http://127.0.0.1:5001',
-      '/login': 'http://127.0.0.1:5001',
-      '/auth': 'http://127.0.0.1:5001',
-      '/logout': 'http://127.0.0.1:5001',
+      '/api': apiOrigin,
+      '/login': apiOrigin,
+      '/auth': apiOrigin,
+      '/logout': apiOrigin,
     },
   },
 })

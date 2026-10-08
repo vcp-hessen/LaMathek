@@ -6,13 +6,25 @@ Material inventory for VCP Hessen. Domain language is in [CONTEXT.md](CONTEXT.md
 
 ## Development
 
+### Quick start (UI)
+
+From the repository root:
+
+```bash
+./scripts/dev.sh
+```
+
+The script sets `LAMATHEK_ENV=dev`, loads [`.env.dev`](.env.dev) (dev login, SQLite path, ports), then starts the API and Vite. Open [http://127.0.0.1:5173](http://127.0.0.1:5173) and click **Anmelden**.
+
+Optional: copy `.env.example` to `.env` for local overrides on top of `.env.dev` when using the dev script.
+
 Python dependencies are declared in [server/pyproject.toml](server/pyproject.toml).
 
-Copy `.env.example` to `.env`. Use either OpenID Connect or the development bypass below.
+For OIDC or a custom setup without the script, copy `.env.example` to `.env` and configure it yourself.
 
 ### Local login without OIDC
 
-For faster debugging, set in `.env`:
+[`.env.dev`](.env.dev) is used by `./scripts/dev.sh`. To configure manually, set in `.env`:
 
 - `FLASK_DEBUG=1` (or `AUTH_DEV_BYPASS_ALLOW=1`)
 - `AUTH_DEV_BYPASS=1`
