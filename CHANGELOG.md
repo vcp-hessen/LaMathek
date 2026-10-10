@@ -9,6 +9,8 @@ LaMathek uses [CalVer](https://calver.org/) as `YYYY.MM.MICRO`. Nothing has been
 
 ### Added
 
+- Staging-Image (`Dockerfile`) für Coolify: gebautes Frontend, Flask auf `0.0.0.0`, Alembic beim Start, SQLite über ein Volume.
+- Optionales Live-Reload-Compose (`deploy/docker-compose.dev.yml`) mit Bind-Mount, Flask-Reloader und Vite-HMR.
 - Superuser-only Löschen für Inventare, Materialarten, Stücke und Sets mit Bestätigungsdialog und Hinweis auf unwiderruflich mitgelöschte abhängige Daten.
 
 ### Fixed

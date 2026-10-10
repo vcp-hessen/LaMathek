@@ -1,0 +1,39 @@
+# Optional live-reload stack. Not used by the Coolify staging image.
+# From the repo root: docker compose -f deploy/docker-compose.dev.yml up
+# Behind HTTPS, set VITE_HMR_HOST to the public hostname.
+
+services:
+  api:
+    image: python:3.12-slim-bookworm
+    working_dir: /src/server
+    command: sh -c "pip install -e . && alembic upgrade head && lamathek"
+    volumes:
+      - ..:/src
+    environment:
+      LAMATHEK_BIND_HOST: 0.0.0.0
+      LAMATHEK_API_PORT: "5001"
+      LAMATHEK_RELOAD: "1"
+      SQLITE_PATH: /src/server/lamathek.sqlite3
+    env_file:
+      - path: ../.env
+        required: false
+    expose:
+      - "5001"
+
+  web:
+    image: node:22-bookworm-slim
+    working_dir: /src/web
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    volumes:
+      - ..:/src
+      - web_node_modules:/src/web/node_modules
+    environment:
+      LAMATHEK_API_ORIGIN: http://api:5001
+      VITE_HMR_HOST: ${VITE_HMR_HOST:-}
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+volumes:
+  web_node_modules:
