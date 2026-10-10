@@ -16,6 +16,7 @@ LaMathek uses [CalVer](https://calver.org/) as `YYYY.MM.MICRO`. Nothing has been
 ### Fixed
 
 - Staging-Image findet das gebaute Frontend über `LAMATHEK_STATIC_ROOT` (nach `pip install` liegt das Paket nicht mehr neben `web/dist`).
+- Staging-Start migriert dieselbe SQLite-Datei, die die App öffnet (`SQLITE_PATH=/data/lamathek.sqlite3`). Vorher lief Alembic aus dem Quellbaum und die App aus `site-packages` gegen zwei verschiedene Dateien, `/api/settings` antwortete dann mit 500.
 - Inventar-Umschalter lädt Listen und Detailansichten des gewählten Inventars neu (reaktive vue-query-Keys, Navigation behält den aktuellen Bereich).
 - Decision record, domain glossary, and MIT license.
 - Flask API with SQLite (SQLAlchemy 2, Alembic), OpenID Connect login, and Vue 3 client (Vite, Pinia, TanStack Query, DaisyUI, German i18n).

@@ -13,6 +13,7 @@ WORKDIR /app/server
 RUN pip install --no-cache-dir .
 ENV LAMATHEK_BIND_HOST=0.0.0.0
 ENV LAMATHEK_STATIC_ROOT=/app/web/dist
+ENV SQLITE_PATH=/data/lamathek.sqlite3
 ENV PORT=5001
 EXPOSE 5001
-CMD ["sh", "-c", "alembic upgrade head && lamathek"]
+CMD ["lamathek"]

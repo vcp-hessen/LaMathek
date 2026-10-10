@@ -3,8 +3,26 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+
+def checkout_root() -> Path:
+    """Repository root in a checkout, or /app inside the staging image.
+
+    After pip install this file lives in site-packages, so walking up from
+    __file__ is not the checkout. Alembic is launched from the copied sources
+    and would otherwise migrate a different SQLite file than the running app.
+    """
+    candidate = Path(__file__).resolve().parents[2]
+    marker = candidate / "server" / "alembic.ini"
+    if marker.is_file() and (candidate / "web").is_dir():
+        return candidate
+    image_root = Path("/app")
+    if (image_root / "server" / "alembic.ini").is_file():
+        return image_root
+    return candidate
+
+
 SERVER_ROOT = Path(__file__).resolve().parent.parent
-REPO_ROOT = SERVER_ROOT.parent
+REPO_ROOT = checkout_root()
 
 if os.environ.get("LAMATHEK_ENV") == "dev":
     load_dotenv(REPO_ROOT / ".env.dev")

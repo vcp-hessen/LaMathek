@@ -1,0 +1,26 @@
+# Production-style image (same as Coolify). From repo root:
+#   docker compose -f deploy/docker-compose.staging.yml up --build
+# Open http://127.0.0.1:5001
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    volumes:
+      - lamathek_data:/data
+    environment:
+      SECRET_KEY: local-docker-not-for-production
+      FRONTEND_URL: http://127.0.0.1:5001
+      OIDC_REDIRECT_URI: http://127.0.0.1:5001/auth/callback
+      AUTH_DEV_BYPASS: "1"
+      AUTH_DEV_BYPASS_ALLOW: "1"
+      AUTH_DEV_SUB: dev:docker
+      AUTH_DEV_NAME: Docker Dev
+      AUTH_DEV_EMAIL: dev@local
+      AUTH_DEV_SUPERUSER: "1"
+
+volumes:
+  lamathek_data:
