@@ -15,6 +15,7 @@ LaMathek uses [CalVer](https://calver.org/) as `YYYY.MM.MICRO`. Nothing has been
 
 ### Fixed
 
+- Staging-Image findet das gebaute Frontend über `LAMATHEK_STATIC_ROOT` (nach `pip install` liegt das Paket nicht mehr neben `web/dist`).
 - Inventar-Umschalter lädt Listen und Detailansichten des gewählten Inventars neu (reaktive vue-query-Keys, Navigation behält den aktuellen Bereich).
 - Decision record, domain glossary, and MIT license.
 - Flask API with SQLite (SQLAlchemy 2, Alembic), OpenID Connect login, and Vue 3 client (Vite, Pinia, TanStack Query, DaisyUI, German i18n).

@@ -67,7 +67,7 @@ With `web/dist` present, Flask serves the built client.
 
 ### Staging (Coolify)
 
-Coolify builds the root [Dockerfile](Dockerfile) and serves the built client from Flask. Connect the GitHub App so a push to `main` webhooks Coolify and redeploys. Set `SQLITE_PATH=/data/lamathek.sqlite3` and mount a volume at `/data` so the database survives deploys. The image listens on `0.0.0.0` and `PORT` (default 5001).
+Coolify builds the root [Dockerfile](Dockerfile) and serves the built client from Flask (`LAMATHEK_STATIC_ROOT=/app/web/dist`). Use the Dockerfile as the build pack, not Nixpacks. Connect the GitHub App so a push to `main` webhooks Coolify and redeploys. Set `SQLITE_PATH=/data/lamathek.sqlite3` and mount a volume at `/data` so the database survives deploys. The image listens on `0.0.0.0` and `PORT` (default 5001).
 
 Set these in Coolify, not in the repo: `SECRET_KEY`, `FRONTEND_URL=https://<domain>`, `OIDC_REDIRECT_URI=https://<domain>/auth/callback` (same URI in the IdP), `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_SERVER_METADATA_URL`. Do not set `AUTH_DEV_BYPASS`.
 

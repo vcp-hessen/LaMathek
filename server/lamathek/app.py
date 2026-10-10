@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from flask import Flask, send_from_directory
@@ -14,6 +15,18 @@ from lamathek.routes.sets_routes import sets_bp
 from lamathek.routes.geocode_routes import geocode_bp
 from lamathek.routes.settings_routes import settings_bp
 from lamathek.routes.users_routes import users_bp
+
+
+def client_dist_dir() -> Path:
+    """Built Vue client. Checkout layout is server/lamathek → repo/web/dist.
+
+    pip install puts this module in site-packages, so the image sets
+    LAMATHEK_STATIC_ROOT (Dockerfile copies the build to /app/web/dist).
+    """
+    override = os.environ.get("LAMATHEK_STATIC_ROOT")
+    if override:
+        return Path(override)
+    return Path(__file__).resolve().parent.parent.parent / "web" / "dist"
 
 
 def create_app(config: type[Config] = Config) -> Flask:
@@ -36,7 +49,7 @@ def create_app(config: type[Config] = Config) -> Flask:
     app.register_blueprint(users_bp)
     app.register_blueprint(auth_bp)
 
-    static_root = Path(__file__).resolve().parent.parent.parent / "web" / "dist"
+    static_root = client_dist_dir()
 
     @app.get("/")
     def spa_index():
