@@ -2,3 +2,107 @@
 @plugin 'daisyui' {
   themes: light --default, dark --prefersdark;
 }
+
+@theme {
+  --font-sans: 'Roboto', ui-sans-serif, system-ui, sans-serif;
+  --color-vcp-blau: #004287;
+  --color-vcp-blau-reduced: #c3d1e0;
+  --color-vcp-feuerrot: #e94653;
+  --color-vcp-feuergelb: #fecf16;
+  --color-vcp-wasserblau: #00b0eb;
+  --color-vcp-erdbraun: #603609;
+  --color-vcp-luftgrau: #f0f1ef;
+}
+
+@font-face {
+  font-family: 'waldlaeuferzeichen-pfadfinden';
+  src: url('./assets/fonts/waldlaeuferzeichen-pfadfinden.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+
+.wlz-icon {
+  font-family: 'waldlaeuferzeichen-pfadfinden', sans-serif;
+  font-style: normal;
+  font-weight: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+  --color-base-100: #ffffff;
+  --color-base-200: #c3d1e0;
+  --color-base-300: #a8b8c9;
+  --color-base-content: #1a1a1a;
+  --color-primary: #004287;
+  --color-primary-content: #ffffff;
+  --color-secondary: #00b0eb;
+  --color-secondary-content: #ffffff;
+  --color-accent: #00b0eb;
+  --color-accent-content: #ffffff;
+  --color-neutral: #004287;
+  --color-neutral-content: #ffffff;
+  --color-info: #00b0eb;
+  --color-info-content: #ffffff;
+  --color-success: #004287;
+  --color-success-content: #ffffff;
+  --color-warning: #fecf16;
+  --color-warning-content: #603609;
+  --color-error: #e94653;
+  --color-error-content: #ffffff;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --color-base-100: #0c2340;
+  --color-base-200: #062a4a;
+  --color-base-300: #153a5c;
+  --color-base-content: #f0f1ef;
+  --color-primary: #004287;
+  --color-primary-content: #ffffff;
+  --color-secondary: #00b0eb;
+  --color-secondary-content: #ffffff;
+  --color-accent: #00b0eb;
+  --color-accent-content: #ffffff;
+  --color-neutral: #c3d1e0;
+  --color-neutral-content: #004287;
+  --color-info: #00b0eb;
+  --color-info-content: #ffffff;
+  --color-success: #004287;
+  --color-success-content: #ffffff;
+  --color-warning: #fecf16;
+  --color-warning-content: #603609;
+  --color-error: #e94653;
+  --color-error-content: #ffffff;
+}
+
+.inventory-switcher,
+.inventory-switcher option {
+  background-color: #1a5593;
+  color: #fff;
+  color-scheme: dark;
+}
+
+.material-type-form .input,
+.material-type-form .select,
+.material-type-form .textarea,
+.inventory-form .input,
+.inventory-form .textarea {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-weight: 500;
+  }
+}

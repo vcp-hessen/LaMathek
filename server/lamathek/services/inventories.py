@@ -25,8 +25,44 @@ def list_inventories_for_user(session: Session, user: User) -> list[Inventory]:
     )
 
 
+def users_with_inventory_permission(session: Session) -> list[User]:
+    user_ids = session.scalars(select(InventoryPermission.user_id).distinct()).all()
+    if not user_ids:
+        return []
+    return list(
+        session.scalars(
+            select(User).where(User.id.in_(user_ids)).order_by(User.name, User.email)
+        ).all()
+    )
+
+
+def format_content_responsible_users(users: list[User]) -> str:
+    lines: list[str] = []
+    for user in users:
+        name = (user.name or "").strip()
+        email = (user.email or "").strip()
+        if name and email:
+            lines.append(f"{name} ({email})")
+        elif name:
+            lines.append(name)
+        elif email:
+            lines.append(email)
+    return "\n".join(lines)
+
+
 def inventory_by_id(session: Session, inventory_id: int) -> Inventory | None:
     return session.get(Inventory, inventory_id)
+
+
+def user_can_manage_any_inventory(session: Session, user: User) -> bool:
+    if user.is_superuser:
+        return True
+    if user.role != ROLE_MATERIALWART:
+        return False
+    permission = session.scalar(
+        select(InventoryPermission.id).where(InventoryPermission.user_id == user.id)
+    )
+    return permission is not None
 
 
 def user_can_manage_inventory(session: Session, user: User, inventory: Inventory) -> bool:
@@ -43,8 +79,39 @@ def user_can_manage_inventory(session: Session, user: User, inventory: Inventory
     return permission is not None
 
 
-def create_inventory(session: Session, name: str) -> Inventory:
+def _apply_location_fields(
+    inventory: Inventory,
+    *,
+    address: str | None,
+    latitude: float | None,
+    longitude: float | None,
+    notes: str | None,
+) -> None:
+    if (latitude is None) != (longitude is None):
+        raise ValueError("invalid_coordinates")
+    inventory.address = address
+    inventory.latitude = latitude
+    inventory.longitude = longitude
+    inventory.notes = notes
+
+
+def create_inventory(
+    session: Session,
+    name: str,
+    *,
+    address: str | None = None,
+    latitude: float | None = None,
+    longitude: float | None = None,
+    notes: str | None = None,
+) -> Inventory:
     inventory = Inventory(name=name.strip())
+    _apply_location_fields(
+        inventory,
+        address=address,
+        latitude=latitude,
+        longitude=longitude,
+        notes=notes,
+    )
     session.add(inventory)
     try:
         session.commit()
@@ -55,8 +122,24 @@ def create_inventory(session: Session, name: str) -> Inventory:
     return inventory
 
 
-def rename_inventory(session: Session, inventory: Inventory, name: str) -> Inventory:
+def update_inventory(
+    session: Session,
+    inventory: Inventory,
+    name: str,
+    *,
+    address: str | None,
+    latitude: float | None,
+    longitude: float | None,
+    notes: str | None,
+) -> Inventory:
     inventory.name = name.strip()
+    _apply_location_fields(
+        inventory,
+        address=address,
+        latitude=latitude,
+        longitude=longitude,
+        notes=notes,
+    )
     try:
         session.commit()
     except IntegrityError:
@@ -73,6 +156,11 @@ def permission_user_ids(session: Session, inventory_id: int) -> list[int]:
         )
     ).all()
     return list(rows)
+
+
+def delete_inventory(session: Session, inventory: Inventory) -> None:
+    session.delete(inventory)
+    session.commit()
 
 
 def replace_permissions(

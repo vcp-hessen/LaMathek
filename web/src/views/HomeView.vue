@@ -5,9 +5,6 @@ import { useI18n } from 'vue-i18n'
 import { fetchAuthMode } from '../api/authMode'
 import { fetchInstallationSettings } from '../api/settings'
 import { fetchMe } from '../api/me'
-import InstallationSettingsForm from '../components/InstallationSettingsForm.vue'
-import SuperuserList from '../components/SuperuserList.vue'
-
 const { t } = useI18n()
 const { data: settings, isLoading: settingsLoading } = useQuery({
   queryKey: ['settings'],
@@ -58,10 +55,6 @@ watchEffect(() => {
           <p class="mt-6 text-xs text-base-content/50">{{ t('app.productName') }}</p>
         </div>
 
-        <div v-if="me?.isSuperuser && settings" class="w-full max-w-lg space-y-6">
-          <InstallationSettingsForm :settings="settings" />
-          <SuperuserList />
-        </div>
       </div>
   </div>
 </template>

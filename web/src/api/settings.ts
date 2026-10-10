@@ -3,6 +3,7 @@ import {
   installationSettingsPatchSchema,
   installationSettingsSchema,
   type InstallationSettings,
+  type InstallationSettingsPatch,
 } from '../schemas/settings'
 
 export async function fetchInstallationSettings(): Promise<InstallationSettings> {
@@ -11,7 +12,7 @@ export async function fetchInstallationSettings(): Promise<InstallationSettings>
 }
 
 export async function updateInstallationSettings(
-  patch: { title: string; subtitle: string },
+  patch: InstallationSettingsPatch,
 ): Promise<InstallationSettings> {
   const body = installationSettingsPatchSchema.parse(patch)
   const response = await api.patch('/api/settings', body)

@@ -1,7 +1,16 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
+import ImpressumView from '../views/ImpressumView.vue'
 import InventoriesListView from '../views/InventoriesListView.vue'
-import InventoryDetailView from '../views/InventoryDetailView.vue'
+import InstallationSettingsView from '../views/InstallationSettingsView.vue'
+import InventoryMaterialTypesView from '../views/InventoryMaterialTypesView.vue'
+import InventoryPiecesView from '../views/InventoryPiecesView.vue'
+import PieceDetailView from '../views/PieceDetailView.vue'
+import InventoryLoansView from '../views/InventoryLoansView.vue'
+import InventorySetsView from '../views/InventorySetsView.vue'
+import InventoryStockView from '../views/InventoryStockView.vue'
+import LoanDetailView from '../views/LoanDetailView.vue'
+import SetDetailView from '../views/SetDetailView.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -12,14 +21,64 @@ export const router = createRouter({
       component: HomeView,
     },
     {
+      path: '/settings',
+      name: 'installation-settings',
+      component: InstallationSettingsView,
+    },
+    {
+      path: '/impressum',
+      name: 'impressum',
+      component: ImpressumView,
+    },
+    {
       path: '/inventories',
       name: 'inventories',
       component: InventoriesListView,
     },
     {
+      path: '/inventories/:id/material-types',
+      name: 'inventory-material-types',
+      component: InventoryMaterialTypesView,
+    },
+    {
+      path: '/inventories/:id/pieces',
+      name: 'inventory-pieces',
+      component: InventoryPiecesView,
+    },
+    {
+      path: '/inventories/:id/pieces/:pieceId',
+      name: 'piece-detail',
+      component: PieceDetailView,
+    },
+    {
+      path: '/inventories/:id/stock',
+      name: 'inventory-stock',
+      component: InventoryStockView,
+    },
+    {
+      path: '/inventories/:id/sets',
+      name: 'inventory-sets',
+      component: InventorySetsView,
+    },
+    {
+      path: '/inventories/:id/loans',
+      name: 'inventory-loans',
+      component: InventoryLoansView,
+      props: (route) => ({ inventoryId: Number(route.params.id) }),
+    },
+    {
+      path: '/inventories/:id/loans/:loanId',
+      name: 'loan-detail',
+      component: LoanDetailView,
+    },
+    {
+      path: '/inventories/:id/sets/:setId',
+      name: 'set-detail',
+      component: SetDetailView,
+    },
+    {
       path: '/inventories/:id',
-      name: 'inventory-detail',
-      component: InventoryDetailView,
+      redirect: '/inventories',
     },
   ],
 })

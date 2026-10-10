@@ -1,0 +1,28 @@
+import { z } from 'zod'
+import { pieceSchema } from './material'
+
+export const setSummarySchema = z.object({
+  id: z.number(),
+  inventoryId: z.number(),
+  name: z.string(),
+  shortName: z.string().nullable(),
+})
+
+export type SetSummary = z.infer<typeof setSummarySchema>
+
+export const setStockLineSchema = z.object({
+  id: z.number(),
+  materialTypeId: z.number(),
+  materialTypeName: z.string(),
+  role: z.enum(['assignment', 'optional']),
+  quantity: z.number(),
+})
+
+export const setDetailSchema = setSummarySchema.extend({
+  assignmentPieces: z.array(pieceSchema),
+  optionalPieces: z.array(pieceSchema),
+  assignmentStock: z.array(setStockLineSchema),
+  optionalStock: z.array(setStockLineSchema),
+})
+
+export type SetDetail = z.infer<typeof setDetailSchema>

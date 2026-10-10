@@ -91,6 +91,10 @@ def test_materialwart_sees_only_permitted_inventories():
         )
         assert renamed.status_code == 200
 
+        settings = client.get("/api/settings")
+        assert settings.status_code == 200
+        assert "MW" in settings.get_json()["contentResponsible"]
+
         _login(client, "ver")
         assert client.get("/api/inventories").get_json() == []
         assert client.get(f"/api/inventories/{inv_id}").status_code == 403

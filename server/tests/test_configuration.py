@@ -50,7 +50,19 @@ def test_settings_public_and_superuser_bootstrap():
 
         patch = client.patch(
             "/api/settings",
-            json={"title": "Neu", "subtitle": "Untertitel"},
+            json={
+                "title": "Neu",
+                "subtitle": "Untertitel",
+                "legalName": "",
+                "legalAddress": "",
+                "email": "",
+                "website": "",
+                "phone": "",
+                "representedBy": "",
+                "register": "",
+                "mapLatitude": 50.65,
+                "mapLongitude": 9.16,
+            },
         )
         assert patch.status_code == 200
         assert patch.get_json()["title"] == "Neu"

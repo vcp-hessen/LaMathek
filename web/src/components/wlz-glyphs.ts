@@ -1,0 +1,25 @@
+/** Lexikon-Buchstaben der Schrift waldlaeuferzeichen-pfadfinden (VCP Corporate Design). */
+export type WlzGlyphId =
+  | 'campPath'
+  | 'split'
+  | 'full'
+  | 'empty'
+  | 'gather'
+  | 'exchange'
+  | 'day'
+  | 'night'
+  | 'opposite'
+  | 'thisWay'
+
+export const WLZ_GLYPH: Record<WlzGlyphId, string> = {
+  campPath: 'z',
+  split: 'B',
+  full: 'X',
+  empty: 'Y',
+  gather: 'V',
+  exchange: 'v',
+  day: 't',
+  night: 's',
+  opposite: 'y',
+  thisWay: 'x',
+}

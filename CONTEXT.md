@@ -10,52 +10,62 @@ _English_: VCP Hessen
 _Avoid_: the association, the customer, Hessen
 
 **Material**:
-Something VCP Hessen holds and tracks. It is either a Stück or a Bestand, depending on its Materialart.
+Something VCP Hessen holds and tracks. It is either an Einzelteil or a Menge, depending on its Materialart.
 _English_: material
 _Avoid_: equipment, stuff, item, asset
 
 **Materialart**:
-A configurable kind of material, tracked either as individual Stücke or as a Bestand in each Inventar. Stücke of one Materialart fit together, so a normal Kohte and a Wanderkohte are two Materialarten.
+A configurable kind of material, tracked either as individual Einzelteile or as a Menge in each Inventar. Einzelteile of one Materialart fit together, so a normal Kohte and a Wanderkohte are two Materialarten. A Materialart may have a short name, description, unit (for Menge), consumable flag, and an optional Kategorie.
 _English_: material type
-_Avoid_: Artikel, Sorte, Kategorie
+_Avoid_: Artikel, Sorte
+
+**Kategorie**:
+An optional label for grouping Materialarten across the whole installation (for example Zelt, Küche, Spiel). It is not the Verleih Gruppe.
+_English_: category
+_Avoid_: Gruppe, Sorte, Bereich
 
 **Inventar**:
-A collection of material kept at one place. The Landesmaterial on Donnerskopf is one Inventar; the Landesbüro is another.
+A collection of material kept at one place. The Landesmaterial on Donnerskopf is one Inventar; the Landesbüro is another. An Inventar may have an optional address, map coordinates, and a note (for access, keys, and on-site hints).
 _English_: inventory
 _Avoid_: Standort, Lager, location
 
-**Stück**:
+**Einzelteil**:
 One identified item of a Materialart, kept in one Inventar. It sits in at most one Set, and can be moved to another Set or sit in none.
 _English_: piece
-_Avoid_: Einzelstück, Exemplar
+_Avoid_: Einzelstück, Exemplar, Stück (as the named item; Stück remains valid as a unit of measure)
 
-**Bestand**:
-A counted quantity of one Materialart in one Inventar. A Set reserves a single quantity from it; the individual pieces are not identified.
+**Menge**:
+A Materialart tracked only by count in one Inventar, without naming individual items. A Set reserves an Anzahl from it.
 _English_: stock
-_Avoid_: Menge, Vorrat
+_Avoid_: Bestand, Vorrat
+
+**Anzahl**:
+The counted value of a Menge (for example how many Heringe are in the Inventar or on a Verleih line). Not the Materialart itself.
+_English_: quantity
+_Avoid_: Menge (for the numeric field; Menge is the tracking kind)
 
 **Variante**:
-A distinction within one Materialart, defined on the Materialart and stored on the Stück. Kohtenplanen of one Materialart vary by Randstreifen (0, 10, 35, or 70 cm); those lengths still fit together.
+A distinction within one Materialart, defined on the Materialart and stored on the Einzelteil. Kohtenplanen of one Materialart vary by Randstreifen (0, 10, 35, or 70 cm); those lengths still fit together.
 _English_: variant
 _Avoid_: version, Ausführung, option
 
 **Set**:
-A named group of material in one Inventar. It has a Zuordnung, and it can list optionals.
+A named group of material in one Inventar. It has a Zuordnung, and it can list optionals. It may have a short name (Kürzel), unique per Inventar, used for naming Einzelteile in batch creation.
 _English_: set
 _Avoid_: Satz, Garnitur, kit, bundle
 
 **Zuordnung**:
-The fixed belonging of Stücke and Bestand to a Set. In the Jurte example, the Zuordnung is twelve Vierecksplanen, six Kohtenplanen, and one Abdeckplane.
+The fixed belonging of Einzelteile and Mengen to a Set. In the Jurte example, the Zuordnung is twelve Vierecksplanen, six Kohtenplanen, and one Abdeckplane.
 _English_: assignment
 _Avoid_: membership, kit list
 
 **Optional**:
-A Stück or a single quantity from a Bestand listed on a Set, outside its Zuordnung. That quantity is reserved from the Inventar's Bestand and shown on a Verleih of the Set as material that may still be handed out.
+An Einzelteil or an Anzahl from a Menge listed on a Set, outside its Zuordnung. That Anzahl is reserved from the Inventar's Menge and shown on a Verleih of the Set as material that may still be handed out.
 _English_: optional
 _Avoid_: Zubehör, Zusatz, Vorschlag
 
 **Schaden**:
-A recorded harm on a Stück, kept after repair. Severe Schaden means that Stück must not be handed out.
+A recorded harm on an Einzelteil, kept after repair. Severe Schaden means that Einzelteil must not be handed out.
 _English_: damage
 _Avoid_: Defekt, Zustand, condition
 

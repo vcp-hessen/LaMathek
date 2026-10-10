@@ -8,6 +8,10 @@ from lamathek.db import init_db
 from lamathek.routes.api import api_bp
 from lamathek.routes.auth_routes import auth_bp
 from lamathek.routes.inventories_routes import inventories_bp
+from lamathek.routes.material_routes import material_bp
+from lamathek.routes.loans_routes import loans_bp
+from lamathek.routes.sets_routes import sets_bp
+from lamathek.routes.geocode_routes import geocode_bp
 from lamathek.routes.settings_routes import settings_bp
 from lamathek.routes.users_routes import users_bp
 
@@ -24,7 +28,11 @@ def create_app(config: type[Config] = Config) -> Flask:
 
     app.register_blueprint(api_bp)
     app.register_blueprint(inventories_bp)
+    app.register_blueprint(material_bp)
+    app.register_blueprint(sets_bp)
+    app.register_blueprint(loans_bp)
     app.register_blueprint(settings_bp)
+    app.register_blueprint(geocode_bp)
     app.register_blueprint(users_bp)
     app.register_blueprint(auth_bp)
 
