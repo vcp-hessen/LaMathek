@@ -80,8 +80,8 @@ function itemClass(active: boolean, expanded: boolean) {
 </script>
 
 <template>
-  <div class="space-y-2">
-    <div v-if="showInventoryPicker">
+  <div class="flex min-h-0 flex-1 flex-col gap-2">
+    <div v-if="showInventoryPicker" class="shrink-0">
       <p
         v-show="expanded"
         class="mb-1 px-2 text-xs font-medium uppercase tracking-wide text-white/50"
@@ -95,6 +95,7 @@ function itemClass(active: boolean, expanded: boolean) {
       >
         <AppInventorySwitcher
           sidebar
+          :expanded="expanded"
           :inventories="inventories"
           :loading="inventoriesLoading"
         />
@@ -106,7 +107,10 @@ function itemClass(active: boolean, expanded: boolean) {
       />
     </div>
 
-    <ul v-if="showInventoryPicker && activeInventoryId" class="space-y-1">
+    <ul
+      v-if="showInventoryPicker && activeInventoryId"
+      class="min-h-0 flex-1 space-y-1 overflow-y-auto"
+    >
       <li v-for="link in workspaceLinks" :key="link.key">
         <div
           class="tooltip tooltip-right w-full"

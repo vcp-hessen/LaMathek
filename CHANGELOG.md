@@ -13,8 +13,14 @@ LaMathek uses [CalVer](https://calver.org/) as `YYYY.MM.MICRO`. Nothing has been
 - Optionales Live-Reload-Compose (`deploy/docker-compose.dev.yml`) mit Bind-Mount, Flask-Reloader und Vite-HMR.
 - Superuser-only Löschen für Inventare, Materialarten, Stücke und Sets mit Bestätigungsdialog und Hinweis auf unwiderruflich mitgelöschte abhängige Daten.
 
+### Changed
+
+- Sidebar: Einstellungen und Abmelden mit Waldläuferzeichen (geheim, zurück zum Anfang).
+- Inventarwahl in der Sidebar als kompaktes Dropdown (Teleport), in der schmalen Leiste nur WLZ-Icon.
+
 ### Fixed
 
+- Mobil: Theme und Abmelden nicht mehr doppelt in der Kopfzeile (nur im Hamburger-Menü).
 - Staging-Image findet das gebaute Frontend über `LAMATHEK_STATIC_ROOT` (nach `pip install` liegt das Paket nicht mehr neben `web/dist`).
 - Staging-Start migriert dieselbe SQLite-Datei, die die App öffnet (`SQLITE_PATH=/data/lamathek.sqlite3`). Vorher lief Alembic aus dem Quellbaum und die App aus `site-packages` gegen zwei verschiedene Dateien, `/api/settings` antwortete dann mit 500.
 - Inventar-Umschalter lädt Listen und Detailansichten des gewählten Inventars neu (reaktive vue-query-Keys, Navigation behält den aktuellen Bereich).

@@ -37,7 +37,9 @@
     "day": "Tag",
     "night": "Nacht",
     "opposite": "entgegengesetzte Richtung",
-    "thisWay": "Dort, hier entlang"
+    "thisWay": "Dort, hier entlang",
+    "geheim": "geheim",
+    "backToStart": "zurück zum Anfang"
   },
   "dev": {
     "authBypass": "Entwicklungsanmeldung aktiv (ohne OpenID Connect)."

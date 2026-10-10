@@ -10,6 +10,8 @@ export type WlzGlyphId =
   | 'night'
   | 'opposite'
   | 'thisWay'
+  | 'geheim'
+  | 'backToStart'
 
 export const WLZ_GLYPH: Record<WlzGlyphId, string> = {
   campPath: 'z',

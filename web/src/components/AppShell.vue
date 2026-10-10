@@ -9,7 +9,6 @@ import { fetchMe, logout } from '../api/me'
 import AppBreadcrumbs from './AppBreadcrumbs.vue'
 import AppFooter from './AppFooter.vue'
 import AppSidebarChrome from './AppSidebarChrome.vue'
-import WlzIcon from './WlzIcon.vue'
 import { useInventoryStore } from '../stores/inventory'
 import { useUiStore } from '../stores/ui'
 
@@ -162,24 +161,10 @@ async function onSignOut() {
         <div class="flex min-w-0 flex-1 items-center gap-2 px-2 sm:gap-3">
           <AppBreadcrumbs class="min-w-0 flex-1" />
         </div>
-        <div class="flex-none gap-1 pr-1 md:hidden">
-          <button
-            type="button"
-            class="btn btn-ghost btn-sm btn-square"
-            :aria-label="t('theme.toggle')"
-            @click="ui.toggleTheme()"
-          >
-            <WlzIcon
-              :glyph="ui.theme === 'light' ? 'night' : 'day'"
-              size-class="text-xl"
-            />
-          </button>
-          <a v-if="!me" class="btn btn-primary btn-sm" href="/login">
+        <div v-if="!me" class="flex-none pr-1 md:hidden">
+          <a class="btn btn-primary btn-sm" href="/login">
             {{ t('auth.signIn') }}
           </a>
-          <button v-else type="button" class="btn btn-ghost btn-sm" @click="onSignOut">
-            {{ t('auth.signOut') }}
-          </button>
         </div>
       </header>
 
