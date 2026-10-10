@@ -7,6 +7,15 @@ export const categorySchema = z.object({
 
 export type Category = z.infer<typeof categorySchema>
 
+export const variantAxisSchema = z.object({
+  label: z.string(),
+  values: z.array(z.string()),
+})
+
+export type VariantAxis = z.infer<typeof variantAxisSchema>
+
+export const variantMapSchema = z.record(z.string(), z.string())
+
 export const materialTypeSchema = z.object({
   id: z.number(),
   inventoryId: z.number(),
@@ -18,8 +27,7 @@ export const materialTypeSchema = z.object({
   consumable: z.boolean(),
   categoryId: z.number().nullable(),
   categoryName: z.string().nullable(),
-  variantLabel: z.string().nullable(),
-  variantValues: z.array(z.string()),
+  variants: z.array(variantAxisSchema),
 })
 
 export type MaterialType = z.infer<typeof materialTypeSchema>
@@ -29,7 +37,7 @@ export const pieceSchema = z.object({
   materialTypeId: z.number(),
   materialTypeName: z.string(),
   name: z.string(),
-  variant: z.string().nullable(),
+  variant: variantMapSchema,
   setId: z.number().nullable(),
   setRole: z.enum(['assignment', 'optional']).nullable(),
   setName: z.string().nullable(),
@@ -63,7 +71,7 @@ export type PieceDetail = z.infer<typeof pieceDetailSchema>
 export const stockLotSchema = z.object({
   id: z.number(),
   label: z.string().nullable(),
-  variant: z.string().nullable(),
+  variant: variantMapSchema,
   quantity: z.number(),
 })
 
@@ -71,8 +79,7 @@ export const stockRowSchema = z.object({
   materialTypeId: z.number(),
   materialTypeName: z.string(),
   unit: z.string().nullable(),
-  variantLabel: z.string().nullable(),
-  variantValues: z.array(z.string()),
+  variants: z.array(variantAxisSchema),
   quantity: z.number(),
   lots: z.array(stockLotSchema),
 })

@@ -18,6 +18,12 @@ import { useApiErrorMessage } from '../composables/useApiErrorMessage'
 import { useInventoryQueryKey } from '../composables/useInventoryQueryKey'
 import ExpandableRow from './ExpandableRow.vue'
 import SuperuserDestructiveDelete from './SuperuserDestructiveDelete.vue'
+import VariantAxisSelects from './VariantAxisSelects.vue'
+import {
+  emptyVariantMap,
+  syncVariantMapKeys,
+  variantMapSummary,
+} from '../utils/variantDisplay'
 
 const NEW_ROW = 'new' as const
 const BATCH_ROW = 'batch' as const
@@ -35,16 +41,16 @@ const filterMaterialTypeId = ref<string>('')
 
 const materialTypeId = ref<string>('')
 const pieceName = ref('')
-const variant = ref('')
+const variant = ref<Record<string, string>>({})
 
 const editMaterialTypeId = ref<string>('')
 const editPieceName = ref('')
-const editVariant = ref('')
+const editVariant = ref<Record<string, string>>({})
 
 const batchMaterialTypeId = ref<string>('')
 const batchCount = ref(4)
 const batchNamePattern = ref('')
-const batchVariant = ref('')
+const batchVariant = ref<Record<string, string>>({})
 const batchSetMode = ref<'none' | 'existing' | 'new'>('none')
 const batchSetId = ref<string>('')
 const batchNewSetName = ref('')
@@ -82,19 +88,29 @@ const selectedType = computed(() =>
   pieceTypes.value.find((mt) => String(mt.id) === materialTypeId.value),
 )
 
-const variantOptions = computed(() => selectedType.value?.variantValues ?? [])
+const selectedTypeAxes = computed(() => selectedType.value?.variants ?? [])
 
 const batchSelectedType = computed(() =>
   pieceTypes.value.find((mt) => String(mt.id) === batchMaterialTypeId.value),
 )
 
-const batchVariantOptions = computed(() => batchSelectedType.value?.variantValues ?? [])
+const batchTypeAxes = computed(() => batchSelectedType.value?.variants ?? [])
 
 const editSelectedType = computed(() =>
   pieceTypes.value.find((mt) => String(mt.id) === editMaterialTypeId.value),
 )
 
-const editVariantOptions = computed(() => editSelectedType.value?.variantValues ?? [])
+const editTypeAxes = computed(() => editSelectedType.value?.variants ?? [])
+
+function variantPayload(axes: { label: string; values: string[] }[], map: Record<string, string>) {
+  if (!axes.length) return undefined
+  const payload: Record<string, string> = {}
+  for (const axis of axes) {
+    const value = map[axis.label]?.trim()
+    if (value) payload[axis.label] = value
+  }
+  return payload
+}
 
 const filteredPieces = computed(() => {
   let list = pieces.value ?? []
@@ -176,16 +192,16 @@ watch(
 )
 
 watch(materialTypeId, () => {
-  variant.value = ''
+  variant.value = emptyVariantMap(selectedTypeAxes.value)
 })
 
 watch(batchMaterialTypeId, () => {
-  batchVariant.value = ''
+  batchVariant.value = emptyVariantMap(batchTypeAxes.value)
 })
 
 function resetCreateDraft() {
   pieceName.value = ''
-  variant.value = ''
+  variant.value = emptyVariantMap(selectedTypeAxes.value)
   materialTypeId.value = pieceTypes.value[0] ? String(pieceTypes.value[0].id) : ''
 }
 
@@ -193,7 +209,7 @@ function resetBatchDraft() {
   batchMaterialTypeId.value = pieceTypes.value[0] ? String(pieceTypes.value[0].id) : ''
   batchCount.value = 4
   batchNamePattern.value = ''
-  batchVariant.value = ''
+  batchVariant.value = emptyVariantMap(batchTypeAxes.value)
   batchSetMode.value = 'none'
   batchSetId.value = ''
   batchNewSetName.value = ''
@@ -204,7 +220,10 @@ function resetBatchDraft() {
 function loadEditDraft(piece: Piece) {
   editMaterialTypeId.value = String(piece.materialTypeId)
   editPieceName.value = piece.name
-  editVariant.value = piece.variant ?? ''
+  const mt = pieceTypes.value.find((row) => row.id === piece.materialTypeId)
+  editVariant.value = mt
+    ? syncVariantMapKeys(piece.variant, mt.variants)
+    : { ...piece.variant }
   formError.value = null
 }
 
@@ -240,10 +259,8 @@ function toggleRow(id: number) {
 
 watch(editMaterialTypeId, (newId, oldId) => {
   if (oldId && newId !== oldId && typeof expandedKey.value === 'number') {
-    const opts = pieceTypes.value.find((mt) => String(mt.id) === newId)?.variantValues ?? []
-    if (!opts.includes(editVariant.value)) {
-      editVariant.value = ''
-    }
+    const mt = pieceTypes.value.find((row) => String(row.id) === newId)
+    if (mt) editVariant.value = syncVariantMapKeys(editVariant.value, mt.variants)
   }
 })
 
@@ -253,7 +270,7 @@ const createMutation = useMutation({
     return createPiece(props.inventoryId, {
       materialTypeId: Number(materialTypeId.value),
       name: pieceName.value,
-      variant: variantOptions.value.length ? variant.value : null,
+      variant: variantPayload(selectedTypeAxes.value, variant.value),
     })
   },
   onSuccess: async () => {
@@ -274,7 +291,7 @@ const batchMutation = useMutation({
       materialTypeId: Number(batchMaterialTypeId.value),
       count: batchCount.value,
       namePattern: batchNamePattern.value,
-      variant: batchVariantOptions.value.length ? batchVariant.value || null : null,
+      variant: variantPayload(batchTypeAxes.value, batchVariant.value),
     }
     if (batchSetMode.value === 'existing' && batchSetId.value) {
       return createPiecesBatch(props.inventoryId, {
@@ -308,7 +325,7 @@ const updateMutation = useMutation({
     updatePiece(id, {
       name: editPieceName.value,
       materialTypeId: Number(editMaterialTypeId.value),
-      variant: editVariantOptions.value.length ? editVariant.value || null : null,
+      variant: variantPayload(editTypeAxes.value, editVariant.value),
     }),
   onSuccess: async () => {
     formError.value = null
@@ -333,7 +350,9 @@ const deleteMutation = useMutation({
 
 function pieceSummaryMeta(piece: Piece): string {
   const parts: string[] = []
-  if (piece.variant) parts.push(piece.variant)
+  const mt = types.value?.find((row) => row.id === piece.materialTypeId)
+  const variantText = mt ? variantMapSummary(mt.variants, piece.variant) : ''
+  if (variantText) parts.push(variantText)
   if (piece.setName) parts.push(t('sets.onSet', { name: piece.setName }))
   return parts.join(' · ')
 }
@@ -407,15 +426,11 @@ watch(expandedKey, (key) => {
                   :placeholder="t('material.pieceName')"
                   required
                 />
-                <select
-                  v-if="variantOptions.length"
+                <VariantAxisSelects
+                  v-if="selectedTypeAxes.length"
                   v-model="variant"
-                  class="select select-bordered w-full"
-                  required
-                >
-                  <option disabled value="">{{ t('material.pieceVariant') }}</option>
-                  <option v-for="v in variantOptions" :key="v" :value="v">{{ v }}</option>
-                </select>
+                  :axes="selectedTypeAxes"
+                />
                 <p v-if="formError" class="text-sm text-error">{{ formError }}</p>
                 <div class="flex justify-end gap-2">
                   <button type="button" class="btn btn-ghost btn-sm" @click="closeExpandedRow">
@@ -452,15 +467,11 @@ watch(expandedKey, (key) => {
                     {{ mt.name }}
                   </option>
                 </select>
-                <select
-                  v-if="batchVariantOptions.length"
+                <VariantAxisSelects
+                  v-if="batchTypeAxes.length"
                   v-model="batchVariant"
-                  class="select select-bordered w-full"
-                  required
-                >
-                  <option disabled value="">{{ t('material.pieceVariant') }}</option>
-                  <option v-for="v in batchVariantOptions" :key="v" :value="v">{{ v }}</option>
-                </select>
+                  :axes="batchTypeAxes"
+                />
                 <label class="flex flex-col gap-1">
                   <span class="text-xs opacity-80">{{ t('material.pieceBatchCount') }}</span>
                   <input
@@ -613,15 +624,11 @@ watch(expandedKey, (key) => {
                     :placeholder="t('material.pieceName')"
                     required
                   />
-                  <select
-                    v-if="editVariantOptions.length"
+                  <VariantAxisSelects
+                    v-if="editTypeAxes.length"
                     v-model="editVariant"
-                    class="select select-bordered w-full"
-                    required
-                  >
-                    <option disabled value="">{{ t('material.pieceVariant') }}</option>
-                    <option v-for="v in editVariantOptions" :key="v" :value="v">{{ v }}</option>
-                  </select>
+                    :axes="editTypeAxes"
+                  />
                   <p v-if="formError && expandedKey === piece.id" class="text-sm text-error">
                     {{ formError }}
                   </p>

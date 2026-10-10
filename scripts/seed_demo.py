@@ -80,36 +80,36 @@ def main() -> None:
             inventory,
             name="Kohtenplane",
             tracking="piece",
-            variant_label="Randstreifen",
-            variant_values=["0 cm", "10 cm", "35 cm"],
+            variants=[{"label": "Randstreifen", "values": ["0 cm", "10 cm", "35 cm"]}],
         )
         brett = create_material_type(
             session,
             inventory,
             name="Brettspiel",
             tracking="piece",
-            variant_label=None,
-            variant_values=[],
+            variants=[],
         )
         heringe = create_material_type(
             session,
             inventory,
             name="Heringe",
             tracking="stock",
-            variant_label=None,
-            variant_values=[],
+            variants=[],
         )
         seile = create_material_type(
             session,
             inventory,
             name="Seile",
             tracking="stock",
-            variant_label=None,
-            variant_values=[],
+            variants=[],
         )
 
-        plane_a = create_piece(session, inventory, kohte.id, "Plane A", "10 cm")
-        plane_b = create_piece(session, inventory, kohte.id, "Plane B", "35 cm")
+        plane_a = create_piece(
+            session, inventory, kohte.id, "Plane A", {"Randstreifen": "10 cm"}
+        )
+        plane_b = create_piece(
+            session, inventory, kohte.id, "Plane B", {"Randstreifen": "35 cm"}
+        )
         catan = create_piece(session, inventory, brett.id, "Catan", None)
         beamer = create_piece(session, inventory, brett.id, "Beamer", None)
 

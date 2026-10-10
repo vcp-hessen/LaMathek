@@ -56,7 +56,7 @@ def test_material_types_scoped_to_inventory():
 
         created = client.post(
             f"/api/inventories/{inv_a}/material-types",
-            json={"name": "Brettspiel", "tracking": "piece", "variantValues": []},
+            json={"name": "Brettspiel", "tracking": "piece", "variants": []},
         )
         assert created.status_code == 201
         type_id = created.get_json()["id"]
@@ -161,8 +161,9 @@ def test_variant_must_be_allowed_value():
             json={
                 "name": "Kohtenplane",
                 "tracking": "piece",
-                "variantLabel": "Randstreifen",
-                "variantValues": ["0 cm", "35 cm"],
+                "variants": [
+                    {"label": "Randstreifen", "values": ["0 cm", "35 cm"]},
+                ],
             },
         )
         assert plane.status_code == 201
@@ -170,15 +171,93 @@ def test_variant_must_be_allowed_value():
 
         bad = client.post(
             f"/api/inventories/{inv_a}/pieces",
-            json={"materialTypeId": type_id, "name": "P1", "variant": "99 cm"},
+            json={
+                "materialTypeId": type_id,
+                "name": "P1",
+                "variant": {"Randstreifen": "99 cm"},
+            },
         )
         assert bad.status_code == 400
         assert bad.get_json()["error"] == "invalid_variant"
 
         good = client.post(
             f"/api/inventories/{inv_a}/pieces",
-            json={"materialTypeId": type_id, "name": "P1", "variant": "35 cm"},
+            json={
+                "materialTypeId": type_id,
+                "name": "P1",
+                "variant": {"Randstreifen": "35 cm"},
+            },
         )
         assert good.status_code == 201
+    finally:
+        tmp.cleanup()
+
+
+def test_material_type_can_gain_variant_axis_while_pieces_exist():
+    app, tmp = _app_with_db()
+    try:
+        with app.app_context():
+            session = get_session()
+            upsert_user_from_oidc(
+                session,
+                sub="su",
+                name="SU",
+                email=None,
+                force_superuser=True,
+            )
+            session.commit()
+
+        client = app.test_client()
+        inv_a, _ = _setup_inventories(client)
+
+        created = client.post(
+            f"/api/inventories/{inv_a}/material-types",
+            json={
+                "name": "Kohtenplane",
+                "tracking": "piece",
+                "variants": [{"label": "Randstreifen", "values": ["35 cm"]}],
+            },
+        )
+        type_id = created.get_json()["id"]
+        piece = client.post(
+            f"/api/inventories/{inv_a}/pieces",
+            json={
+                "materialTypeId": type_id,
+                "name": "P1",
+                "variant": {"Randstreifen": "35 cm"},
+            },
+        )
+        assert piece.status_code == 201
+
+        updated = client.patch(
+            f"/api/material-types/{type_id}",
+            json={
+                "variants": [
+                    {"label": "Randstreifen", "values": ["35 cm"]},
+                    {"label": "Farbe", "values": ["rot", "blau"]},
+                ],
+            },
+        )
+        assert updated.status_code == 200
+        body = updated.get_json()
+        assert len(body["variants"]) == 2
+
+        piece_row = client.get(f"/api/inventories/{inv_a}/pieces").get_json()[0]
+        assert piece_row["variant"] == {"Randstreifen": "35 cm"}
+        piece_id = piece_row["id"]
+
+        saved = client.patch(
+            f"/api/pieces/{piece_id}",
+            json={
+                "materialTypeId": type_id,
+                "name": "P1",
+                "variant": {"Randstreifen": "35 cm", "Farbe": "rot"},
+            },
+        )
+        assert saved.status_code == 200
+        assert saved.get_json()["variant"] == {
+            "Randstreifen": "35 cm",
+            "Farbe": "rot",
+        }
     finally:
         tmp.cleanup()

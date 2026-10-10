@@ -25,7 +25,6 @@ class MaterialType(Base):
     )
     name: Mapped[str] = mapped_column(String(255))
     tracking: Mapped[str] = mapped_column(String(16))
-    variant_label: Mapped[str | None] = mapped_column(String(255), nullable=True)
     short_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
     description: Mapped[str | None] = mapped_column(Text(), nullable=True)
     unit: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -36,10 +35,10 @@ class MaterialType(Base):
 
     inventory: Mapped["Inventory"] = relationship(back_populates="material_types")
     category: Mapped["Category | None"] = relationship(back_populates="material_types")
-    variant_values: Mapped[list["MaterialTypeVariantValue"]] = relationship(
+    variants: Mapped[list["MaterialTypeVariant"]] = relationship(
         back_populates="material_type",
         cascade="all, delete-orphan",
-        order_by="MaterialTypeVariantValue.sort_order",
+        order_by="MaterialTypeVariant.sort_order",
     )
     pieces: Mapped[list["Piece"]] = relationship(
         back_populates="material_type",
@@ -52,13 +51,13 @@ class MaterialType(Base):
     )
 
 
-class MaterialTypeVariantValue(Base):
-    __tablename__ = "material_type_variant_values"
+class MaterialTypeVariant(Base):
+    __tablename__ = "material_type_variants"
     __table_args__ = (
         UniqueConstraint(
             "material_type_id",
-            "value",
-            name="uq_material_type_variant_value",
+            "label",
+            name="uq_material_type_variant_label",
         ),
     )
 
@@ -66,10 +65,35 @@ class MaterialTypeVariantValue(Base):
     material_type_id: Mapped[int] = mapped_column(
         ForeignKey("material_types.id", ondelete="CASCADE")
     )
+    label: Mapped[str] = mapped_column(String(255))
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    material_type: Mapped["MaterialType"] = relationship(back_populates="variants")
+    values: Mapped[list["MaterialTypeVariantValue"]] = relationship(
+        back_populates="variant",
+        cascade="all, delete-orphan",
+        order_by="MaterialTypeVariantValue.sort_order",
+    )
+
+
+class MaterialTypeVariantValue(Base):
+    __tablename__ = "material_type_variant_values"
+    __table_args__ = (
+        UniqueConstraint(
+            "variant_id",
+            "value",
+            name="uq_material_type_variant_value",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    variant_id: Mapped[int] = mapped_column(
+        ForeignKey("material_type_variants.id", ondelete="CASCADE")
+    )
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     value: Mapped[str] = mapped_column(String(255))
 
-    material_type: Mapped["MaterialType"] = relationship(back_populates="variant_values")
+    variant: Mapped["MaterialTypeVariant"] = relationship(back_populates="values")
 
 
 class Piece(Base):
@@ -87,7 +111,6 @@ class Piece(Base):
         ForeignKey("material_types.id", ondelete="CASCADE")
     )
     name: Mapped[str] = mapped_column(String(255))
-    variant: Mapped[str | None] = mapped_column(String(255), nullable=True)
     set_id: Mapped[int | None] = mapped_column(
         ForeignKey("sets.id", ondelete="SET NULL"), nullable=True
     )
@@ -95,11 +118,32 @@ class Piece(Base):
 
     material_type: Mapped["MaterialType"] = relationship(back_populates="pieces")
     material_set: Mapped["MaterialSet | None"] = relationship(back_populates="pieces")
+    variant_selections: Mapped[list["PieceVariantValue"]] = relationship(
+        back_populates="piece",
+        cascade="all, delete-orphan",
+    )
     damages: Mapped[list["Damage"]] = relationship(
         back_populates="piece",
         cascade="all, delete-orphan",
         order_by="Damage.id",
     )
+
+
+class PieceVariantValue(Base):
+    __tablename__ = "piece_variant_values"
+    __table_args__ = (
+        UniqueConstraint("piece_id", "variant_id", name="uq_piece_variant_value"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    piece_id: Mapped[int] = mapped_column(ForeignKey("pieces.id", ondelete="CASCADE"))
+    variant_id: Mapped[int] = mapped_column(
+        ForeignKey("material_type_variants.id", ondelete="CASCADE")
+    )
+    value: Mapped[str] = mapped_column(String(255))
+
+    piece: Mapped["Piece"] = relationship(back_populates="variant_selections")
+    variant: Mapped["MaterialTypeVariant"] = relationship()
 
 
 class StockLot(Base):
@@ -113,7 +157,29 @@ class StockLot(Base):
         ForeignKey("material_types.id", ondelete="CASCADE")
     )
     label: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    variant: Mapped[str | None] = mapped_column(String(255), nullable=True)
     quantity: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
     material_type: Mapped["MaterialType"] = relationship(back_populates="stock_lots")
+    variant_selections: Mapped[list["StockLotVariantValue"]] = relationship(
+        back_populates="stock_lot",
+        cascade="all, delete-orphan",
+    )
+
+
+class StockLotVariantValue(Base):
+    __tablename__ = "stock_lot_variant_values"
+    __table_args__ = (
+        UniqueConstraint("stock_lot_id", "variant_id", name="uq_stock_lot_variant_value"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    stock_lot_id: Mapped[int] = mapped_column(
+        ForeignKey("stock_lots.id", ondelete="CASCADE")
+    )
+    variant_id: Mapped[int] = mapped_column(
+        ForeignKey("material_type_variants.id", ondelete="CASCADE")
+    )
+    value: Mapped[str] = mapped_column(String(255))
+
+    stock_lot: Mapped["StockLot"] = relationship(back_populates="variant_selections")
+    variant: Mapped["MaterialTypeVariant"] = relationship()

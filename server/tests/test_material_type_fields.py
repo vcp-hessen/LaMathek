@@ -60,7 +60,7 @@ def test_material_type_extended_fields_and_category():
                 "unit": "Stück",
                 "consumable": True,
                 "categoryName": "Zelt",
-                "variantValues": [],
+                "variants": [],
             },
         )
         assert created.status_code == 201
@@ -78,7 +78,7 @@ def test_material_type_extended_fields_and_category():
                 "name": "Seile",
                 "tracking": "stock",
                 "categoryId": category_id,
-                "variantValues": [],
+                "variants": [],
             },
         )
         assert second.status_code == 201
@@ -95,7 +95,7 @@ def test_material_type_extended_fields_and_category():
                 "name": "Planen",
                 "tracking": "stock",
                 "categoryName": "Zelt",
-                "variantValues": [],
+                "variants": [],
             },
         )
         assert again.status_code == 201
@@ -107,7 +107,7 @@ def test_material_type_extended_fields_and_category():
                 "name": "Plane",
                 "tracking": "piece",
                 "unit": "Stück",
-                "variantValues": [],
+                "variants": [],
             },
         )
         assert piece_type.status_code == 400

@@ -45,19 +45,18 @@ def test_stock_lots_sum_and_variant():
             json={
                 "name": "Heringe",
                 "tracking": "stock",
-                "variantLabel": "Länge",
-                "variantValues": ["30 cm", "40 cm"],
+                "variants": [{"label": "Länge", "values": ["30 cm", "40 cm"]}],
             },
         )
         type_id = created.get_json()["id"]
         first = client.post(
             f"/api/inventories/{inv_id}/stocks/{type_id}/lots",
-            json={"label": "Kiste I", "variant": "30 cm", "quantity": 20},
+            json={"label": "Kiste I", "variant": {"Länge": "30 cm"}, "quantity": 20},
         )
         assert first.status_code == 201
         second = client.post(
             f"/api/inventories/{inv_id}/stocks/{type_id}/lots",
-            json={"label": "Kiste II", "variant": "40 cm", "quantity": 15},
+            json={"label": "Kiste II", "variant": {"Länge": "40 cm"}, "quantity": 15},
         )
         assert second.status_code == 201
         row = second.get_json()
@@ -66,7 +65,7 @@ def test_stock_lots_sum_and_variant():
 
         bad = client.post(
             f"/api/inventories/{inv_id}/stocks/{type_id}/lots",
-            json={"variant": "99 cm", "quantity": 1},
+            json={"variant": {"Länge": "99 cm"}, "quantity": 1},
         )
         assert bad.status_code == 400
         assert bad.get_json()["error"] == "invalid_variant"

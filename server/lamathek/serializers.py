@@ -15,6 +15,11 @@ from lamathek.models.loan import (
 from lamathek.models.damage import Damage, Repair
 from lamathek.models.category import Category
 from lamathek.models.material import MaterialType, Piece
+from lamathek.services.variants import (
+    piece_variant_to_json,
+    stock_lot_variant_to_json,
+    variants_to_json,
+)
 from lamathek.models.set import SET_ROLE_ASSIGNMENT, SET_ROLE_OPTIONAL, MaterialSet
 from lamathek.models.settings import InstallationSettings
 from lamathek.models.user import User
@@ -77,8 +82,7 @@ def material_type_to_json(material_type: MaterialType) -> dict:
         "consumable": material_type.consumable,
         "categoryId": material_type.category_id,
         "categoryName": category.name if category is not None else None,
-        "variantLabel": material_type.variant_label,
-        "variantValues": [v.value for v in material_type.variant_values],
+        "variants": variants_to_json(material_type),
     }
 
 
@@ -107,7 +111,7 @@ def piece_to_json(piece: Piece) -> dict:
         "materialTypeId": piece.material_type_id,
         "materialTypeName": piece.material_type.name,
         "name": piece.name,
-        "variant": piece.variant,
+        "variant": piece_variant_to_json(piece),
         "setId": piece.set_id,
         "setRole": piece.set_role,
         "setName": piece.material_set.name if piece.material_set else None,
@@ -284,14 +288,13 @@ def stock_to_json(material_type: MaterialType) -> dict:
         "materialTypeId": material_type.id,
         "materialTypeName": material_type.name,
         "unit": material_type.unit,
-        "variantLabel": material_type.variant_label,
-        "variantValues": [value.value for value in material_type.variant_values],
+        "variants": variants_to_json(material_type),
         "quantity": sum(lot.quantity for lot in lots),
         "lots": [
             {
                 "id": lot.id,
                 "label": lot.label,
-                "variant": lot.variant,
+                "variant": stock_lot_variant_to_json(lot),
                 "quantity": lot.quantity,
             }
             for lot in lots

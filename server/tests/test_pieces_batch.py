@@ -201,8 +201,7 @@ def test_batch_invalid_variant_rolls_back():
             json={
                 "name": "Plane",
                 "tracking": "piece",
-                "variantLabel": "Rand",
-                "variantValues": ["0 cm"],
+                "variants": [{"label": "Rand", "values": ["0 cm"]}],
             },
         )
         plane_id = mt.get_json()["id"]
@@ -213,7 +212,7 @@ def test_batch_invalid_variant_rolls_back():
                 "materialTypeId": plane_id,
                 "count": 2,
                 "namePattern": "P-{n}",
-                "variant": "99 cm",
+                "variant": {"Rand": "99 cm"},
             },
         )
         assert batch.status_code == 400

@@ -1,4 +1,4 @@
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -9,10 +9,22 @@ from lamathek.models.material import (
     TRACKING_PIECE,
     TRACKING_STOCK,
     MaterialType,
-    MaterialTypeVariantValue,
     Piece,
     StockLot,
     VALID_TRACKING,
+)
+from lamathek.services.variants import (
+    assert_variants_compatible_with_lots,
+    assert_variants_compatible_with_pieces,
+    parse_variants_payload,
+    piece_variant_load_options,
+    replace_material_type_variants,
+    set_lot_variant_map,
+    set_piece_variant_map,
+    stock_lot_variant_load_options,
+    validate_lot_variant_map,
+    validate_piece_variant_map,
+    variant_load_options,
 )
 
 
@@ -21,9 +33,9 @@ def _load_material_type(session: Session, material_type_id: int) -> MaterialType
         select(MaterialType)
         .where(MaterialType.id == material_type_id)
         .options(
-            selectinload(MaterialType.variant_values),
-            selectinload(MaterialType.pieces),
-            selectinload(MaterialType.stock_lots),
+            *variant_load_options(),
+            selectinload(MaterialType.pieces).selectinload(Piece.variant_selections),
+            selectinload(MaterialType.stock_lots).selectinload(StockLot.variant_selections),
             selectinload(MaterialType.inventory),
             selectinload(MaterialType.category),
         )
@@ -39,17 +51,10 @@ def list_material_types(session: Session, inventory_id: int) -> list[MaterialTyp
         session.scalars(
             select(MaterialType)
             .where(MaterialType.inventory_id == inventory_id)
-            .options(
-                selectinload(MaterialType.variant_values),
-                selectinload(MaterialType.category),
-            )
+            .options(*variant_load_options(), selectinload(MaterialType.category))
             .order_by(MaterialType.name)
         ).all()
     )
-
-
-def _variant_value_strings(material_type: MaterialType) -> list[str]:
-    return [v.value for v in material_type.variant_values]
 
 
 def _material_type_has_usage(material_type: MaterialType) -> bool:
@@ -58,36 +63,6 @@ def _material_type_has_usage(material_type: MaterialType) -> bool:
     if material_type.stock_lots:
         return True
     return False
-
-
-def _validate_variant_values(values: list[str]) -> list[str]:
-    cleaned: list[str] = []
-    seen: set[str] = set()
-    for raw in values:
-        if not isinstance(raw, str):
-            raise ValueError("invalid_variant_values")
-        value = raw.strip()
-        if not value:
-            continue
-        if value in seen:
-            continue
-        seen.add(value)
-        cleaned.append(value)
-    return cleaned
-
-
-def _validate_piece_variant(material_type: MaterialType, variant: str | None) -> str | None:
-    allowed = _variant_value_strings(material_type)
-    if not allowed:
-        if variant is not None and str(variant).strip():
-            raise ValueError("variant_not_allowed")
-        return None
-    if variant is None or not str(variant).strip():
-        raise ValueError("variant_required")
-    chosen = str(variant).strip()
-    if chosen not in allowed:
-        raise ValueError("invalid_variant")
-    return chosen
 
 
 def _normalize_short_name(value: str | None) -> str | None:
@@ -115,8 +90,7 @@ def create_material_type(
     inventory: Inventory,
     name: str,
     tracking: str,
-    variant_label: str | None,
-    variant_values: list[str],
+    variants_payload,
     *,
     short_name: str | None = None,
     description: str | None = None,
@@ -127,12 +101,7 @@ def create_material_type(
 ) -> MaterialType:
     if tracking not in VALID_TRACKING:
         raise ValueError("invalid_tracking")
-    cleaned_values = _validate_variant_values(variant_values)
-    label = variant_label.strip() if isinstance(variant_label, str) and variant_label.strip() else None
-    if cleaned_values and not label:
-        raise ValueError("variant_label_required")
-    if label and not cleaned_values:
-        label = None
+    axes = parse_variants_payload(variants_payload)
 
     resolved_category_id = resolve_category_id(
         session, category_id=category_id, category_name=category_name
@@ -141,7 +110,6 @@ def create_material_type(
         inventory_id=inventory.id,
         name=name.strip(),
         tracking=tracking,
-        variant_label=label,
         short_name=_normalize_short_name(short_name),
         description=_normalize_optional_text(description),
         unit=_unit_for_tracking(tracking, unit),
@@ -150,14 +118,7 @@ def create_material_type(
     )
     session.add(material_type)
     session.flush()
-    for index, value in enumerate(cleaned_values):
-        session.add(
-            MaterialTypeVariantValue(
-                material_type_id=material_type.id,
-                sort_order=index,
-                value=value,
-            )
-        )
+    replace_material_type_variants(session, material_type, axes)
     try:
         session.commit()
     except IntegrityError as exc:
@@ -175,8 +136,7 @@ def update_material_type(
     *,
     name: str | None = None,
     tracking: str | None = None,
-    variant_label: str | None = None,
-    variant_values: list[str] | None = None,
+    variants_payload=None,
     short_name: str | None = None,
     description: str | None = None,
     unit: str | None = None,
@@ -220,43 +180,11 @@ def update_material_type(
             clear=clear_category,
         )
 
-    if variant_values is not None or variant_label is not None:
-        new_label = material_type.variant_label
-        if variant_label is not None:
-            new_label = (
-                variant_label.strip()
-                if isinstance(variant_label, str) and variant_label.strip()
-                else None
-            )
-        new_values = (
-            _validate_variant_values(variant_values)
-            if variant_values is not None
-            else _variant_value_strings(material_type)
-        )
-        if new_values and not new_label:
-            raise ValueError("variant_label_required")
-        if not new_values:
-            new_label = None
-        for piece in material_type.pieces:
-            if new_values:
-                if piece.variant not in new_values:
-                    raise ValueError("variant_in_use")
-            elif piece.variant:
-                raise ValueError("variant_in_use")
-        session.execute(
-            delete(MaterialTypeVariantValue).where(
-                MaterialTypeVariantValue.material_type_id == material_type.id
-            )
-        )
-        material_type.variant_label = new_label
-        for index, value in enumerate(new_values):
-            session.add(
-                MaterialTypeVariantValue(
-                    material_type_id=material_type.id,
-                    sort_order=index,
-                    value=value,
-                )
-            )
+    if variants_payload is not None:
+        axes = parse_variants_payload(variants_payload)
+        assert_variants_compatible_with_pieces(material_type, axes)
+        assert_variants_compatible_with_lots(material_type, axes)
+        replace_material_type_variants(session, material_type, axes)
 
     try:
         session.commit()
@@ -275,7 +203,7 @@ def list_pieces(session: Session, inventory_id: int) -> list[Piece]:
             .join(MaterialType)
             .where(MaterialType.inventory_id == inventory_id)
             .options(
-                selectinload(Piece.material_type).selectinload(MaterialType.variant_values),
+                *piece_variant_load_options(),
                 selectinload(Piece.material_type).selectinload(MaterialType.inventory),
                 selectinload(Piece.material_set),
             )
@@ -289,7 +217,7 @@ def piece_by_id(session: Session, piece_id: int) -> Piece | None:
         select(Piece)
         .where(Piece.id == piece_id)
         .options(
-            selectinload(Piece.material_type).selectinload(MaterialType.variant_values),
+            *piece_variant_load_options(),
             selectinload(Piece.material_type).selectinload(MaterialType.inventory),
             selectinload(Piece.material_set),
             selectinload(Piece.damages).selectinload(Damage.repair),
@@ -310,18 +238,22 @@ def _piece_names_from_pattern(pattern: str, count: int) -> list[str]:
 
 
 def _new_piece_row(
+    session: Session,
     material_type: MaterialType,
     name: str,
-    variant: str | None,
+    variant,
 ) -> Piece:
     if not isinstance(name, str) or not name.strip():
         raise ValueError("invalid_name")
-    variant_value = _validate_piece_variant(material_type, variant)
-    return Piece(
+    variant_map = validate_piece_variant_map(material_type, variant)
+    piece = Piece(
         material_type_id=material_type.id,
         name=name.strip(),
-        variant=variant_value,
     )
+    session.add(piece)
+    session.flush()
+    set_piece_variant_map(session, piece, variant_map)
+    return piece
 
 
 def create_piece(
@@ -329,15 +261,14 @@ def create_piece(
     inventory: Inventory,
     material_type_id: int,
     name: str,
-    variant: str | None,
+    variant,
 ) -> Piece:
     material_type = _load_material_type(session, material_type_id)
     if material_type is None or material_type.inventory_id != inventory.id:
         raise ValueError("invalid_material_type")
     if material_type.tracking != TRACKING_PIECE:
         raise ValueError("not_piece_tracking")
-    piece = _new_piece_row(material_type, name, variant)
-    session.add(piece)
+    piece = _new_piece_row(session, material_type, name, variant)
     session.commit()
     session.refresh(piece)
     return piece_by_id(session, piece.id)  # type: ignore[return-value]
@@ -350,7 +281,7 @@ def create_pieces_batch(
     material_type_id: int,
     count: int,
     name_pattern: str,
-    variant: str | None,
+    variant,
     set_id: int | None,
     set_name: str | None,
     set_short_name: str | None,
@@ -375,7 +306,7 @@ def create_pieces_batch(
         raise ValueError("not_piece_tracking")
 
     names = _piece_names_from_pattern(name_pattern, count)
-    variant_value = _validate_piece_variant(material_type, variant)
+    variant_map = validate_piece_variant_map(material_type, variant)
 
     material_set: MaterialSet | None = None
     if has_set_id:
@@ -393,8 +324,10 @@ def create_pieces_batch(
     created: list[Piece] = []
     try:
         for piece_name in names:
-            piece = _new_piece_row(material_type, piece_name, variant_value)
+            piece = Piece(material_type_id=material_type.id, name=piece_name.strip())
             session.add(piece)
+            session.flush()
+            set_piece_variant_map(session, piece, variant_map)
             created.append(piece)
         session.flush()
 
@@ -427,14 +360,17 @@ def update_piece(
     *,
     name: str | None = None,
     material_type_id: int | None = None,
-    variant: str | None = None,
+    variant=None,
 ) -> Piece:
     piece = piece_by_id(session, piece.id)
     if piece is None:
         raise ValueError("not_found")
     material_type = piece.material_type
 
-    if material_type_id is not None and material_type_id != piece.material_type_id:
+    type_changed = (
+        material_type_id is not None and material_type_id != piece.material_type_id
+    )
+    if type_changed:
         new_type = _load_material_type(session, material_type_id)
         if new_type is None or new_type.inventory_id != material_type.inventory_id:
             raise ValueError("invalid_material_type")
@@ -449,10 +385,15 @@ def update_piece(
             raise ValueError("invalid_name")
         piece.name = name.strip()
 
-    if material_type_id is not None:
-        piece.variant = _validate_piece_variant(material_type, piece.variant)
-    elif variant is not None:
-        piece.variant = _validate_piece_variant(material_type, variant)
+    if variant is not None:
+        variant_map = validate_piece_variant_map(material_type, variant)
+        set_piece_variant_map(session, piece, variant_map)
+    elif type_changed:
+        from lamathek.services.variants import piece_variant_to_json
+
+        current = piece_variant_to_json(piece)
+        variant_map = validate_piece_variant_map(material_type, current)
+        set_piece_variant_map(session, piece, variant_map)
 
     session.commit()
     return piece_by_id(session, piece.id)  # type: ignore[return-value]
@@ -500,16 +441,6 @@ def _assert_stock_floor(session: Session, inventory_id: int, material_type_id: i
         raise ValueError("below_loaned")
 
 
-def _validate_lot_variant(material_type: MaterialType, variant: str | None) -> str | None:
-    allowed = _variant_value_strings(material_type)
-    if variant is None or not str(variant).strip():
-        return None
-    chosen = str(variant).strip()
-    if not allowed or chosen not in allowed:
-        raise ValueError("invalid_variant")
-    return chosen
-
-
 def list_stocks(session: Session, inventory_id: int) -> list[MaterialType]:
     return list(
         session.scalars(
@@ -519,8 +450,8 @@ def list_stocks(session: Session, inventory_id: int) -> list[MaterialType]:
                 MaterialType.tracking == TRACKING_STOCK,
             )
             .options(
-                selectinload(MaterialType.stock_lots),
-                selectinload(MaterialType.variant_values),
+                selectinload(MaterialType.stock_lots).selectinload(StockLot.variant_selections),
+                *variant_load_options(),
             )
             .order_by(MaterialType.name)
         ).all()
@@ -531,7 +462,10 @@ def stock_lot_by_id(session: Session, lot_id: int) -> StockLot | None:
     return session.scalar(
         select(StockLot)
         .where(StockLot.id == lot_id)
-        .options(selectinload(StockLot.material_type).selectinload(MaterialType.stock_lots))
+        .options(
+            *stock_lot_variant_load_options(),
+            selectinload(StockLot.material_type).selectinload(MaterialType.stock_lots),
+        )
     )
 
 
@@ -541,21 +475,22 @@ def create_stock_lot(
     material_type_id: int,
     *,
     label: str | None,
-    variant: str | None,
+    variant,
     quantity: int,
 ) -> MaterialType:
     if not isinstance(quantity, int) or quantity < 0:
         raise ValueError("invalid_quantity")
     material_type = _stock_material_type(session, inventory, material_type_id)
+    variant_map = validate_lot_variant_map(material_type, variant)
     if quantity > 0:
-        session.add(
-            StockLot(
-                material_type_id=material_type.id,
-                label=_normalize_optional_text(label),
-                variant=_validate_lot_variant(material_type, variant),
-                quantity=quantity,
-            )
+        lot = StockLot(
+            material_type_id=material_type.id,
+            label=_normalize_optional_text(label),
+            quantity=quantity,
         )
+        session.add(lot)
+        session.flush()
+        set_lot_variant_map(session, lot, variant_map)
         session.flush()
     _assert_stock_floor(session, inventory.id, material_type.id)
     session.commit()
@@ -568,7 +503,7 @@ def update_stock_lot(
     lot: StockLot,
     *,
     label: str | None,
-    variant: str | None,
+    variant,
     quantity: int,
     label_sent: bool,
     variant_sent: bool,
@@ -581,7 +516,8 @@ def update_stock_lot(
     if label_sent:
         lot.label = _normalize_optional_text(label)
     if variant_sent:
-        lot.variant = _validate_lot_variant(material_type, variant)
+        variant_map = validate_lot_variant_map(material_type, variant)
+        set_lot_variant_map(session, lot, variant_map)
     lot.quantity = quantity
     session.flush()
     if lot.quantity == 0:

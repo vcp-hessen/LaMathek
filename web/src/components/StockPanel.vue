@@ -6,7 +6,13 @@ import { createStockLot, deleteStockLot, fetchStocks, updateStockLot } from '../
 import { useApiErrorMessage } from '../composables/useApiErrorMessage'
 import { useInventoryQueryKey } from '../composables/useInventoryQueryKey'
 import ExpandableRow from './ExpandableRow.vue'
-import type { StockLot } from '../schemas/material'
+import VariantAxisSelects from './VariantAxisSelects.vue'
+import type { StockLot, VariantAxis } from '../schemas/material'
+import {
+  emptyVariantMap,
+  syncVariantMapKeys,
+  variantMapSummary,
+} from '../utils/variantDisplay'
 
 const NEW_LOT = 'new' as const
 type ExpandedLotKey = number | typeof NEW_LOT | null
@@ -15,8 +21,7 @@ type StockLotListItem = StockLot & {
   materialTypeId: number
   materialTypeName: string
   unit: string | null
-  variantLabel: string | null
-  variantValues: string[]
+  variants: VariantAxis[]
 }
 
 type LotGroup = { materialTypeId: number; label: string; lots: StockLotListItem[] }
@@ -30,8 +35,15 @@ const queryClient = useQueryClient()
 const expandedKey = ref<ExpandedLotKey>(null)
 const formError = ref<string | null>(null)
 const filterMaterialTypeId = ref('')
-const drafts = reactive<Record<number, { label: string; variant: string; quantity: number }>>({})
-const newLot = reactive({ materialTypeId: '', label: '', variant: '', quantity: 1 })
+const drafts = reactive<
+  Record<number, { label: string; variant: Record<string, string>; quantity: number }>
+>({})
+const newLot = reactive({
+  materialTypeId: '',
+  label: '',
+  variant: {} as Record<string, string>,
+  quantity: 1,
+})
 
 const stocksQueryKey = useInventoryQueryKey('stocks', () => props.inventoryId)
 
@@ -50,8 +62,7 @@ const lots = computed((): StockLotListItem[] =>
       materialTypeId: row.materialTypeId,
       materialTypeName: row.materialTypeName,
       unit: row.unit,
-      variantLabel: row.variantLabel,
-      variantValues: row.variantValues,
+      variants: row.variants,
     })),
   ),
 )
@@ -88,7 +99,16 @@ const selectedNewType = computed(() =>
   stockTypes.value.find((row) => String(row.materialTypeId) === newLot.materialTypeId),
 )
 
-const newVariantOptions = computed(() => selectedNewType.value?.variantValues ?? [])
+const newTypeAxes = computed(() => selectedNewType.value?.variants ?? [])
+
+function lotVariantPayload(map: Record<string, string>): Record<string, string> {
+  const payload: Record<string, string> = {}
+  for (const [label, value] of Object.entries(map)) {
+    const trimmed = value?.trim()
+    if (trimmed) payload[label] = trimmed
+  }
+  return payload
+}
 
 function resetNewLotDraft() {
   const filtered = filterMaterialTypeId.value
@@ -99,21 +119,22 @@ function resetNewLotDraft() {
       ? String(stockTypes.value[0].materialTypeId)
       : ''
   newLot.label = ''
-  newLot.variant = ''
+  newLot.variant = emptyVariantMap(newTypeAxes.value)
   newLot.quantity = 1
 }
 
 function fillDraft(lot: StockLotListItem) {
   drafts[lot.id] = {
     label: lot.label ?? '',
-    variant: lot.variant ?? '',
+    variant: syncVariantMapKeys(lot.variant, lot.variants),
     quantity: lot.quantity,
   }
 }
 
 function lotSummaryMeta(lot: StockLotListItem): string {
   const parts: string[] = []
-  if (lot.variant) parts.push(lot.variant)
+  const variantText = variantMapSummary(lot.variants, lot.variant)
+  if (variantText) parts.push(variantText)
   const qty = `${lot.quantity}${lot.unit ? ` ${lot.unit}` : ''}`
   parts.push(qty)
   return parts.join(' · ')
@@ -148,7 +169,7 @@ const createMutation = useMutation({
   mutationFn: () =>
     createStockLot(props.inventoryId, Number(newLot.materialTypeId), {
       label: newLot.label.trim() || null,
-      variant: newLot.variant || null,
+      variant: lotVariantPayload(newLot.variant),
       quantity: newLot.quantity,
     }),
   onSuccess: async () => {
@@ -166,7 +187,7 @@ const updateMutation = useMutation({
     const draft = drafts[lotId]
     return updateStockLot(props.inventoryId, lotId, {
       label: draft.label.trim() || null,
-      variant: draft.variant || null,
+      variant: lotVariantPayload(draft.variant),
       quantity: draft.quantity,
     })
   },
@@ -197,9 +218,7 @@ watch(expandedKey, (key) => {
 watch(
   () => newLot.materialTypeId,
   () => {
-    if (newLot.variant && !newVariantOptions.value.includes(newLot.variant)) {
-      newLot.variant = ''
-    }
+    newLot.variant = syncVariantMapKeys(newLot.variant, newTypeAxes.value)
   },
 )
 </script>
@@ -261,22 +280,12 @@ watch(
                     :placeholder="t('material.stockLotLabelPlaceholder')"
                   />
                 </label>
-                <label class="flex min-w-0 flex-col gap-1">
-                  <span class="text-xs opacity-80">
-                    {{ selectedNewType?.variantLabel || t('material.stockLotVariant') }}
-                  </span>
-                  <select
-                    v-if="newVariantOptions.length"
-                    v-model="newLot.variant"
-                    class="select select-bordered w-full"
-                  >
-                    <option value="">{{ t('material.stockLotVariantNone') }}</option>
-                    <option v-for="value in newVariantOptions" :key="value" :value="value">
-                      {{ value }}
-                    </option>
-                  </select>
-                  <span v-else class="text-sm opacity-60">{{ t('material.stockLotVariantNone') }}</span>
-                </label>
+                <VariantAxisSelects
+                  v-if="newTypeAxes.length"
+                  v-model="newLot.variant"
+                  :axes="newTypeAxes"
+                  optional
+                />
                 <label class="flex min-w-0 flex-col gap-1">
                   <span class="text-xs opacity-80">{{ t('material.stockQuantity') }}</span>
                   <input
@@ -339,22 +348,12 @@ watch(
                       :placeholder="t('material.stockLotLabelPlaceholder')"
                     />
                   </label>
-                  <label class="flex min-w-0 flex-col gap-1">
-                    <span class="text-xs opacity-80">
-                      {{ lot.variantLabel || t('material.stockLotVariant') }}
-                    </span>
-                    <select
-                      v-if="drafts[lot.id] && lot.variantValues.length"
-                      v-model="drafts[lot.id].variant"
-                      class="select select-bordered w-full"
-                    >
-                      <option value="">{{ t('material.stockLotVariantNone') }}</option>
-                      <option v-for="value in lot.variantValues" :key="value" :value="value">
-                        {{ value }}
-                      </option>
-                    </select>
-                    <span v-else class="text-sm opacity-60">{{ t('material.stockLotVariantNone') }}</span>
-                  </label>
+                  <VariantAxisSelects
+                    v-if="drafts[lot.id] && lot.variants.length"
+                    v-model="drafts[lot.id].variant"
+                    :axes="lot.variants"
+                    optional
+                  />
                   <label class="flex min-w-0 flex-col gap-1">
                     <span class="text-xs opacity-80">{{ t('material.stockQuantity') }}</span>
                     <input

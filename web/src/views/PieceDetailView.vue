@@ -3,14 +3,22 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { createDamageRepair, createPieceDamage, fetchPiece } from '../api/material'
+import { createDamageRepair, createPieceDamage, fetchMaterialTypes, fetchPiece } from '../api/material'
 import type { Damage } from '../schemas/material'
+import { variantMapSummary } from '../utils/variantDisplay'
 
 const route = useRoute()
 const { t } = useI18n()
 const queryClient = useQueryClient()
 
 const pieceId = computed(() => Number(route.params.pieceId))
+const inventoryId = computed(() => Number(route.params.id))
+
+const { data: materialTypes } = useQuery({
+  queryKey: ['materialTypes', inventoryId],
+  queryFn: () => fetchMaterialTypes(inventoryId.value),
+  enabled: () => Number.isFinite(inventoryId.value),
+})
 
 const { data: piece, isLoading } = useQuery({
   queryKey: ['piece', pieceId],
@@ -60,6 +68,13 @@ const repairMutation = useMutation({
   onSuccess: invalidate,
 })
 
+const variantSummary = computed(() => {
+  if (!piece.value) return ''
+  const mt = materialTypes.value?.find((row) => row.id === piece.value?.materialTypeId)
+  if (!mt) return ''
+  return variantMapSummary(mt.variants, piece.value.variant)
+})
+
 function damageStatusLabel(damage: Damage): string {
   if (damage.open && damage.severe) return t('damage.statusOpenSevere')
   if (damage.open) return t('damage.statusOpen')
@@ -76,7 +91,7 @@ function damageStatusLabel(damage: Damage): string {
           <h1 class="card-title text-lg">{{ piece.name }}</h1>
           <p class="text-sm text-base-content/70">
             {{ piece.materialTypeName }}
-            <template v-if="piece.variant"> · {{ piece.variant }}</template>
+            <template v-if="variantSummary"> · {{ variantSummary }}</template>
             <template v-if="piece.setName">
               · {{ t('sets.onSet', { name: piece.setName }) }}
             </template>

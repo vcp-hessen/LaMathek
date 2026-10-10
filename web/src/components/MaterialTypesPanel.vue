@@ -11,7 +11,8 @@ import {
   type MaterialTypeWritePayload,
 } from '../api/material'
 import { fetchMe } from '../api/me'
-import type { Category, MaterialType } from '../schemas/material'
+import type { Category, MaterialType, VariantAxis } from '../schemas/material'
+import { variantAxesSummary } from '../utils/variantDisplay'
 import { useApiErrorMessage } from '../composables/useApiErrorMessage'
 import { useInventoryQueryKey } from '../composables/useInventoryQueryKey'
 import ExpandableRow from './ExpandableRow.vue'
@@ -36,8 +37,7 @@ const shortName = ref('')
 const description = ref('')
 const unit = ref('')
 const consumable = ref(false)
-const variantLabel = ref('')
-const variantValues = ref<string[]>([])
+const variants = ref<VariantAxis[]>([])
 const categoryText = ref('')
 
 const editName = ref('')
@@ -46,8 +46,7 @@ const editShortName = ref('')
 const editDescription = ref('')
 const editUnit = ref('')
 const editConsumable = ref(false)
-const editVariantLabel = ref('')
-const editVariantValues = ref<string[]>([])
+const editVariants = ref<VariantAxis[]>([])
 const editCategoryText = ref('')
 
 const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
@@ -87,11 +86,16 @@ function buildPayload(
     description: string
     unit: string
     consumable: boolean
-    variantLabel: string
-    variantValues: string[]
+    variants: VariantAxis[]
     categoryText: string
   },
 ): MaterialTypeWritePayload {
+  const normalizedVariants = fields.variants
+    .map((axis) => ({
+      label: axis.label.trim(),
+      values: axis.values.map((value) => value.trim()).filter(Boolean),
+    }))
+    .filter((axis) => axis.label && axis.values.length)
   return {
     name: fields.name,
     tracking: fields.tracking,
@@ -99,8 +103,7 @@ function buildPayload(
     description: fields.description.trim() || null,
     unit: fields.tracking === 'stock' ? fields.unit.trim() || null : null,
     consumable: fields.consumable,
-    variantLabel: fields.variantLabel.trim() || null,
-    variantValues: fields.variantValues.map((value) => value.trim()).filter(Boolean),
+    variants: normalizedVariants,
     ...categoryPart(fields.categoryText, categoryList.value),
   }
 }
@@ -112,8 +115,7 @@ function resetCreateDraft() {
   description.value = ''
   unit.value = ''
   consumable.value = false
-  variantLabel.value = ''
-  variantValues.value = []
+  variants.value = []
   categoryText.value = ''
 }
 
@@ -124,8 +126,10 @@ function loadEditDraft(mt: MaterialType) {
   editDescription.value = mt.description ?? ''
   editUnit.value = mt.unit ?? ''
   editConsumable.value = mt.consumable
-  editVariantLabel.value = mt.variantLabel ?? ''
-  editVariantValues.value = [...mt.variantValues]
+  editVariants.value = mt.variants.map((axis) => ({
+    label: axis.label,
+    values: [...axis.values],
+  }))
   editCategoryText.value = mt.categoryName ?? ''
   formError.value = null
 }
@@ -161,9 +165,8 @@ function summaryMeta(mt: MaterialType): string {
   if (mt.categoryName) parts.push(mt.categoryName)
   if (mt.consumable) parts.push(t('material.consumableTag'))
   if (mt.tracking === 'stock' && mt.unit) parts.push(mt.unit)
-  if (mt.variantValues.length) {
-    parts.push(`${mt.variantLabel}: ${mt.variantValues.join(', ')}`)
-  }
+  const variantSummary = variantAxesSummary(mt.variants)
+  if (variantSummary) parts.push(variantSummary)
   return parts.join(' · ')
 }
 
@@ -178,8 +181,7 @@ const createMutation = useMutation({
         description: description.value,
         unit: unit.value,
         consumable: consumable.value,
-        variantLabel: variantLabel.value,
-        variantValues: variantValues.value,
+        variants: variants.value,
         categoryText: categoryText.value,
       }),
     ),
@@ -207,8 +209,7 @@ const updateMutation = useMutation({
         description: editDescription.value,
         unit: editUnit.value,
         consumable: editConsumable.value,
-        variantLabel: editVariantLabel.value,
-        variantValues: editVariantValues.value,
+        variants: editVariants.value,
         categoryText: editCategoryText.value,
       }),
     ),
@@ -284,8 +285,7 @@ watch(expandedKey, (key) => {
                 v-model:description="description"
                 v-model:unit="unit"
                 v-model:consumable="consumable"
-                v-model:variant-label="variantLabel"
-                v-model:variant-values="variantValues"
+                v-model:variants="variants"
                 v-model:category-text="categoryText"
                 :categories="categoryList"
               />
@@ -329,8 +329,7 @@ watch(expandedKey, (key) => {
                 v-model:description="editDescription"
                 v-model:unit="editUnit"
                 v-model:consumable="editConsumable"
-                v-model:variant-label="editVariantLabel"
-                v-model:variant-values="editVariantValues"
+                v-model:variants="editVariants"
                 v-model:category-text="editCategoryText"
                 :categories="categoryList"
               />

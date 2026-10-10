@@ -49,8 +49,13 @@ The counted value of a Menge (for example how many Heringe are in the Inventar o
 _English_: quantity
 _Avoid_: Menge (for the numeric field; Menge is the tracking kind)
 
+**Variantenbezeichner**:
+One named axis of distinction on a Materialart (for example Länge or Farbe), each with an ordered list of allowed values. A Materialart may have any number of Variantenbezeichner.
+_English_: variant dimension
+_Avoid_: Attribut, Merkmal, option group
+
 **Variante**:
-A distinction within one Materialart, defined on the Materialart and stored on the Einzelteil. Kohtenplanen of one Materialart vary by Randstreifen (0, 10, 35, or 70 cm); those lengths still fit together.
+On an Einzelteil, one chosen value per Variantenbezeichner of its Materialart (a combination). On a Mengenposten, each Variantenbezeichner may be unset; set values must be allowed on the Materialart.
 _English_: variant
 _Avoid_: version, Ausführung, option
 

@@ -132,16 +132,11 @@ def post_material_type(_user, inventory):
     body = request.get_json(silent=True) or {}
     name = body.get("name")
     tracking = body.get("tracking")
-    variant_label = body.get("variantLabel")
-    variant_values = body.get("variantValues")
+    variants = body.get("variants", [])
     if not isinstance(name, str) or not name.strip():
         return jsonify({"error": "invalid_name"}), 400
     if not isinstance(tracking, str):
         return jsonify({"error": "invalid_tracking"}), 400
-    if variant_values is None:
-        variant_values = []
-    if not isinstance(variant_values, list):
-        return jsonify({"error": "invalid_variant_values"}), 400
     consumable = body.get("consumable")
     if consumable is not None and not isinstance(consumable, bool):
         return jsonify({"error": "invalid_consumable"}), 400
@@ -153,8 +148,7 @@ def post_material_type(_user, inventory):
             inventory,
             name,
             tracking,
-            variant_label,
-            variant_values,
+            variants,
             short_name=_optional_str(body.get("shortName")),
             description=_optional_str(body.get("description")),
             unit=_optional_str(body.get("unit")),
@@ -190,11 +184,7 @@ def patch_material_type(user, material_type_id: int):
     body = request.get_json(silent=True) or {}
     name = body.get("name")
     tracking = body.get("tracking")
-    variant_label = body.get("variantLabel")
-    variant_values = body.get("variantValues")
-
-    if variant_values is not None and not isinstance(variant_values, list):
-        return jsonify({"error": "invalid_variant_values"}), 400
+    variants = body.get("variants") if "variants" in body else None
 
     consumable = body.get("consumable")
     if consumable is not None and not isinstance(consumable, bool):
@@ -203,8 +193,7 @@ def patch_material_type(user, material_type_id: int):
     update_kwargs: dict = {
         "name": name if isinstance(name, str) else None,
         "tracking": tracking if isinstance(tracking, str) else None,
-        "variant_label": variant_label if "variantLabel" in body else None,
-        "variant_values": variant_values,
+        "variants_payload": variants,
     }
     if "shortName" in body:
         update_kwargs["short_name_sent"] = True
@@ -448,7 +437,7 @@ def post_stock_lot(_user, inventory, material_type_id: int):
             inventory,
             material_type_id,
             label=_optional_lot_text(body, "label"),
-            variant=_optional_lot_text(body, "variant"),
+            variant=body.get("variant") if "variant" in body else None,
             quantity=quantity,
         )
     except ValueError as exc:
@@ -473,7 +462,7 @@ def patch_stock_lot(_user, inventory, lot_id: int):
             inventory,
             lot,
             label=body.get("label") if isinstance(body.get("label"), str) else None,
-            variant=body.get("variant") if isinstance(body.get("variant"), str) else None,
+            variant=body.get("variant") if "variant" in body else None,
             quantity=quantity,
             label_sent="label" in body,
             variant_sent="variant" in body,

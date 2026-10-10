@@ -4,9 +4,12 @@ from lamathek.models.damage import Damage, Repair
 from lamathek.models.category import Category
 from lamathek.models.material import (
     MaterialType,
+    MaterialTypeVariant,
     MaterialTypeVariantValue,
     Piece,
+    PieceVariantValue,
     StockLot,
+    StockLotVariantValue,
 )
 from lamathek.models.set import MaterialSet, SetStockLine
 from lamathek.models.settings import InstallationSettings
@@ -25,11 +28,14 @@ __all__ = [
     "Inventory",
     "InventoryPermission",
     "MaterialType",
+    "MaterialTypeVariant",
     "MaterialTypeVariantValue",
     "Piece",
+    "PieceVariantValue",
     "Repair",
     "MaterialSet",
     "SetStockLine",
     "StockLot",
+    "StockLotVariantValue",
     "User",
 ]
