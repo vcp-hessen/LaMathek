@@ -43,7 +43,7 @@ def main() -> None:
     from lamathek.services.material import (
         create_material_type,
         create_piece,
-        set_stock_quantity,
+        create_stock_lot,
     )
     from lamathek.services.sets import (
         create_set,
@@ -113,8 +113,12 @@ def main() -> None:
         catan = create_piece(session, inventory, brett.id, "Catan", None)
         beamer = create_piece(session, inventory, brett.id, "Beamer", None)
 
-        set_stock_quantity(session, inventory, heringe.id, 48)
-        set_stock_quantity(session, inventory, seile.id, 24)
+        create_stock_lot(
+            session, inventory, heringe.id, label=None, variant=None, quantity=48
+        )
+        create_stock_lot(
+            session, inventory, seile.id, label=None, variant=None, quantity=24
+        )
 
         jurte = create_set(session, inventory, "Jurte (Beispiel)")
         set_piece_membership(session, jurte, plane_a.id, SET_ROLE_ASSIGNMENT)

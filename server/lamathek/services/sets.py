@@ -3,7 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from lamathek.models.inventory import Inventory
-from lamathek.models.material import TRACKING_STOCK, MaterialType, Piece, Stock
+from lamathek.models.material import TRACKING_STOCK, MaterialType, Piece
 from lamathek.models.set import (
     SET_ROLE_ASSIGNMENT,
     SET_ROLE_OPTIONAL,
@@ -122,10 +122,9 @@ def delete_set(session: Session, material_set: MaterialSet) -> None:
 
 
 def _stock_quantity(session: Session, material_type_id: int) -> int:
-    row = session.scalar(
-        select(Stock.quantity).where(Stock.material_type_id == material_type_id)
-    )
-    return int(row) if row is not None else 0
+    from lamathek.services.material import total_stock_quantity
+
+    return total_stock_quantity(session, material_type_id)
 
 
 def _reserved_stock(

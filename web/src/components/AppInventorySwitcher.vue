@@ -177,7 +177,12 @@ function pick(id: number) {
         :aria-label="expanded ? t('inventories.activeLabel') : undefined"
         @click="toggleMenu"
       >
-        <WlzIcon v-if="!expanded" glyph="campPath" size-class="text-lg" />
+        <WlzIcon
+          v-if="!expanded"
+          glyph="campPath"
+          size-class="text-lg"
+          :tooltip="t('inventories.activeLabel')"
+        />
         <template v-else>
           <span class="min-w-0 flex-1 truncate text-left">{{ triggerLabel }}</span>
           <svg

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import type { Category } from '../schemas/material'
+import VariantValuesInput from './VariantValuesInput.vue'
 
 defineProps<{
   categories: Category[]
@@ -13,7 +14,7 @@ const description = defineModel<string>('description', { required: true })
 const unit = defineModel<string>('unit', { required: true })
 const consumable = defineModel<boolean>('consumable', { required: true })
 const variantLabel = defineModel<string>('variantLabel', { required: true })
-const variantValuesText = defineModel<string>('variantValuesText', { required: true })
+const variantValues = defineModel<string[]>('variantValues', { required: true })
 const categoryText = defineModel<string>('categoryText', { required: true })
 
 const { t } = useI18n()
@@ -121,7 +122,7 @@ function setTrackingFromToggle(isStock: boolean) {
   <fieldset class="rounded-lg border border-base-200 px-3 pb-3 pt-2">
     <legend class="px-1 text-sm font-medium">{{ t('material.variantSection') }}</legend>
     <div class="mt-1 grid grid-cols-1 gap-3 min-[40rem]:grid-cols-2">
-      <label class="flex min-w-0 flex-col gap-1">
+      <label class="flex min-w-0 flex-col gap-1 min-[40rem]:col-span-2">
         <span class="text-xs opacity-80">{{ t('material.variantLabelField') }}</span>
         <input
           v-model="variantLabel"
@@ -130,15 +131,9 @@ function setTrackingFromToggle(isStock: boolean) {
           :placeholder="t('material.variantLabelExample')"
         />
       </label>
-      <label class="flex min-w-0 flex-col gap-1">
-        <span class="text-xs opacity-80">{{ t('material.variantValuesField') }}</span>
-        <input
-          v-model="variantValuesText"
-          type="text"
-          class="input input-bordered"
-          :placeholder="t('material.variantValuesCommaHint')"
-        />
-      </label>
+      <div class="min-w-0 min-[40rem]:col-span-2">
+        <VariantValuesInput v-model="variantValues" />
+      </div>
     </div>
   </fieldset>
   </div>

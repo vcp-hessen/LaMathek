@@ -8,7 +8,7 @@ const inventoryId = computed(() => Number(route.params.id))
 </script>
 
 <template>
-  <div class="mx-auto max-w-4xl p-6">
+  <div class="app-page">
     <MaterialTypesPanel
       v-if="Number.isFinite(inventoryId)"
       :key="inventoryId"

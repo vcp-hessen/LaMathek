@@ -130,14 +130,30 @@ export async function fetchStocks(inventoryId: number): Promise<StockRow[]> {
   return stockRowSchema.array().parse(response.data)
 }
 
-export async function setStockQuantity(
+export async function createStockLot(
   inventoryId: number,
   materialTypeId: number,
-  quantity: number,
+  payload: { label?: string | null; variant?: string | null; quantity: number },
 ): Promise<StockRow> {
-  const response = await api.put(
-    `/api/inventories/${inventoryId}/stocks/${materialTypeId}`,
-    { quantity },
+  const response = await api.post(
+    `/api/inventories/${inventoryId}/stocks/${materialTypeId}/lots`,
+    payload,
   )
   return stockRowSchema.parse(response.data)
+}
+
+export async function updateStockLot(
+  inventoryId: number,
+  lotId: number,
+  payload: { label?: string | null; variant?: string | null; quantity: number },
+): Promise<StockRow> {
+  const response = await api.patch(
+    `/api/inventories/${inventoryId}/stock-lots/${lotId}`,
+    payload,
+  )
+  return stockRowSchema.parse(response.data)
+}
+
+export async function deleteStockLot(inventoryId: number, lotId: number): Promise<void> {
+  await api.delete(`/api/inventories/${inventoryId}/stock-lots/${lotId}`)
 }

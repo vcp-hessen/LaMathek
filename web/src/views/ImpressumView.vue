@@ -31,7 +31,7 @@ const hasContent = computed(() => textEntries.value.length > 0 || siteUrl.value)
 </script>
 
 <template>
-  <div class="mx-auto max-w-2xl space-y-4 p-6">
+  <div class="app-page space-y-4">
     <h1 class="text-2xl font-bold">{{ t('impressum.heading') }}</h1>
     <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
     <dl v-else class="space-y-4">

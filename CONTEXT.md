@@ -35,9 +35,14 @@ _English_: piece
 _Avoid_: Einzelstück, Exemplar, Stück (as the named item; Stück remains valid as a unit of measure)
 
 **Menge**:
-A Materialart tracked only by count in one Inventar, without naming individual items. A Set reserves an Anzahl from it.
+A Materialart tracked by count in one Inventar, without naming individual items. Its Anzahl is the sum of its Mengenposten. A Set reserves an Anzahl from that sum.
 _English_: stock
 _Avoid_: Bestand, Vorrat
+
+**Mengenposten**:
+One counted portion of a Menge: an Anzahl, an optional Variante, and an optional Bezeichnung (for example a box name). Several Posten of the same Variante may exist. A box is not an Einzelteil.
+_English_: stock lot
+_Avoid_: Kiste, Behälter, Einzelteil (for the container)
 
 **Anzahl**:
 The counted value of a Menge (for example how many Heringe are in the Inventar or on a Verleih line). Not the Materialart itself.

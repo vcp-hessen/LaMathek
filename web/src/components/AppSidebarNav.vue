@@ -127,6 +127,7 @@ function itemClass(active: boolean, expanded: boolean) {
               :glyph="link.glyph"
               :active="isWorkspaceLinkActive(link.routeName)"
               size-class="text-lg"
+              :tooltip="link.label"
             />
             <span v-show="expanded" class="truncate">{{ link.label }}</span>
           </RouterLink>

@@ -226,7 +226,7 @@ const deleteMutation = useMutation({
 </script>
 
 <template>
-  <div class="mx-auto max-w-3xl p-6">
+  <div class="app-page">
     <div class="card bg-base-100 shadow-md">
       <div class="card-body gap-4 text-left">
         <div class="flex flex-wrap items-center justify-between gap-2">

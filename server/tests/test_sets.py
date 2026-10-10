@@ -99,8 +99,8 @@ def test_stock_reservation_cannot_exceed_quantity():
             json={"name": "Heringe", "tracking": "stock"},
         )
         type_id = heringe.get_json()["id"]
-        client.put(
-            f"/api/inventories/{inv_id}/stocks/{type_id}",
+        client.post(
+            f"/api/inventories/{inv_id}/stocks/{type_id}/lots",
             json={"quantity": 10},
         )
 

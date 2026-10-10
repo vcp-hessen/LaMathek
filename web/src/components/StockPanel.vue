@@ -1,11 +1,25 @@
 <script setup lang="ts">
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { fetchStocks, setStockQuantity } from '../api/material'
+import { createStockLot, deleteStockLot, fetchStocks, updateStockLot } from '../api/material'
 import { useApiErrorMessage } from '../composables/useApiErrorMessage'
 import { useInventoryQueryKey } from '../composables/useInventoryQueryKey'
 import ExpandableRow from './ExpandableRow.vue'
+import type { StockLot } from '../schemas/material'
+
+const NEW_LOT = 'new' as const
+type ExpandedLotKey = number | typeof NEW_LOT | null
+
+type StockLotListItem = StockLot & {
+  materialTypeId: number
+  materialTypeName: string
+  unit: string | null
+  variantLabel: string | null
+  variantValues: string[]
+}
+
+type LotGroup = { materialTypeId: number; label: string; lots: StockLotListItem[] }
 
 const props = defineProps<{ inventoryId: number }>()
 
@@ -13,9 +27,11 @@ const { t } = useI18n()
 const { messageFor } = useApiErrorMessage()
 const queryClient = useQueryClient()
 
-const expandedMaterialTypeId = ref<number | null>(null)
-const editError = ref<string | null>(null)
-const editQuantities = ref<Record<number, number>>({})
+const expandedKey = ref<ExpandedLotKey>(null)
+const formError = ref<string | null>(null)
+const filterMaterialTypeId = ref('')
+const drafts = reactive<Record<number, { label: string; variant: string; quantity: number }>>({})
+const newLot = reactive({ materialTypeId: '', label: '', variant: '', quantity: 1 })
 
 const stocksQueryKey = useInventoryQueryKey('stocks', () => props.inventoryId)
 
@@ -24,107 +40,366 @@ const { data: stocks, isLoading } = useQuery({
   queryFn: () => fetchStocks(props.inventoryId),
 })
 
-watch(
-  stocks,
-  (rows) => {
-    if (!rows) return
-    const editNext: Record<number, number> = { ...editQuantities.value }
-    for (const row of rows) {
-      if (expandedMaterialTypeId.value !== row.materialTypeId) {
-        editNext[row.materialTypeId] = row.quantity
-      }
-    }
-    editQuantities.value = editNext
-  },
-  { immediate: true },
+const stockTypes = computed(() => stocks.value ?? [])
+const canAddLots = computed(() => stockTypes.value.length > 0)
+
+const lots = computed((): StockLotListItem[] =>
+  stockTypes.value.flatMap((row) =>
+    row.lots.map((lot) => ({
+      ...lot,
+      materialTypeId: row.materialTypeId,
+      materialTypeName: row.materialTypeName,
+      unit: row.unit,
+      variantLabel: row.variantLabel,
+      variantValues: row.variantValues,
+    })),
+  ),
 )
 
-function toggleRow(materialTypeId: number) {
-  if (expandedMaterialTypeId.value === materialTypeId) {
-    expandedMaterialTypeId.value = null
-    editError.value = null
-    return
+const filteredLots = computed(() => {
+  if (!filterMaterialTypeId.value) return lots.value
+  const id = Number(filterMaterialTypeId.value)
+  return lots.value.filter((lot) => lot.materialTypeId === id)
+})
+
+const lotGroups = computed((): LotGroup[] => {
+  const byType = new Map<number, StockLotListItem[]>()
+  for (const lot of filteredLots.value) {
+    const bucket = byType.get(lot.materialTypeId) ?? []
+    bucket.push(lot)
+    byType.set(lot.materialTypeId, bucket)
   }
-  expandedMaterialTypeId.value = materialTypeId
-  editError.value = null
-  const row = stocks.value?.find((r) => r.materialTypeId === materialTypeId)
-  if (row) {
-    editQuantities.value[materialTypeId] = row.quantity
+  const groups: LotGroup[] = []
+  for (const [materialTypeId, groupLots] of byType.entries()) {
+    groupLots.sort((a, b) =>
+      (a.label ?? '').localeCompare(b.label ?? '', 'de', { sensitivity: 'base' }),
+    )
+    groups.push({
+      materialTypeId,
+      label: groupLots[0]?.materialTypeName ?? '',
+      lots: groupLots,
+    })
+  }
+  groups.sort((a, b) => a.label.localeCompare(b.label, 'de'))
+  return groups
+})
+
+const selectedNewType = computed(() =>
+  stockTypes.value.find((row) => String(row.materialTypeId) === newLot.materialTypeId),
+)
+
+const newVariantOptions = computed(() => selectedNewType.value?.variantValues ?? [])
+
+function resetNewLotDraft() {
+  const filtered = filterMaterialTypeId.value
+  const matchesFilter = stockTypes.value.some((row) => String(row.materialTypeId) === filtered)
+  newLot.materialTypeId = matchesFilter
+    ? filtered
+    : stockTypes.value[0]
+      ? String(stockTypes.value[0].materialTypeId)
+      : ''
+  newLot.label = ''
+  newLot.variant = ''
+  newLot.quantity = 1
+}
+
+function fillDraft(lot: StockLotListItem) {
+  drafts[lot.id] = {
+    label: lot.label ?? '',
+    variant: lot.variant ?? '',
+    quantity: lot.quantity,
   }
 }
 
-const saveMutation = useMutation({
-  mutationFn: ({ materialTypeId, quantity }: { materialTypeId: number; quantity: number }) =>
-    setStockQuantity(props.inventoryId, materialTypeId, quantity),
+function lotSummaryMeta(lot: StockLotListItem): string {
+  const parts: string[] = []
+  if (lot.variant) parts.push(lot.variant)
+  const qty = `${lot.quantity}${lot.unit ? ` ${lot.unit}` : ''}`
+  parts.push(qty)
+  return parts.join(' · ')
+}
+
+function openNewLotRow() {
+  expandedKey.value = NEW_LOT
+  formError.value = null
+  resetNewLotDraft()
+}
+
+function closeExpandedRow() {
+  expandedKey.value = null
+  formError.value = null
+}
+
+function toggleLotRow(lotId: number) {
+  if (expandedKey.value === lotId) {
+    closeExpandedRow()
+    return
+  }
+  expandedKey.value = lotId
+  formError.value = null
+}
+
+async function refresh() {
+  formError.value = null
+  await queryClient.invalidateQueries({ queryKey: ['stocks', props.inventoryId] })
+}
+
+const createMutation = useMutation({
+  mutationFn: () =>
+    createStockLot(props.inventoryId, Number(newLot.materialTypeId), {
+      label: newLot.label.trim() || null,
+      variant: newLot.variant || null,
+      quantity: newLot.quantity,
+    }),
   onSuccess: async () => {
-    editError.value = null
-    await queryClient.invalidateQueries({ queryKey: ['stocks', props.inventoryId] })
+    expandedKey.value = null
+    resetNewLotDraft()
+    await refresh()
   },
   onError: (error) => {
-    editError.value = messageFor(error)
+    formError.value = messageFor(error)
   },
 })
 
-function saveRow(materialTypeId: number) {
-  const quantity = editQuantities.value[materialTypeId]
-  if (typeof quantity !== 'number' || quantity < 0 || !Number.isInteger(quantity)) return
-  saveMutation.mutate({ materialTypeId, quantity })
-}
+const updateMutation = useMutation({
+  mutationFn: (lotId: number) => {
+    const draft = drafts[lotId]
+    return updateStockLot(props.inventoryId, lotId, {
+      label: draft.label.trim() || null,
+      variant: draft.variant || null,
+      quantity: draft.quantity,
+    })
+  },
+  onSuccess: refresh,
+  onError: (error) => {
+    formError.value = messageFor(error)
+  },
+})
+
+const deleteMutation = useMutation({
+  mutationFn: (lotId: number) => deleteStockLot(props.inventoryId, lotId),
+  onSuccess: async (_data, lotId) => {
+    if (expandedKey.value === lotId) expandedKey.value = null
+    await refresh()
+  },
+  onError: (error) => {
+    formError.value = messageFor(error)
+  },
+})
+
+watch(expandedKey, (key) => {
+  if (typeof key === 'number') {
+    const lot = lots.value.find((row) => row.id === key)
+    if (lot) fillDraft(lot)
+  }
+})
+
+watch(
+  () => newLot.materialTypeId,
+  () => {
+    if (newLot.variant && !newVariantOptions.value.includes(newLot.variant)) {
+      newLot.variant = ''
+    }
+  },
+)
 </script>
 
 <template>
   <div class="card bg-base-100 shadow-md">
     <div class="card-body gap-4 text-left">
-      <h2 class="card-title text-lg">{{ t('material.stockHeading') }}</h2>
-      <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
-      <ul v-else class="list-none">
-        <ExpandableRow
-          v-for="row in stocks"
-          :key="row.materialTypeId"
-          :expanded="expandedMaterialTypeId === row.materialTypeId"
-          @toggle="toggleRow(row.materialTypeId)"
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h2 class="card-title text-lg">{{ t('material.stockHeading') }}</h2>
+        <button
+          v-if="!isLoading && canAddLots"
+          type="button"
+          class="btn btn-ghost btn-sm"
+          :aria-expanded="expandedKey === NEW_LOT"
+          @click="openNewLotRow"
         >
-          <template #summary>
-            <div class="flex flex-wrap items-baseline justify-between gap-2">
-              <span class="font-medium">{{ row.materialTypeName }}</span>
-              <span class="text-sm text-base-content/70">
-                {{ t('material.stockQuantity') }}: {{ row.quantity
-                }}<template v-if="row.unit"> {{ row.unit }}</template>
-              </span>
-            </div>
+          {{ t('material.stockLotAdd') }}
+        </button>
+      </div>
+
+      <label v-if="canAddLots && !isLoading" class="flex min-w-0 flex-col gap-1 sm:max-w-xs">
+        <span class="text-xs opacity-80">{{ t('material.filterMaterialType') }}</span>
+        <select v-model="filterMaterialTypeId" class="select select-bordered select-sm">
+          <option value="">{{ t('material.filterAllMaterialTypes') }}</option>
+          <option v-for="row in stockTypes" :key="row.materialTypeId" :value="String(row.materialTypeId)">
+            {{ row.materialTypeName }}
+          </option>
+        </select>
+      </label>
+
+      <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
+      <template v-else>
+        <p v-if="!canAddLots" class="text-sm opacity-70">{{ t('material.stockNeedType') }}</p>
+        <ul v-else class="list-none">
+          <ExpandableRow
+            v-if="expandedKey === NEW_LOT"
+            :expanded="true"
+            @toggle="closeExpandedRow"
+          >
+            <template #summary>
+              <span class="font-medium">{{ t('material.stockLotAdd') }}</span>
+            </template>
+            <template #editor>
+              <form class="space-y-3" @submit.prevent="createMutation.mutate()">
+                <label class="flex min-w-0 flex-col gap-1">
+                  <span class="text-xs opacity-80">{{ t('material.filterMaterialType') }}</span>
+                  <select v-model="newLot.materialTypeId" class="select select-bordered w-full" required>
+                    <option v-for="row in stockTypes" :key="row.materialTypeId" :value="String(row.materialTypeId)">
+                      {{ row.materialTypeName }}
+                    </option>
+                  </select>
+                </label>
+                <label class="flex min-w-0 flex-col gap-1">
+                  <span class="text-xs opacity-80">{{ t('material.stockLotLabel') }}</span>
+                  <input
+                    v-model="newLot.label"
+                    type="text"
+                    class="input input-bordered w-full"
+                    :placeholder="t('material.stockLotLabelPlaceholder')"
+                  />
+                </label>
+                <label class="flex min-w-0 flex-col gap-1">
+                  <span class="text-xs opacity-80">
+                    {{ selectedNewType?.variantLabel || t('material.stockLotVariant') }}
+                  </span>
+                  <select
+                    v-if="newVariantOptions.length"
+                    v-model="newLot.variant"
+                    class="select select-bordered w-full"
+                  >
+                    <option value="">{{ t('material.stockLotVariantNone') }}</option>
+                    <option v-for="value in newVariantOptions" :key="value" :value="value">
+                      {{ value }}
+                    </option>
+                  </select>
+                  <span v-else class="text-sm opacity-60">{{ t('material.stockLotVariantNone') }}</span>
+                </label>
+                <label class="flex min-w-0 flex-col gap-1">
+                  <span class="text-xs opacity-80">{{ t('material.stockQuantity') }}</span>
+                  <input
+                    v-model.number="newLot.quantity"
+                    type="number"
+                    min="0"
+                    step="1"
+                    class="input input-bordered w-full"
+                    required
+                  />
+                </label>
+                <p v-if="formError" class="text-sm text-error">{{ formError }}</p>
+                <div class="flex justify-end gap-2">
+                  <button type="button" class="btn btn-ghost btn-sm" @click="closeExpandedRow">
+                    {{ t('material.cancel') }}
+                  </button>
+                  <button
+                    type="submit"
+                    class="btn btn-primary btn-sm"
+                    :disabled="createMutation.isPending.value"
+                  >
+                    {{ t('material.stockLotAdd') }}
+                  </button>
+                </div>
+              </form>
+            </template>
+          </ExpandableRow>
+
+          <template v-for="group in lotGroups" :key="group.materialTypeId">
+            <li class="pt-4 pb-1 text-sm font-semibold text-base-content/80">
+              {{ group.label }}
+            </li>
+            <ExpandableRow
+              v-for="lot in group.lots"
+              :key="lot.id"
+              :expanded="expandedKey === lot.id"
+              @toggle="toggleLotRow(lot.id)"
+            >
+              <template #summary>
+                <div class="flex flex-wrap items-baseline justify-between gap-2">
+                  <span class="font-medium">
+                    {{ lot.label?.trim() || t('material.stockLotUnlabeled') }}
+                  </span>
+                  <span class="text-sm text-base-content/70">{{ lotSummaryMeta(lot) }}</span>
+                </div>
+              </template>
+              <template #editor>
+                <form class="space-y-3" @submit.prevent="updateMutation.mutate(lot.id)">
+                  <p class="text-sm">
+                    <span class="text-xs opacity-80">{{ t('material.filterMaterialType') }}: </span>
+                    {{ lot.materialTypeName }}
+                  </p>
+                  <label class="flex min-w-0 flex-col gap-1">
+                    <span class="text-xs opacity-80">{{ t('material.stockLotLabel') }}</span>
+                    <input
+                      v-if="drafts[lot.id]"
+                      v-model="drafts[lot.id].label"
+                      type="text"
+                      class="input input-bordered w-full"
+                      :placeholder="t('material.stockLotLabelPlaceholder')"
+                    />
+                  </label>
+                  <label class="flex min-w-0 flex-col gap-1">
+                    <span class="text-xs opacity-80">
+                      {{ lot.variantLabel || t('material.stockLotVariant') }}
+                    </span>
+                    <select
+                      v-if="drafts[lot.id] && lot.variantValues.length"
+                      v-model="drafts[lot.id].variant"
+                      class="select select-bordered w-full"
+                    >
+                      <option value="">{{ t('material.stockLotVariantNone') }}</option>
+                      <option v-for="value in lot.variantValues" :key="value" :value="value">
+                        {{ value }}
+                      </option>
+                    </select>
+                    <span v-else class="text-sm opacity-60">{{ t('material.stockLotVariantNone') }}</span>
+                  </label>
+                  <label class="flex min-w-0 flex-col gap-1">
+                    <span class="text-xs opacity-80">{{ t('material.stockQuantity') }}</span>
+                    <input
+                      v-if="drafts[lot.id]"
+                      v-model.number="drafts[lot.id].quantity"
+                      type="number"
+                      min="0"
+                      step="1"
+                      class="input input-bordered w-full"
+                      required
+                    />
+                  </label>
+                  <p v-if="formError && expandedKey === lot.id" class="text-sm text-error">
+                    {{ formError }}
+                  </p>
+                  <div class="flex flex-wrap justify-end gap-2">
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-sm"
+                      :disabled="deleteMutation.isPending.value"
+                      @click="deleteMutation.mutate(lot.id)"
+                    >
+                      {{ t('material.stockLotRemove') }}
+                    </button>
+                    <button
+                      type="submit"
+                      class="btn btn-primary btn-sm"
+                      :disabled="updateMutation.isPending.value"
+                    >
+                      {{ t('material.save') }}
+                    </button>
+                  </div>
+                </form>
+              </template>
+            </ExpandableRow>
           </template>
-          <template #editor>
-            <form class="space-y-3" @submit.prevent="saveRow(row.materialTypeId)">
-              <label class="form-control w-full max-w-xs">
-                <span class="label-text">{{ t('material.stockQuantity') }}</span>
-                <input
-                  v-model.number="editQuantities[row.materialTypeId]"
-                  type="number"
-                  min="0"
-                  step="1"
-                  class="input input-bordered"
-                  required
-                />
-              </label>
-              <p v-if="editError && expandedMaterialTypeId === row.materialTypeId" class="text-sm text-error">
-                {{ editError }}
-              </p>
-              <div class="flex justify-end">
-                <button
-                  type="submit"
-                  class="btn btn-primary btn-sm"
-                  :disabled="saveMutation.isPending.value"
-                >
-                  {{ t('material.save') }}
-                </button>
-              </div>
-            </form>
-          </template>
-        </ExpandableRow>
-        <li v-if="!stocks?.length" class="py-2 text-sm opacity-70">
-          {{ t('material.stockEmpty') }}
-        </li>
-      </ul>
+
+          <li
+            v-if="!filteredLots.length && expandedKey !== NEW_LOT"
+            class="py-2 text-sm opacity-70"
+          >
+            {{ t('material.stockLotsEmpty') }}
+          </li>
+        </ul>
+      </template>
     </div>
   </div>
 </template>

@@ -278,10 +278,22 @@ def loan_detail_to_json(loan: Loan) -> dict:
     }
 
 
-def stock_to_json(material_type: MaterialType, quantity: int) -> dict:
+def stock_to_json(material_type: MaterialType) -> dict:
+    lots = list(material_type.stock_lots)
     return {
         "materialTypeId": material_type.id,
         "materialTypeName": material_type.name,
         "unit": material_type.unit,
-        "quantity": quantity,
+        "variantLabel": material_type.variant_label,
+        "variantValues": [value.value for value in material_type.variant_values],
+        "quantity": sum(lot.quantity for lot in lots),
+        "lots": [
+            {
+                "id": lot.id,
+                "label": lot.label,
+                "variant": lot.variant,
+                "quantity": lot.quantity,
+            }
+            for lot in lots
+        ],
     }

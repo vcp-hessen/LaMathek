@@ -95,6 +95,12 @@
   min-width: 0;
 }
 
+@layer components {
+  .app-page {
+    @apply mx-auto w-full max-w-7xl p-6;
+  }
+}
+
 @layer base {
   html {
     font-family: var(--font-sans);

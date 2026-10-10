@@ -37,7 +37,7 @@ const description = ref('')
 const unit = ref('')
 const consumable = ref(false)
 const variantLabel = ref('')
-const variantValuesText = ref('')
+const variantValues = ref<string[]>([])
 const categoryText = ref('')
 
 const editName = ref('')
@@ -47,7 +47,7 @@ const editDescription = ref('')
 const editUnit = ref('')
 const editConsumable = ref(false)
 const editVariantLabel = ref('')
-const editVariantValuesText = ref('')
+const editVariantValues = ref<string[]>([])
 const editCategoryText = ref('')
 
 const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
@@ -65,13 +65,6 @@ const { data: categories } = useQuery({
 })
 
 const categoryList = computed(() => categories.value ?? [])
-
-function variantValuesFromText(text: string): string[] {
-  return text
-    .split(/[,\n]/)
-    .map((part) => part.trim())
-    .filter(Boolean)
-}
 
 function categoryPart(
   text: string,
@@ -95,7 +88,7 @@ function buildPayload(
     unit: string
     consumable: boolean
     variantLabel: string
-    variantValuesText: string
+    variantValues: string[]
     categoryText: string
   },
 ): MaterialTypeWritePayload {
@@ -107,7 +100,7 @@ function buildPayload(
     unit: fields.tracking === 'stock' ? fields.unit.trim() || null : null,
     consumable: fields.consumable,
     variantLabel: fields.variantLabel.trim() || null,
-    variantValues: variantValuesFromText(fields.variantValuesText),
+    variantValues: fields.variantValues.map((value) => value.trim()).filter(Boolean),
     ...categoryPart(fields.categoryText, categoryList.value),
   }
 }
@@ -120,7 +113,7 @@ function resetCreateDraft() {
   unit.value = ''
   consumable.value = false
   variantLabel.value = ''
-  variantValuesText.value = ''
+  variantValues.value = []
   categoryText.value = ''
 }
 
@@ -132,7 +125,7 @@ function loadEditDraft(mt: MaterialType) {
   editUnit.value = mt.unit ?? ''
   editConsumable.value = mt.consumable
   editVariantLabel.value = mt.variantLabel ?? ''
-  editVariantValuesText.value = mt.variantValues.join(', ')
+  editVariantValues.value = [...mt.variantValues]
   editCategoryText.value = mt.categoryName ?? ''
   formError.value = null
 }
@@ -186,7 +179,7 @@ const createMutation = useMutation({
         unit: unit.value,
         consumable: consumable.value,
         variantLabel: variantLabel.value,
-        variantValuesText: variantValuesText.value,
+        variantValues: variantValues.value,
         categoryText: categoryText.value,
       }),
     ),
@@ -215,7 +208,7 @@ const updateMutation = useMutation({
         unit: editUnit.value,
         consumable: editConsumable.value,
         variantLabel: editVariantLabel.value,
-        variantValuesText: editVariantValuesText.value,
+        variantValues: editVariantValues.value,
         categoryText: editCategoryText.value,
       }),
     ),
@@ -292,7 +285,7 @@ watch(expandedKey, (key) => {
                 v-model:unit="unit"
                 v-model:consumable="consumable"
                 v-model:variant-label="variantLabel"
-                v-model:variant-values-text="variantValuesText"
+                v-model:variant-values="variantValues"
                 v-model:category-text="categoryText"
                 :categories="categoryList"
               />
@@ -337,7 +330,7 @@ watch(expandedKey, (key) => {
                 v-model:unit="editUnit"
                 v-model:consumable="editConsumable"
                 v-model:variant-label="editVariantLabel"
-                v-model:variant-values-text="editVariantValuesText"
+                v-model:variant-values="editVariantValues"
                 v-model:category-text="editCategoryText"
                 :categories="categoryList"
               />

@@ -24,7 +24,7 @@ from lamathek.models.loan import (
     LoanReturn,
     LoanReturnLine,
 )
-from lamathek.models.material import Piece, Stock
+from lamathek.models.material import Piece
 from lamathek.models.set import (
     SET_ROLE_ASSIGNMENT,
     SET_ROLE_OPTIONAL,
@@ -260,10 +260,9 @@ def _piece_handed_out(session: Session, piece_id: int, *, exclude_loan_id: int |
 
 
 def _stock_quantity(session: Session, material_type_id: int) -> int:
-    row = session.scalar(
-        select(Stock.quantity).where(Stock.material_type_id == material_type_id)
-    )
-    return int(row) if row is not None else 0
+    from lamathek.services.material import total_stock_quantity
+
+    return total_stock_quantity(session, material_type_id)
 
 
 def _set_reserved_stock(session: Session, inventory_id: int, material_type_id: int) -> int:
@@ -716,12 +715,9 @@ def record_loan_return(
                         quantity=loss_qty,
                     )
                 )
-                stock = session.scalar(
-                    select(Stock).where(Stock.material_type_id == line.material_type_id)
-                )
-                if stock is None or stock.quantity < quantity:
-                    raise ValueError("invalid_loss")
-                stock.quantity -= quantity
+                from lamathek.services.material import apply_stock_loss
+
+                apply_stock_loss(session, line.material_type_id, quantity)
         else:
             if _line_is_settled(session, line):
                 raise ValueError("line_already_settled")

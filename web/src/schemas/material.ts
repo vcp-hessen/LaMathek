@@ -60,11 +60,23 @@ export const pieceDetailSchema = pieceSchema.extend({
 export type Damage = z.infer<typeof damageSchema>
 export type PieceDetail = z.infer<typeof pieceDetailSchema>
 
+export const stockLotSchema = z.object({
+  id: z.number(),
+  label: z.string().nullable(),
+  variant: z.string().nullable(),
+  quantity: z.number(),
+})
+
 export const stockRowSchema = z.object({
   materialTypeId: z.number(),
   materialTypeName: z.string(),
   unit: z.string().nullable(),
+  variantLabel: z.string().nullable(),
+  variantValues: z.array(z.string()),
   quantity: z.number(),
+  lots: z.array(stockLotSchema),
 })
+
+export type StockLot = z.infer<typeof stockLotSchema>
 
 export type StockRow = z.infer<typeof stockRowSchema>

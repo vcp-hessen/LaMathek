@@ -26,12 +26,15 @@ from lamathek.services.material import (
     delete_piece,
     list_material_types,
     list_pieces,
+    create_stock_lot,
+    delete_stock_lot,
     list_stocks,
     material_type_by_id,
     piece_by_id,
-    set_stock_quantity,
+    stock_lot_by_id,
     update_material_type,
     update_piece,
+    update_stock_lot,
 )
 
 material_bp = Blueprint("material", __name__, url_prefix="/api")
@@ -414,26 +417,81 @@ def remove_piece(_user, piece_id: int):
     return ("", 204)
 
 
+def _optional_lot_text(body: dict, key: str) -> str | None:
+    if key not in body or body.get(key) is None:
+        return None
+    value = body.get(key)
+    if not isinstance(value, str):
+        raise ValueError("invalid_field")
+    return value
+
+
 @material_bp.get("/inventories/<int:inventory_id>/stocks")
 @require_inventory_manager()
 def get_stocks(_user, inventory):
     session = get_session()
     rows = list_stocks(session, inventory.id)
-    return jsonify([stock_to_json(mt, qty) for mt, qty in rows])
+    return jsonify([stock_to_json(mt) for mt in rows])
 
 
-@material_bp.put("/inventories/<int:inventory_id>/stocks/<int:material_type_id>")
+@material_bp.post("/inventories/<int:inventory_id>/stocks/<int:material_type_id>/lots")
 @require_inventory_manager()
-def put_stock(_user, inventory, material_type_id: int):
+def post_stock_lot(_user, inventory, material_type_id: int):
     body = request.get_json(silent=True) or {}
     quantity = body.get("quantity")
     if not isinstance(quantity, int):
         return jsonify({"error": "invalid_quantity"}), 400
     session = get_session()
     try:
-        material_type, qty = set_stock_quantity(
-            session, inventory, material_type_id, quantity
+        material_type = create_stock_lot(
+            session,
+            inventory,
+            material_type_id,
+            label=_optional_lot_text(body, "label"),
+            variant=_optional_lot_text(body, "variant"),
+            quantity=quantity,
         )
     except ValueError as exc:
         return _material_type_error(exc)
-    return jsonify(stock_to_json(material_type, qty))
+    return jsonify(stock_to_json(material_type)), 201
+
+
+@material_bp.patch("/inventories/<int:inventory_id>/stock-lots/<int:lot_id>")
+@require_inventory_manager()
+def patch_stock_lot(_user, inventory, lot_id: int):
+    body = request.get_json(silent=True) or {}
+    quantity = body.get("quantity")
+    if not isinstance(quantity, int):
+        return jsonify({"error": "invalid_quantity"}), 400
+    session = get_session()
+    lot = stock_lot_by_id(session, lot_id)
+    if lot is None or lot.material_type.inventory_id != inventory.id:
+        return jsonify({"error": "not_found"}), 404
+    try:
+        material_type = update_stock_lot(
+            session,
+            inventory,
+            lot,
+            label=body.get("label") if isinstance(body.get("label"), str) else None,
+            variant=body.get("variant") if isinstance(body.get("variant"), str) else None,
+            quantity=quantity,
+            label_sent="label" in body,
+            variant_sent="variant" in body,
+        )
+    except ValueError as exc:
+        return _material_type_error(exc)
+    return jsonify(stock_to_json(material_type))
+
+
+@material_bp.delete("/inventories/<int:inventory_id>/stock-lots/<int:lot_id>")
+@require_inventory_manager()
+def remove_stock_lot(_user, inventory, lot_id: int):
+    session = get_session()
+    lot = stock_lot_by_id(session, lot_id)
+    if lot is None or lot.material_type.inventory_id != inventory.id:
+        return jsonify({"error": "not_found"}), 404
+    try:
+        delete_stock_lot(session, inventory, lot)
+    except ValueError as exc:
+        return _material_type_error(exc)
+    return ("", 204)

@@ -73,7 +73,7 @@ function kindLabel(kind: string) {
 </script>
 
 <template>
-  <div class="mx-auto max-w-3xl space-y-6 p-6">
+  <div class="app-page space-y-6">
     <h1 class="text-2xl font-bold">{{ t('loans.heading') }}</h1>
 
     <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>

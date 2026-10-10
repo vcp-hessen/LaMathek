@@ -129,7 +129,7 @@ function addPiece() {
 </script>
 
 <template>
-  <div class="mx-auto max-w-3xl space-y-6 p-6">
+  <div class="app-page space-y-6">
     <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
     <template v-else-if="setDetail">
       <form class="flex flex-wrap gap-2" @submit.prevent="renameMutation.mutate()">

@@ -209,7 +209,7 @@ def test_stock_hand_out_cannot_exceed_available():
             json={"name": "Heringe", "tracking": "stock"},
         )
         type_id = heringe.get_json()["id"]
-        client.put(f"/api/inventories/{inv_id}/stocks/{type_id}", json={"quantity": 5})
+        client.post(f"/api/inventories/{inv_id}/stocks/{type_id}/lots", json={"quantity": 5})
 
         loan = _create_loan(client, inv_id, ver_id)
         loan_id = loan.get_json()["id"]

@@ -1,4 +1,4 @@
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -11,7 +11,7 @@ from lamathek.models.material import (
     MaterialType,
     MaterialTypeVariantValue,
     Piece,
-    Stock,
+    StockLot,
     VALID_TRACKING,
 )
 
@@ -23,7 +23,7 @@ def _load_material_type(session: Session, material_type_id: int) -> MaterialType
         .options(
             selectinload(MaterialType.variant_values),
             selectinload(MaterialType.pieces),
-            selectinload(MaterialType.stock),
+            selectinload(MaterialType.stock_lots),
             selectinload(MaterialType.inventory),
             selectinload(MaterialType.category),
         )
@@ -55,9 +55,7 @@ def _variant_value_strings(material_type: MaterialType) -> list[str]:
 def _material_type_has_usage(material_type: MaterialType) -> bool:
     if material_type.pieces:
         return True
-    if material_type.stock is not None and material_type.stock.quantity > 0:
-        return True
-    if material_type.stock is not None:
+    if material_type.stock_lots:
         return True
     return False
 
@@ -474,48 +472,153 @@ def delete_piece(session: Session, piece: Piece) -> None:
     session.commit()
 
 
-def list_stocks(session: Session, inventory_id: int) -> list[tuple[MaterialType, int]]:
-    types = list(
+def total_stock_quantity(session: Session, material_type_id: int) -> int:
+    total = session.scalar(
+        select(func.coalesce(func.sum(StockLot.quantity), 0)).where(
+            StockLot.material_type_id == material_type_id
+        )
+    )
+    return int(total or 0)
+
+
+def _stock_material_type(
+    session: Session, inventory: Inventory, material_type_id: int
+) -> MaterialType:
+    material_type = _load_material_type(session, material_type_id)
+    if material_type is None or material_type.inventory_id != inventory.id:
+        raise ValueError("invalid_material_type")
+    if material_type.tracking != TRACKING_STOCK:
+        raise ValueError("not_stock_tracking")
+    return material_type
+
+
+def _assert_stock_floor(session: Session, inventory_id: int, material_type_id: int) -> None:
+    from lamathek.services.loans import minimum_stock_quantity
+
+    floor = minimum_stock_quantity(session, inventory_id, material_type_id)
+    if total_stock_quantity(session, material_type_id) < floor:
+        raise ValueError("below_loaned")
+
+
+def _validate_lot_variant(material_type: MaterialType, variant: str | None) -> str | None:
+    allowed = _variant_value_strings(material_type)
+    if variant is None or not str(variant).strip():
+        return None
+    chosen = str(variant).strip()
+    if not allowed or chosen not in allowed:
+        raise ValueError("invalid_variant")
+    return chosen
+
+
+def list_stocks(session: Session, inventory_id: int) -> list[MaterialType]:
+    return list(
         session.scalars(
             select(MaterialType)
             .where(
                 MaterialType.inventory_id == inventory_id,
                 MaterialType.tracking == TRACKING_STOCK,
             )
-            .options(selectinload(MaterialType.stock))
+            .options(
+                selectinload(MaterialType.stock_lots),
+                selectinload(MaterialType.variant_values),
+            )
             .order_by(MaterialType.name)
         ).all()
     )
-    result: list[tuple[MaterialType, int]] = []
-    for material_type in types:
-        qty = material_type.stock.quantity if material_type.stock else 0
-        result.append((material_type, qty))
-    return result
 
 
-def set_stock_quantity(
+def stock_lot_by_id(session: Session, lot_id: int) -> StockLot | None:
+    return session.scalar(
+        select(StockLot)
+        .where(StockLot.id == lot_id)
+        .options(selectinload(StockLot.material_type).selectinload(MaterialType.stock_lots))
+    )
+
+
+def create_stock_lot(
     session: Session,
     inventory: Inventory,
     material_type_id: int,
+    *,
+    label: str | None,
+    variant: str | None,
     quantity: int,
-) -> tuple[MaterialType, int]:
+) -> MaterialType:
     if not isinstance(quantity, int) or quantity < 0:
         raise ValueError("invalid_quantity")
-    material_type = _load_material_type(session, material_type_id)
-    if material_type is None or material_type.inventory_id != inventory.id:
-        raise ValueError("invalid_material_type")
-    if material_type.tracking != TRACKING_STOCK:
-        raise ValueError("not_stock_tracking")
-    from lamathek.services.loans import minimum_stock_quantity
-
-    floor = minimum_stock_quantity(session, inventory.id, material_type_id)
-    if quantity < floor:
-        raise ValueError("below_loaned")
-    if material_type.stock is None:
-        material_type.stock = Stock(material_type_id=material_type.id, quantity=quantity)
-        session.add(material_type.stock)
-    else:
-        material_type.stock.quantity = quantity
+    material_type = _stock_material_type(session, inventory, material_type_id)
+    if quantity > 0:
+        session.add(
+            StockLot(
+                material_type_id=material_type.id,
+                label=_normalize_optional_text(label),
+                variant=_validate_lot_variant(material_type, variant),
+                quantity=quantity,
+            )
+        )
+        session.flush()
+    _assert_stock_floor(session, inventory.id, material_type.id)
     session.commit()
-    session.refresh(material_type)
-    return material_type, quantity
+    return _stock_material_type(session, inventory, material_type.id)
+
+
+def update_stock_lot(
+    session: Session,
+    inventory: Inventory,
+    lot: StockLot,
+    *,
+    label: str | None,
+    variant: str | None,
+    quantity: int,
+    label_sent: bool,
+    variant_sent: bool,
+) -> MaterialType:
+    if not isinstance(quantity, int) or quantity < 0:
+        raise ValueError("invalid_quantity")
+    material_type = _stock_material_type(session, inventory, lot.material_type_id)
+    if lot.material_type_id != material_type.id:
+        raise ValueError("not_found")
+    if label_sent:
+        lot.label = _normalize_optional_text(label)
+    if variant_sent:
+        lot.variant = _validate_lot_variant(material_type, variant)
+    lot.quantity = quantity
+    session.flush()
+    if lot.quantity == 0:
+        session.delete(lot)
+        session.flush()
+    _assert_stock_floor(session, inventory.id, material_type.id)
+    session.commit()
+    return _stock_material_type(session, inventory, material_type.id)
+
+
+def delete_stock_lot(session: Session, inventory: Inventory, lot: StockLot) -> MaterialType:
+    material_type = _stock_material_type(session, inventory, lot.material_type_id)
+    session.delete(lot)
+    session.flush()
+    _assert_stock_floor(session, inventory.id, material_type.id)
+    session.commit()
+    return _stock_material_type(session, inventory, material_type.id)
+
+
+def apply_stock_loss(session: Session, material_type_id: int, quantity: int) -> None:
+    if quantity <= 0:
+        raise ValueError("invalid_quantity")
+    lots = list(
+        session.scalars(
+            select(StockLot)
+            .where(StockLot.material_type_id == material_type_id)
+            .order_by(StockLot.id)
+        ).all()
+    )
+    remaining = quantity
+    for lot in lots:
+        if remaining <= 0:
+            break
+        take = min(lot.quantity, remaining)
+        lot.quantity -= take
+        remaining -= take
+        if lot.quantity == 0:
+            session.delete(lot)
+    if remaining > 0:
+        raise ValueError("invalid_loss")

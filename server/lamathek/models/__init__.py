@@ -6,7 +6,7 @@ from lamathek.models.material import (
     MaterialType,
     MaterialTypeVariantValue,
     Piece,
-    Stock,
+    StockLot,
 )
 from lamathek.models.set import MaterialSet, SetStockLine
 from lamathek.models.settings import InstallationSettings
@@ -30,6 +30,6 @@ __all__ = [
     "Repair",
     "MaterialSet",
     "SetStockLine",
-    "Stock",
+    "StockLot",
     "User",
 ]

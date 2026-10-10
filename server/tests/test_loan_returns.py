@@ -77,7 +77,7 @@ def test_partial_stock_return_keeps_remainder_loaned():
             json={"name": "Heringe", "tracking": "stock"},
         )
         type_id = mt.get_json()["id"]
-        client.put(f"/api/inventories/{inv_id}/stocks/{type_id}", json={"quantity": 10})
+        client.post(f"/api/inventories/{inv_id}/stocks/{type_id}/lots", json={"quantity": 10})
 
         loan = client.post(
             f"/api/inventories/{inv_id}/loans",
@@ -221,8 +221,8 @@ def test_piece_loss_blocks_reissue_and_stock_loss_reduces_quantity():
             json={"name": "Heringe", "tracking": "stock"},
         )
         stock_type_id = mt_stock.get_json()["id"]
-        client.put(
-            f"/api/inventories/{inv_id}/stocks/{stock_type_id}", json={"quantity": 6}
+        client.post(
+            f"/api/inventories/{inv_id}/stocks/{stock_type_id}/lots", json={"quantity": 6}
         )
 
         loan_stock = client.post(
@@ -270,7 +270,7 @@ def test_over_return_rejected():
             json={"name": "Heringe", "tracking": "stock"},
         )
         type_id = mt.get_json()["id"]
-        client.put(f"/api/inventories/{inv_id}/stocks/{type_id}", json={"quantity": 5})
+        client.post(f"/api/inventories/{inv_id}/stocks/{type_id}/lots", json={"quantity": 5})
 
         loan = client.post(
             f"/api/inventories/{inv_id}/loans",

@@ -86,8 +86,8 @@ def test_add_set_creates_piece_and_stock_lines_and_hand_out():
             json={"name": "Heringe", "tracking": "stock"},
         )
         heringe_id = heringe.get_json()["id"]
-        client.put(
-            f"/api/inventories/{inv_id}/stocks/{heringe_id}", json={"quantity": 20}
+        client.post(
+            f"/api/inventories/{inv_id}/stocks/{heringe_id}/lots", json={"quantity": 20}
         )
 
         material_set = client.post(
@@ -196,8 +196,8 @@ def test_optional_stock_on_one_loan_not_two():
             json={"name": "Heringe", "tracking": "stock"},
         )
         heringe_id = heringe.get_json()["id"]
-        client.put(
-            f"/api/inventories/{inv_id}/stocks/{heringe_id}", json={"quantity": 10}
+        client.post(
+            f"/api/inventories/{inv_id}/stocks/{heringe_id}/lots", json={"quantity": 10}
         )
 
         material_set = client.post(
@@ -334,8 +334,8 @@ def test_delete_piece_and_lower_stock_blocked():
             json={"name": "Heringe", "tracking": "stock"},
         )
         heringe_id = heringe.get_json()["id"]
-        client.put(
-            f"/api/inventories/{inv_id}/stocks/{heringe_id}", json={"quantity": 10}
+        client.post(
+            f"/api/inventories/{inv_id}/stocks/{heringe_id}/lots", json={"quantity": 10}
         )
 
         loan = _create_loan(client, inv_id, ver_id)
@@ -350,8 +350,11 @@ def test_delete_piece_and_lower_stock_blocked():
         assert del_piece.status_code == 409
         assert del_piece.get_json()["error"] == "piece_on_loan"
 
-        lower = client.put(
-            f"/api/inventories/{inv_id}/stocks/{heringe_id}", json={"quantity": 0}
+        listed = client.get(f"/api/inventories/{inv_id}/stocks").get_json()
+        lot_id = next(row for row in listed if row["materialTypeId"] == heringe_id)["lots"][0]["id"]
+        lower = client.patch(
+            f"/api/inventories/{inv_id}/stock-lots/{lot_id}",
+            json={"quantity": 0},
         )
         assert lower.status_code == 409
         assert lower.get_json()["error"] == "below_loaned"

@@ -60,10 +60,17 @@ function navItemClass(active: boolean, expanded: boolean) {
         :aria-label="expanded ? t('shell.collapseSidebar') : t('shell.expandSidebar')"
         @click="ui.toggleSidebarExpanded()"
       >
-        <WlzIcon
-          :glyph="expanded ? 'opposite' : 'thisWay'"
-          size-class="text-lg"
-        />
+        <span
+          class="inline-flex transition-transform duration-200 ease-in-out"
+          :class="expanded ? 'rotate-180' : 'rotate-0'"
+          aria-hidden="true"
+        >
+          <WlzIcon
+            glyph="thisWay"
+            size-class="text-lg"
+            :tooltip="expanded ? t('shell.collapseSidebar') : t('shell.expandSidebar')"
+          />
+        </span>
       </button>
     </div>
 
@@ -105,6 +112,7 @@ function navItemClass(active: boolean, expanded: boolean) {
                   glyph="campPath"
                   :active="inventoriesListActive"
                   size-class="text-lg"
+                  :tooltip="t('inventories.nav')"
                 />
                 <span v-show="expanded" class="truncate">{{ t('inventories.nav') }}</span>
               </RouterLink>
@@ -126,6 +134,7 @@ function navItemClass(active: boolean, expanded: boolean) {
                   glyph="geheim"
                   :active="settingsActive"
                   size-class="text-lg"
+                  :tooltip="t('settings.heading')"
                 />
                 <span v-show="expanded">{{ t('settings.heading') }}</span>
               </RouterLink>
@@ -162,6 +171,7 @@ function navItemClass(active: boolean, expanded: boolean) {
                 <WlzIcon
                   :glyph="ui.theme === 'light' ? 'night' : 'day'"
                   size-class="text-lg"
+                  :tooltip="ui.theme === 'light' ? t('theme.dark') : t('theme.light')"
                 />
                 <span v-show="expanded">
                   {{ ui.theme === 'light' ? t('theme.dark') : t('theme.light') }}
@@ -182,7 +192,7 @@ function navItemClass(active: boolean, expanded: boolean) {
                 :aria-label="expanded ? undefined : t('auth.signOut')"
                 @click="emit('signOut')"
               >
-                <WlzIcon glyph="backToStart" size-class="text-lg" />
+                <WlzIcon glyph="backToStart" size-class="text-lg" :tooltip="t('auth.signOut')" />
                 <span v-show="expanded">{{ t('auth.signOut') }}</span>
               </button>
             </div>

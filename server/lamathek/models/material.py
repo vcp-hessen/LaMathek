@@ -45,10 +45,10 @@ class MaterialType(Base):
         back_populates="material_type",
         cascade="all, delete-orphan",
     )
-    stock: Mapped["Stock | None"] = relationship(
+    stock_lots: Mapped[list["StockLot"]] = relationship(
         back_populates="material_type",
         cascade="all, delete-orphan",
-        uselist=False,
+        order_by="StockLot.id",
     )
 
 
@@ -102,16 +102,18 @@ class Piece(Base):
     )
 
 
-class Stock(Base):
-    __tablename__ = "stocks"
+class StockLot(Base):
+    __tablename__ = "stock_lots"
     __table_args__ = (
-        UniqueConstraint("material_type_id", name="uq_stock_per_material_type"),
+        CheckConstraint("quantity >= 0", name="ck_stock_lot_quantity_non_negative"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     material_type_id: Mapped[int] = mapped_column(
         ForeignKey("material_types.id", ondelete="CASCADE")
     )
+    label: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    variant: Mapped[str | None] = mapped_column(String(255), nullable=True)
     quantity: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
-    material_type: Mapped["MaterialType"] = relationship(back_populates="stock")
+    material_type: Mapped["MaterialType"] = relationship(back_populates="stock_lots")

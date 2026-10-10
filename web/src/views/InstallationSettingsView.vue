@@ -20,7 +20,7 @@ const { data: me, isLoading: meLoading } = useQuery({
 </script>
 
 <template>
-  <div class="mx-auto max-w-lg space-y-6 p-6">
+  <div class="app-page space-y-6">
     <h1 class="text-2xl font-bold">{{ t('settings.heading') }}</h1>
     <p v-if="settingsLoading || meLoading" class="text-sm">{{ t('auth.loading') }}</p>
     <p v-else-if="!me?.isSuperuser" class="text-sm text-base-content/70">
