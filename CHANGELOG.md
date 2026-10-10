@@ -20,6 +20,7 @@ LaMathek uses [CalVer](https://calver.org/) as `YYYY.MM.MICRO`. Nothing has been
 
 ### Fixed
 
+- WLZ-Buchstaben für Einstellungen (`W`) und Abmelden (`N`) in `wlz-glyphs.ts` ergänzt (Icons waren leer).
 - Mobil: Theme und Abmelden nicht mehr doppelt in der Kopfzeile (nur im Hamburger-Menü).
 - Staging-Image findet das gebaute Frontend über `LAMATHEK_STATIC_ROOT` (nach `pip install` liegt das Paket nicht mehr neben `web/dist`).
 - Staging-Start migriert dieselbe SQLite-Datei, die die App öffnet (`SQLITE_PATH=/data/lamathek.sqlite3`). Vorher lief Alembic aus dem Quellbaum und die App aus `site-packages` gegen zwei verschiedene Dateien, `/api/settings` antwortete dann mit 500.

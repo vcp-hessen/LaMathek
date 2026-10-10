@@ -24,4 +24,6 @@ export const WLZ_GLYPH: Record<WlzGlyphId, string> = {
   night: 's',
   opposite: 'y',
   thisWay: 'x',
+  geheim: 'W',
+  backToStart: 'N',
 }
