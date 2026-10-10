@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, watch } from 'vue'
-import { RouterView, useRoute } from 'vue-router'
+import { RouterView, useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { fetchInventories } from '../api/inventories'
 import { fetchInstallationSettings } from '../api/settings'
@@ -15,6 +15,7 @@ import { useUiStore } from '../stores/ui'
 
 const { t } = useI18n()
 const route = useRoute()
+const router = useRouter()
 const queryClient = useQueryClient()
 const ui = useUiStore()
 const inventoryStore = useInventoryStore()
@@ -76,7 +77,10 @@ watch(
 
 async function onSignOut() {
   await logout()
-  await queryClient.invalidateQueries({ queryKey: ['me'] })
+  inventoryStore.setActiveInventory(null)
+  await queryClient.cancelQueries()
+  queryClient.clear()
+  await router.push('/')
 }
 </script>
 

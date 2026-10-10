@@ -106,7 +106,7 @@ function itemClass(active: boolean, expanded: boolean) {
       />
     </div>
 
-    <ul v-if="activeInventoryId" class="space-y-1">
+    <ul v-if="showInventoryPicker && activeInventoryId" class="space-y-1">
       <li v-for="link in workspaceLinks" :key="link.key">
         <div
           class="tooltip tooltip-right w-full"
