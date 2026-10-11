@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import type { Category, VariantAxis } from '../schemas/material'
+import CategoryPicker from './CategoryPicker.vue'
 import MaterialTypeVariantsEditor from './MaterialTypeVariantsEditor.vue'
 
 defineProps<{
@@ -44,19 +45,10 @@ function setTrackingFromToggle(isStock: boolean) {
         :placeholder="t('material.shortNameOptional')"
       />
     </label>
-    <label class="flex min-w-0 flex-col gap-1">
+    <div class="flex min-w-0 flex-col gap-1">
       <span class="text-xs opacity-80">{{ t('material.category') }}</span>
-      <input
-        v-model="categoryText"
-        type="text"
-        class="input input-bordered"
-        list="material-type-categories"
-        :placeholder="t('material.categoryPlaceholder')"
-      />
-      <datalist id="material-type-categories">
-        <option v-for="c in categories" :key="c.id" :value="c.name" />
-      </datalist>
-    </label>
+      <CategoryPicker v-model="categoryText" :categories="categories" />
+    </div>
   </div>
 
   <label class="flex min-w-0 flex-col gap-1">

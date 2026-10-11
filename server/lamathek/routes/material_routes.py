@@ -143,6 +143,8 @@ def post_material_type(_user, inventory):
     session = get_session()
     try:
         category_args = _category_args_from_body(body)
+        # A new type has no category to clear; omitting both ids leaves it unset.
+        category_args.pop("clear_category", None)
         material_type = create_material_type(
             session,
             inventory,

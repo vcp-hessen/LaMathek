@@ -101,6 +101,18 @@ def test_material_type_extended_fields_and_category():
         assert again.status_code == 201
         assert again.get_json()["categoryId"] == category_id
 
+        without_category = client.post(
+            f"/api/inventories/{inv_a}/material-types",
+            json={
+                "name": "Schnüre",
+                "tracking": "stock",
+                "categoryId": None,
+                "variants": [],
+            },
+        )
+        assert without_category.status_code == 201
+        assert without_category.get_json()["categoryId"] is None
+
         piece_type = client.post(
             f"/api/inventories/{inv_a}/material-types",
             json={
