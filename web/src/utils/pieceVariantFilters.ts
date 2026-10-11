@@ -28,6 +28,21 @@ export function variantFiltersAreActive(activeFilters: Record<string, string[]>)
   return Object.values(activeFilters).some((values) => values.length > 0)
 }
 
+/** Drops axes and values that are not defined on the given catalog (e.g. after material-type filter). */
+export function pruneVariantFilterToCatalog(
+  activeFilters: Record<string, string[]>,
+  catalog: VariantAxisCatalogEntry[],
+): Record<string, string[]> {
+  const catalogByLabel = new Map(catalog.map((entry) => [entry.label, new Set(entry.values)]))
+  const next: Record<string, string[]> = {}
+  for (const [label, values] of Object.entries(activeFilters)) {
+    const allowed = catalogByLabel.get(label)
+    if (!allowed) continue
+    next[label] = values.filter((value) => allowed.has(value))
+  }
+  return next
+}
+
 export function pieceMatchesVariantFilters(
   piece: Piece,
   materialType: MaterialType | undefined,
