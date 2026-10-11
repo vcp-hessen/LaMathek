@@ -9,6 +9,7 @@ LaMathek uses [CalVer](https://calver.org/) as `YYYY.MM.MICRO`. Nothing has been
 
 ### Added
 
+- App-Icon auf Basis des Logos mit abgerundeten Ecken (`web/public/app-icon.svg`, `app-icon.png`).
 - Öffentliche Seite Datenschutzerklärung (`/datenschutz`), verlinkt in der Fußzeile; Verantwortliche Stelle aus den Impressumsangaben, Hosting bei der Hetzner Cloud, Anmeldung über den Keycloak der VCP-Hessen-Landescloud.
 - Inventar-Berechtigungen: Superuser und berechtigte Materialwarte vergeben und entziehen Nutzer–Inventar-Paare; Nutzer*innen-Suche beim Hinzufügen (`/api/users/search`).
 - Staging-Image (`Dockerfile`) für Coolify: gebautes Frontend, Flask auf `0.0.0.0`, Alembic beim Start, SQLite über ein Volume.
