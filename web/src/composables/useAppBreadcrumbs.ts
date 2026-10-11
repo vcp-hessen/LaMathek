@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { fetchInventories } from '../api/inventories'
-import { fetchPiece } from '../api/material'
+import { fetchPiece, fetchStocks } from '../api/material'
 import { fetchLoan } from '../api/loans'
 import { fetchSet } from '../api/sets'
 import { fetchMe } from '../api/me'
@@ -57,6 +57,12 @@ export function useAppBreadcrumbs() {
     return Number.isFinite(id) ? id : null
   })
 
+  const routeStockLotId = computed(() => {
+    if (route.name !== 'stock-lot-detail') return null
+    const id = Number(route.params.lotId)
+    return Number.isFinite(id) ? id : null
+  })
+
   const { data: setDetail } = useQuery({
     queryKey: computed(() => ['set', routeSetId.value]),
     queryFn: () => fetchSet(routeSetId.value!),
@@ -73,6 +79,12 @@ export function useAppBreadcrumbs() {
     queryKey: computed(() => ['piece', routePieceId.value]),
     queryFn: () => fetchPiece(routePieceId.value!),
     enabled: () => routePieceId.value !== null,
+  })
+
+  const { data: stocksForBreadcrumb } = useQuery({
+    queryKey: computed(() => ['stocks', routeInventoryId.value]),
+    queryFn: () => fetchStocks(routeInventoryId.value!),
+    enabled: () => route.name === 'stock-lot-detail' && routeInventoryId.value !== null,
   })
 
   function inventoryLabel(id: number): string {
@@ -131,6 +143,27 @@ export function useAppBreadcrumbs() {
       case 'piece-detail': {
         const id = routeInventoryId.value
         const label = pieceDetail.value?.name ?? t('material.materialHeading')
+        if (id === null) return [{ label }]
+        return [
+          ...inventoryTrail(id),
+          { label: t('nav.material'), to: `/inventories/${id}/material` },
+          { label },
+        ]
+      }
+      case 'stock-lot-detail': {
+        const id = routeInventoryId.value
+        const lotId = routeStockLotId.value
+        let label = t('material.stockLotUnlabeled')
+        if (lotId !== null && stocksForBreadcrumb.value) {
+          for (const row of stocksForBreadcrumb.value) {
+            const lot = row.lots.find((l) => l.id === lotId)
+            if (lot) {
+              const trimmed = lot.label?.trim()
+              label = trimmed || t('material.stockLotUnlabeled')
+              break
+            }
+          }
+        }
         if (id === null) return [{ label }]
         return [
           ...inventoryTrail(id),

@@ -413,20 +413,9 @@ def update_piece(
     piece = piece_by_id(session, piece.id)
     if piece is None:
         raise ValueError("not_found")
+    if material_type_id is not None and material_type_id != piece.material_type_id:
+        raise ValueError("material_type_locked")
     material_type = piece.material_type
-
-    type_changed = (
-        material_type_id is not None and material_type_id != piece.material_type_id
-    )
-    if type_changed:
-        new_type = _load_material_type(session, material_type_id)
-        if new_type is None or new_type.inventory_id != material_type.inventory_id:
-            raise ValueError("invalid_material_type")
-        if new_type.tracking != TRACKING_PIECE:
-            raise ValueError("not_piece_tracking")
-        material_type = new_type
-        piece.material_type_id = new_type.id
-        piece.material_type = new_type
 
     if name is not None:
         if not isinstance(name, str) or not name.strip():
@@ -435,12 +424,6 @@ def update_piece(
 
     if variant is not None:
         variant_map = validate_piece_variant_map(material_type, variant)
-        set_piece_variant_map(session, piece, variant_map)
-    elif type_changed:
-        from lamathek.services.variants import piece_variant_to_json
-
-        current = piece_variant_to_json(piece)
-        variant_map = validate_piece_variant_map(material_type, current)
         set_piece_variant_map(session, piece, variant_map)
 
     session.commit()

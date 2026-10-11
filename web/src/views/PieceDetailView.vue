@@ -14,6 +14,7 @@ import {
 import type { Damage, PieceDetail } from '../schemas/material'
 import { fetchMe } from '../api/me'
 import { useApiErrorMessage } from '../composables/useApiErrorMessage'
+import MaterialDetailsSection from '../components/material/MaterialDetailsSection.vue'
 import PhotoGallery from '../components/PhotoGallery.vue'
 import SuperuserDestructiveDelete from '../components/SuperuserDestructiveDelete.vue'
 import VariantAxisSelects from '../components/VariantAxisSelects.vue'
@@ -42,18 +43,13 @@ const { data: piece, isLoading } = useQuery({
   enabled: () => Number.isFinite(pieceId.value),
 })
 
-const pieceTypes = computed(() =>
-  (materialTypes.value ?? []).filter((mt) => mt.tracking === 'piece'),
-)
-
-const editMaterialTypeId = ref<string>('')
 const editPieceName = ref('')
 const editVariant = ref<Record<string, string>>({})
 const savedEdit = ref<string | null>(null)
 const stammdatenError = ref<string | null>(null)
 
 const editSelectedType = computed(() =>
-  pieceTypes.value.find((mt) => String(mt.id) === editMaterialTypeId.value),
+  (materialTypes.value ?? []).find((mt) => mt.id === piece.value?.materialTypeId),
 )
 
 const editTypeAxes = computed(() => editSelectedType.value?.variants ?? [])
@@ -71,7 +67,6 @@ function variantPayload(axes: { label: string; values: string[] }[], map: Record
 function stammdatenSnapshot() {
   return JSON.stringify({
     name: editPieceName.value,
-    materialTypeId: Number(editMaterialTypeId.value),
     variant: variantPayload(editTypeAxes.value, editVariant.value) ?? null,
   })
 }
@@ -81,28 +76,20 @@ const editDirty = computed(
 )
 
 function loadStammdatenFromPiece(p: PieceDetail) {
-  editMaterialTypeId.value = String(p.materialTypeId)
   editPieceName.value = p.name
-  const mt = pieceTypes.value.find((row) => row.id === p.materialTypeId)
+  const mt = (materialTypes.value ?? []).find((row) => row.id === p.materialTypeId)
   editVariant.value = mt ? syncVariantMapKeys(p.variant, mt.variants) : { ...p.variant }
   savedEdit.value = stammdatenSnapshot()
   stammdatenError.value = null
 }
 
 watch(
-  [piece, pieceTypes],
+  [piece, materialTypes],
   () => {
     if (piece.value) loadStammdatenFromPiece(piece.value)
   },
   { immediate: true },
 )
-
-watch(editMaterialTypeId, (newId, oldId) => {
-  if (oldId && newId !== oldId && piece.value) {
-    const mt = pieceTypes.value.find((row) => String(row.id) === newId)
-    if (mt) editVariant.value = syncVariantMapKeys(editVariant.value, mt.variants)
-  }
-})
 
 const damageRecordedOn = ref(new Date().toISOString().slice(0, 10))
 const damageNote = ref('')
@@ -123,7 +110,6 @@ const updateMutation = useMutation({
   mutationFn: () =>
     updatePiece(pieceId.value, {
       name: editPieceName.value,
-      materialTypeId: Number(editMaterialTypeId.value),
       variant: variantPayload(editTypeAxes.value, editVariant.value),
     }),
   onSuccess: async () => {
@@ -190,62 +176,49 @@ function damageStatusLabel(damage: Damage): string {
   <div class="app-page space-y-6">
     <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
     <template v-else-if="piece">
-      <section class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
-        
-          <h1 class="app-page-title">{{ t('material.pieceStammdatenHeading') }}</h1>
-          <form class="space-y-3" @submit.prevent="updateMutation.mutate()">
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <label class="flex min-w-0 flex-col gap-1">
-                <span class="text-xs opacity-80">{{ t('material.pieceType') }}</span>
-                <select
-                  v-model="editMaterialTypeId"
-                  class="select select-bordered select-sm w-full"
-                  required
-                >
-                  <option v-for="mt in pieceTypes" :key="mt.id" :value="String(mt.id)">
-                    {{ mt.name }}
-                  </option>
-                </select>
-              </label>
-              <VariantAxisSelects
-                v-if="editTypeAxes.length"
-                v-model="editVariant"
-                :axes="editTypeAxes"
-                compact
-                inline
-              />
-            </div>
-            <label class="flex min-w-0 flex-col gap-1">
-              <span class="text-xs opacity-80">{{ t('material.pieceName') }}</span>
-              <input
-                v-model="editPieceName"
-                type="text"
-                class="input input-bordered input-sm w-full"
-                required
-              />
-            </label>
-            <p v-if="piece.setName" class="text-sm text-base-content/70">
-              {{ t('sets.onSet', { name: piece.setName }) }}
-            </p>
-            <p v-if="stammdatenError" class="text-sm text-error">{{ stammdatenError }}</p>
-            <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
-              <SuperuserDestructiveDelete
-                v-if="me?.isSuperuser"
-                :label="t('material.pieceDelete')"
-                :warning="t('destructive.pieceWarning')"
-                :disabled="deleteMutation.isPending.value"
-                @confirmed="deleteMutation.mutate()"
-              />
-              <button
-                type="submit"
-                class="btn btn-primary btn-sm ms-auto"
-                :disabled="updateMutation.isPending.value || !editDirty"
-              >
-                {{ t('material.save') }}
-              </button>
-            </div>
-          </form>
-      </section>
+      <MaterialDetailsSection
+        :form-error="stammdatenError"
+        :saving="updateMutation.isPending.value"
+        :dirty="editDirty"
+        @save="updateMutation.mutate()"
+      >
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <label class="flex min-w-0 flex-col gap-1">
+            <span class="text-xs opacity-80">{{ t('material.pieceType') }}</span>
+            <select class="select select-bordered select-sm w-full" disabled>
+              <option>{{ piece.materialTypeName }}</option>
+            </select>
+          </label>
+          <VariantAxisSelects
+            v-if="editTypeAxes.length"
+            v-model="editVariant"
+            :axes="editTypeAxes"
+            compact
+            inline
+          />
+        </div>
+        <label class="flex min-w-0 flex-col gap-1">
+          <span class="text-xs opacity-80">{{ t('material.pieceName') }}</span>
+          <input
+            v-model="editPieceName"
+            type="text"
+            class="input input-bordered input-sm w-full"
+            required
+          />
+        </label>
+        <p v-if="piece.setName" class="text-sm text-base-content/70">
+          {{ t('sets.onSet', { name: piece.setName }) }}
+        </p>
+        <template #delete>
+          <SuperuserDestructiveDelete
+            v-if="me?.isSuperuser"
+            :label="t('material.pieceDelete')"
+            :warning="t('destructive.pieceWarning')"
+            :disabled="deleteMutation.isPending.value"
+            @confirmed="deleteMutation.mutate()"
+          />
+        </template>
+      </MaterialDetailsSection>
 
       <section class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
         

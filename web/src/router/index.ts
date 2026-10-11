@@ -8,6 +8,7 @@ import UsersView from '../views/UsersView.vue'
 import InventoryMaterialTypesView from '../views/InventoryMaterialTypesView.vue'
 import InventoryMaterialView from '../views/InventoryMaterialView.vue'
 import PieceDetailView from '../views/PieceDetailView.vue'
+import StockLotDetailView from '../views/StockLotDetailView.vue'
 import InventoryLoansView from '../views/InventoryLoansView.vue'
 import InventorySetsView from '../views/InventorySetsView.vue'
 import LoanDetailView from '../views/LoanDetailView.vue'
@@ -64,6 +65,11 @@ export const router = createRouter({
       path: '/inventories/:id/pieces/:pieceId',
       name: 'piece-detail',
       component: PieceDetailView,
+    },
+    {
+      path: '/inventories/:id/stock-lots/:lotId',
+      name: 'stock-lot-detail',
+      component: StockLotDetailView,
     },
     {
       path: '/inventories/:id/stock',

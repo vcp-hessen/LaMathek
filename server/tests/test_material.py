@@ -234,5 +234,17 @@ def test_material_type_can_gain_variant_axis_while_pieces_exist():
             "Randstreifen": "35 cm",
             "Farbe": "rot",
         }
+
+        other = client.post(
+            f"/api/inventories/{inv_a}/material-types",
+            json={"name": "Jurtenplane", "tracking": "piece", "variants": []},
+        )
+        assert other.status_code == 201
+        moved = client.patch(
+            f"/api/pieces/{piece_id}",
+            json={"materialTypeId": other.get_json()["id"], "name": "P1"},
+        )
+        assert moved.status_code == 400
+        assert moved.get_json()["error"] == "material_type_locked"
     finally:
         tmp.cleanup()

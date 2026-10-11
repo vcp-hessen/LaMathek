@@ -55,6 +55,7 @@
     "inventoryWarning": "Das Inventar und alle zugehörigen Daten werden unwiderruflich gelöscht, darunter Materialarten, Einzelteile, Mengen, Sets, Verleihe und Berechtigungen.",
     "materialTypeWarning": "Die Materialart und alle zugehörigen Daten werden unwiderruflich gelöscht, darunter Einzelteile oder Mengenzeilen, Set-Zuordnungen und Verleihzeilen.",
     "pieceWarning": "Das Einzelteil und alle zugehörigen Schadensmeldungen werden unwiderruflich gelöscht. Offene Verleihe blockieren das Löschen.",
+    "stockLotWarning": "Der Mengenposten wird unwiderruflich gelöscht. Reservierte oder ausgeliehene Anzahl kann das Löschen blockieren.",
     "setWarning": "Das Set wird unwiderruflich gelöscht. Einzelteile werden vom Set gelöst; Verleihzeilen behalten den bisherigen Set-Namen als Hinweis."
   },
   "settings": {
@@ -160,7 +161,7 @@
     "piecesPreviousPage": "Vorherige Seite",
     "piecesNextPage": "Nächste Seite",
     "piecesPageSize": "Pro Seite",
-    "pieceStammdatenHeading": "Stammdaten",
+    "detailsHeading": "Materialdetails",
     "pieceNew": "Neues Einzelteil",
     "pieceType": "Materialart wählen",
     "pieceName": "Bezeichnung",
@@ -201,6 +202,7 @@
     "cancel": "Abbrechen",
     "errors": {
       "tracking_locked": "Einzelteil- oder Mengen-Erfassung lässt sich nicht mehr ändern, solange Material existiert.",
+      "material_type_locked": "Die Materialart eines Einzelteils lässt sich nicht ändern.",
       "piece_on_loan": "Einzelteil steht auf einem offenen Verleih und kann nicht entfernt werden.",
       "below_loaned": "Anzahl liegt unter reservierter oder ausgeliehener Menge.",
       "name_taken": "Name ist bereits vergeben.",

@@ -1,5 +1,5 @@
 import type { FilterFn } from '@tanstack/vue-table'
-import type { MaterialType, Piece, StockLot, VariantAxis } from '../../schemas/material'
+import type { MaterialType, Piece, StockLot, StockRow, VariantAxis } from '../../schemas/material'
 import { pieceMatchesVariantFilters } from '../../utils/pieceVariantFilters'
 import { variantMapSummary } from '../../utils/variantDisplay'
 import { PIECES_PAGE_SIZE_OPTIONS } from '../pieces/piecesTableSetup'
@@ -18,6 +18,26 @@ export type StockLotListItem = StockLot & {
 export type MaterialRow =
   | { kind: 'piece'; id: string; piece: Piece }
   | { kind: 'stockLot'; id: string; lot: StockLotListItem }
+
+export function stockLotListItemFromStocks(
+  stocks: StockRow[],
+  lotId: number,
+): StockLotListItem | null {
+  for (const row of stocks) {
+    for (const lot of row.lots) {
+      if (lot.id === lotId) {
+        return {
+          ...lot,
+          materialTypeId: row.materialTypeId,
+          materialTypeName: row.materialTypeName,
+          unit: row.unit,
+          variants: row.variants,
+        }
+      }
+    }
+  }
+  return null
+}
 
 export function materialRowsFromPiecesAndLots(
   pieces: Piece[],

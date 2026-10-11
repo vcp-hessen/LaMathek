@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -12,7 +11,7 @@ import {
   getSortedRowModel,
   useVueTable,
 } from '@tanstack/vue-table'
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
@@ -21,19 +20,15 @@ import {
   ChevronUpIcon,
 } from '@heroicons/vue/24/outline'
 import type { MaterialType } from '../../schemas/material'
-import { deleteStockLot, updateStockLot } from '../../api/material'
-import { useApiErrorMessage } from '../../composables/useApiErrorMessage'
-import { useInventoryQueryKey } from '../../composables/useInventoryQueryKey'
 import PhotoThumbnail from '../PhotoThumbnail.vue'
 import {
   buildVariantAxisCatalog,
   pruneVariantFilterToCatalog,
   variantFiltersAreActive,
 } from '../../utils/pieceVariantFilters'
-import { syncVariantMapKeys, variantMapSummary } from '../../utils/variantDisplay'
+import { variantMapSummary } from '../../utils/variantDisplay'
 import PiecesActiveFilterChips from '../pieces/PiecesActiveFilterChips.vue'
 import PiecesTableToolbar from '../pieces/PiecesTableToolbar.vue'
-import StockLotEditor from './StockLotEditor.vue'
 import {
   MATERIAL_PAGE_SIZE_OPTIONS,
   type MaterialRow,
@@ -54,10 +49,6 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const router = useRouter()
-const { messageFor } = useApiErrorMessage()
-const queryClient = useQueryClient()
-
-const stocksQueryKey = useInventoryQueryKey('stocks', () => props.inventoryId)
 
 const globalFilter = ref('')
 const sorting = ref<SortingState>([{ id: 'name', desc: false }])
@@ -66,13 +57,6 @@ const pagination = ref<PaginationState>({
   pageIndex: 0,
   pageSize: MATERIAL_PAGE_SIZE_OPTIONS[0],
 })
-
-const expandedStockLotId = ref<number | null>(null)
-const stockFormError = ref<string | null>(null)
-const drafts = reactive<
-  Record<number, { label: string; variant: Record<string, string>; quantity: number }>
->({})
-const savedEdits = ref<Record<number, string>>({})
 
 const unlabeledLotLabel = computed(() => t('material.stockLotUnlabeled'))
 
@@ -287,6 +271,10 @@ function goToPiece(pieceId: number) {
   void router.push(`/inventories/${props.inventoryId}/pieces/${pieceId}`)
 }
 
+function goToStockLot(lotId: number) {
+  void router.push(`/inventories/${props.inventoryId}/stock-lots/${lotId}`)
+}
+
 function setMaterialTypeFilter(value: string) {
   table.getColumn('materialTypeName')?.setFilterValue(value || undefined)
 }
@@ -314,57 +302,12 @@ function goToPage(next: number) {
   table.setPageIndex(next - 1)
 }
 
-function lotVariantPayload(map: Record<string, string>): Record<string, string> {
-  const payload: Record<string, string> = {}
-  for (const [label, value] of Object.entries(map)) {
-    const trimmed = value?.trim()
-    if (trimmed) payload[label] = trimmed
-  }
-  return payload
-}
-
-function lotEditSnapshot(lotId: number) {
-  const draft = drafts[lotId]
-  if (!draft) return ''
-  const variant = lotVariantPayload(draft.variant)
-  const variantEntries = Object.keys(variant)
-    .sort()
-    .map((label) => [label, variant[label]])
-  return JSON.stringify({
-    label: draft.label.trim(),
-    variant: variantEntries,
-    quantity: draft.quantity,
-  })
-}
-
-function lotDirty(lotId: number) {
-  const saved = savedEdits.value[lotId]
-  return saved !== undefined && lotEditSnapshot(lotId) !== saved
-}
-
-function fillDraft(lot: MaterialRow & { kind: 'stockLot' }) {
-  const item = lot.lot
-  drafts[item.id] = {
-    label: item.label ?? '',
-    variant: syncVariantMapKeys(item.variant, item.variants),
-    quantity: item.quantity,
-  }
-  savedEdits.value = { ...savedEdits.value, [item.id]: lotEditSnapshot(item.id) }
-}
-
 function onRowClick(row: MaterialRow) {
   if (row.kind === 'piece') {
     goToPiece(row.piece.id)
     return
   }
-  if (expandedStockLotId.value === row.lot.id) {
-    expandedStockLotId.value = null
-    stockFormError.value = null
-    return
-  }
-  expandedStockLotId.value = row.lot.id
-  stockFormError.value = null
-  fillDraft(row)
+  goToStockLot(row.lot.id)
 }
 
 function onRowKeydown(event: KeyboardEvent, row: MaterialRow) {
@@ -373,47 +316,6 @@ function onRowKeydown(event: KeyboardEvent, row: MaterialRow) {
     onRowClick(row)
   }
 }
-
-async function refreshStocks() {
-  await queryClient.invalidateQueries({ queryKey: [...stocksQueryKey.value] })
-}
-
-const updateMutation = useMutation({
-  mutationFn: (lotId: number) => {
-    const draft = drafts[lotId]
-    return updateStockLot(props.inventoryId, lotId, {
-      label: draft.label.trim() || null,
-      variant: lotVariantPayload(draft.variant),
-      quantity: draft.quantity,
-    })
-  },
-  onSuccess: async (_data, lotId) => {
-    savedEdits.value = { ...savedEdits.value, [lotId]: lotEditSnapshot(lotId) }
-    stockFormError.value = null
-    await refreshStocks()
-  },
-  onError: (error) => {
-    stockFormError.value = messageFor(error)
-  },
-})
-
-const deleteMutation = useMutation({
-  mutationFn: (lotId: number) => deleteStockLot(props.inventoryId, lotId),
-  onSuccess: async (_data, lotId) => {
-    if (expandedStockLotId.value === lotId) expandedStockLotId.value = null
-    stockFormError.value = null
-    await refreshStocks()
-  },
-  onError: (error) => {
-    stockFormError.value = messageFor(error)
-  },
-})
-
-watch(expandedStockLotId, (lotId) => {
-  if (lotId === null) return
-  const row = props.rows.find((r) => r.kind === 'stockLot' && r.lot.id === lotId)
-  if (row?.kind === 'stockLot') fillDraft(row)
-})
 </script>
 
 <template>
@@ -518,67 +420,48 @@ watch(expandedStockLotId, (lotId) => {
               </td>
             </tr>
           </template>
-          <template v-for="row in tableRows" v-else :key="row.id">
-            <tr
-              tabindex="0"
-              :role="row.original.kind === 'piece' ? 'link' : 'button'"
-              class="cursor-pointer"
-              :class="{ 'bg-base-200/40': row.original.kind === 'stockLot' && expandedStockLotId === row.original.lot.id }"
-              @click="onRowClick(row.original)"
-              @keydown="onRowKeydown($event, row.original)"
-            >
-              <td class="pieces-table-col-photo hidden sm:table-cell">
-                <PhotoThumbnail :photo-id="rowCoverPhotoId(row.original)" />
-              </td>
-              <td class="pieces-table-col-lead min-w-0">
-                <span class="font-medium">
-                  {{ rowDisplayName(row.original, unlabeledLotLabel) }}
+          <tr
+            v-for="row in tableRows"
+            v-else
+            :key="row.id"
+            tabindex="0"
+            role="link"
+            class="cursor-pointer hover:bg-base-200/40"
+            @click="onRowClick(row.original)"
+            @keydown="onRowKeydown($event, row.original)"
+          >
+            <td class="pieces-table-col-photo hidden sm:table-cell">
+              <PhotoThumbnail :photo-id="rowCoverPhotoId(row.original)" />
+            </td>
+            <td class="pieces-table-col-lead min-w-0">
+              <span class="font-medium">
+                {{ rowDisplayName(row.original, unlabeledLotLabel) }}
+              </span>
+              <div class="mt-0.5 space-y-0.5 text-xs opacity-70">
+                <span class="block md:hidden">{{ rowMaterialTypeName(row.original) }}</span>
+                <span v-if="variantSortKey(row.original)" class="block lg:hidden">
+                  {{ variantSortKey(row.original) }}
                 </span>
-                <div class="mt-0.5 space-y-0.5 text-xs opacity-70">
-                  <span class="block md:hidden">{{ rowMaterialTypeName(row.original) }}</span>
-                  <span v-if="variantSortKey(row.original)" class="block lg:hidden">
-                    {{ variantSortKey(row.original) }}
-                  </span>
-                  <span
-                    v-if="row.original.kind === 'piece' && row.original.piece.setName"
-                    class="block xl:hidden"
-                  >
-                    {{ setLabel(row.original) }}
-                  </span>
-                  <span v-if="row.original.kind === 'stockLot'" class="block sm:hidden">
-                    {{ quantityLabel(row.original) }}
-                  </span>
-                </div>
-              </td>
-              <td class="hidden md:table-cell">{{ rowMaterialTypeName(row.original) }}</td>
-              <td class="hidden max-w-[12rem] truncate lg:table-cell">
-                {{ variantSortKey(row.original) || '—' }}
-              </td>
-              <td class="hidden sm:table-cell">{{ quantityLabel(row.original) }}</td>
-              <td class="hidden max-w-[10rem] truncate xl:table-cell">
-                {{ setLabel(row.original) }}
-              </td>
-            </tr>
-            <tr
-              v-if="row.original.kind === 'stockLot' && expandedStockLotId === row.original.lot.id"
-            >
-              <td colspan="6" class="!p-0">
-                <StockLotEditor
-                  v-if="drafts[row.original.lot.id]"
-                  :inventory-id="inventoryId"
-                  :lot="row.original.lot"
-                  :draft="drafts[row.original.lot.id]"
-                  :form-error="stockFormError"
-                  :dirty="lotDirty(row.original.lot.id)"
-                  :saving="updateMutation.isPending.value"
-                  :deleting="deleteMutation.isPending.value"
-                  :stocks-query-key="[...stocksQueryKey]"
-                  @save="updateMutation.mutate(row.original.lot.id)"
-                  @delete="deleteMutation.mutate(row.original.lot.id)"
-                />
-              </td>
-            </tr>
-          </template>
+                <span
+                  v-if="row.original.kind === 'piece' && row.original.piece.setName"
+                  class="block xl:hidden"
+                >
+                  {{ setLabel(row.original) }}
+                </span>
+                <span v-if="row.original.kind === 'stockLot'" class="block sm:hidden">
+                  {{ quantityLabel(row.original) }}
+                </span>
+              </div>
+            </td>
+            <td class="hidden md:table-cell">{{ rowMaterialTypeName(row.original) }}</td>
+            <td class="hidden max-w-[12rem] truncate lg:table-cell">
+              {{ variantSortKey(row.original) || '—' }}
+            </td>
+            <td class="hidden sm:table-cell">{{ quantityLabel(row.original) }}</td>
+            <td class="hidden max-w-[10rem] truncate xl:table-cell">
+              {{ setLabel(row.original) }}
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>

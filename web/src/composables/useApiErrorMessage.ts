@@ -3,6 +3,7 @@ import { apiErrorCode } from '../api/errors'
 
 const KNOWN_CODES = new Set([
   'tracking_locked',
+  'material_type_locked',
   'piece_on_loan',
   'below_loaned',
   'name_taken',
