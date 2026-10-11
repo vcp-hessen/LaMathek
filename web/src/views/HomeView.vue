@@ -40,6 +40,13 @@ watchEffect(() => {
   <div class="hero min-h-[calc(100vh-4rem)]">
       <div class="hero-content flex-col gap-8">
         <div class="max-w-md text-center">
+          <img
+            src="/logo.svg"
+            width="80"
+            height="80"
+            alt=""
+            class="mx-auto mb-4 size-20 rounded-2xl shadow-md"
+          />
           <h1 class="text-4xl font-bold">{{ title }}</h1>
           <p v-if="subtitle" class="py-4 text-base-content/70">{{ subtitle }}</p>
           <p v-if="settingsLoading || meLoading" class="text-sm">

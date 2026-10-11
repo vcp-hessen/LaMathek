@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, watch } from 'vue'
-import { RouterView, useRoute, useRouter } from 'vue-router'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { fetchInventories } from '../api/inventories'
 import { fetchInstallationSettings } from '../api/settings'
@@ -134,10 +134,10 @@ async function onSignOut() {
 
     <div class="flex min-h-screen min-w-0 flex-1 flex-col">
       <header class="navbar sticky top-0 z-20 border-b border-base-300/50 bg-base-100 shadow-sm">
-        <div class="flex-none">
+        <div class="flex-none md:hidden">
           <button
             type="button"
-            class="btn btn-square btn-ghost md:hidden"
+            class="btn btn-square btn-ghost"
             :aria-label="t('shell.menu')"
             @click="ui.toggleMobileMenu()"
           >
@@ -157,6 +157,15 @@ async function onSignOut() {
               />
             </svg>
           </button>
+          <RouterLink to="/" class="btn btn-ghost btn-square" :aria-label="title">
+            <img
+              src="/logo.svg"
+              width="32"
+              height="32"
+              alt=""
+              class="size-8 rounded-lg"
+            />
+          </RouterLink>
         </div>
         <div class="flex min-w-0 flex-1 items-center gap-2 px-2 sm:gap-3">
           <AppBreadcrumbs class="min-w-0 flex-1" />

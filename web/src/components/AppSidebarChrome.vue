@@ -48,8 +48,15 @@ function navItemClass(active: boolean, expanded: boolean) {
         to="/"
         class="flex min-w-0 flex-1 items-center gap-2 no-underline text-white"
         :class="expanded ? '' : 'justify-center'"
+        :aria-label="expanded ? undefined : title"
       >
-        <img src="/favicon.svg" width="28" height="28" alt="" class="size-7 shrink-0" />
+        <img
+          src="/logo.svg"
+          width="32"
+          height="32"
+          alt=""
+          class="size-8 shrink-0 rounded-lg ring-1 ring-white/30"
+        />
         <span v-show="expanded" class="truncate text-sm font-semibold leading-tight">{{ title }}</span>
       </RouterLink>
       <button
