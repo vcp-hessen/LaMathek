@@ -40,6 +40,7 @@ const inventoriesListActive = computed(
   () => route.path === '/inventories',
 )
 const settingsActive = computed(() => route.path === '/settings')
+const usersActive = computed(() => route.path === '/users')
 
 watch(
   () => route.fullPath,
@@ -109,6 +110,7 @@ async function onSignOut() {
             :inventories-loading="inventoriesLoading"
             :inventories-list-active="inventoriesListActive"
             :settings-active="settingsActive"
+            :users-active="usersActive"
             mobile
             @sign-out="onSignOut"
           />
@@ -128,6 +130,7 @@ async function onSignOut() {
         :inventories-loading="inventoriesLoading"
         :inventories-list-active="inventoriesListActive"
         :settings-active="settingsActive"
+        :users-active="usersActive"
         @sign-out="onSignOut"
       />
     </aside>

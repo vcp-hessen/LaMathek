@@ -8,3 +8,9 @@ export const userSchema = z.object({
 })
 
 export type User = z.infer<typeof userSchema>
+
+export const managedUserSchema = userSchema.extend({
+  inventoryIds: z.array(z.number()),
+})
+
+export type ManagedUser = z.infer<typeof managedUserSchema>

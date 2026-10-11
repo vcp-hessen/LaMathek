@@ -17,6 +17,7 @@ const props = defineProps<{
   inventoriesLoading?: boolean
   inventoriesListActive: boolean
   settingsActive: boolean
+  usersActive: boolean
   mobile?: boolean
 }>()
 
@@ -122,6 +123,28 @@ function navItemClass(active: boolean, expanded: boolean) {
                   :tooltip="t('inventories.nav')"
                 />
                 <span v-show="expanded" class="truncate">{{ t('inventories.nav') }}</span>
+              </RouterLink>
+            </div>
+          </li>
+          <li v-if="me?.isSuperuser">
+            <div
+              class="tooltip tooltip-right w-full"
+              :class="{ 'before:hidden': expanded }"
+              :data-tip="expanded ? undefined : t('users.nav')"
+            >
+              <RouterLink
+                to="/users"
+                :class="navItemClass(usersActive, expanded)"
+                :aria-label="expanded ? undefined : t('users.nav')"
+                :aria-current="usersActive ? 'page' : undefined"
+              >
+                <WlzIcon
+                  glyph="gatherHere"
+                  :active="usersActive"
+                  size-class="text-lg"
+                  :tooltip="t('users.nav')"
+                />
+                <span v-show="expanded">{{ t('users.nav') }}</span>
               </RouterLink>
             </div>
           </li>

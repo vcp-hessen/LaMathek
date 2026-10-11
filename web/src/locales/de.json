@@ -33,6 +33,7 @@
     "full": "voll",
     "empty": "leer",
     "gather": "sammeln",
+    "gatherHere": "hier sammeln",
     "exchange": "tauschen",
     "day": "Tag",
     "night": "Nacht",
@@ -77,6 +78,7 @@
     "contentResponsibleHint": "Materialwart*innen mit Inventar-Berechtigung, automatisch im Impressum.",
     "mapCenterHeading": "Kartenmittelpunkt",
     "mapCenterHint": "Standard-Zoom für Inventarkarten ohne eigene Koordinaten.",
+    "mapCenterAddressSync": "Wird bei Änderung der Anschrift automatisch aktualisiert (Geocoding beim Verlassen des Feldes).",
     "save": "Speichern",
     "saveFailed": "Speichern fehlgeschlagen.",
     "superuserOnly": "Nur Superuser*innen können die Einstellungen bearbeiten."
@@ -311,9 +313,24 @@
     "geocoding": "Adresse wird gesucht …",
     "geocodeNotFound": "Adresse konnte nicht gefunden werden."
   },
-  "superusers": {
-    "heading": "Superuser*innen",
-    "toggleLabel": "Superuser*in",
-    "updateFailed": "Änderung fehlgeschlagen."
+  "users": {
+    "nav": "Nutzer*innen",
+    "heading": "Nutzer*innen",
+    "superuserOnly": "Nur Superuser*innen können die Nutzerverwaltung öffnen.",
+    "superuserLabel": "Superuser*in",
+    "searchLabel": "Suche",
+    "searchPlaceholder": "Name oder E-Mail suchen …",
+    "noMatches": "Keine Treffer.",
+    "inventoryCount": "{count} Inventare",
+    "pageRange": "{from}–{to} von {total}",
+    "previousPage": "Vorherige Seite",
+    "nextPage": "Nächste Seite",
+    "inventoriesLabel": "Inventare",
+    "inventoriesEmpty": "Keine Inventare zugewiesen.",
+    "addInventoryPlaceholder": "Inventar hinzufügen …",
+    "removeInventory": "{name} entfernen",
+    "updateFailed": "Änderung fehlgeschlagen.",
+    "cannotRemoveLastSuperuser": "Die letzte Superuser*in kann nicht entfernt werden.",
+    "cannotClearPermissions": "Dieses Inventar braucht mindestens eine berechtigte Person, solange es keine Superuser*in gibt."
   }
 }

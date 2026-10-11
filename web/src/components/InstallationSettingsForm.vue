@@ -92,70 +92,80 @@ const onSubmit = handleSubmit(async (values) => {
 
 <template>
   <form class="card bg-base-100 shadow-md" @submit="onSubmit">
-    <div class="card-body gap-6 text-left">
-      <div class="space-y-4">
-        <h2 class="card-title text-lg">{{ t('settings.heading') }}</h2>
+    <div class="card-body gap-4 p-4 text-left sm:p-6">
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label class="flex min-w-0 flex-col gap-1">
           <span class="text-xs opacity-80">{{ t('settings.titleLabel') }}</span>
-          <input v-model="title" type="text" class="input input-bordered w-full" />
+          <input v-model="title" type="text" class="input input-bordered input-sm w-full" />
         </label>
         <label class="flex min-w-0 flex-col gap-1">
           <span class="text-xs opacity-80">{{ t('settings.subtitleLabel') }}</span>
-          <input v-model="subtitle" type="text" class="input input-bordered w-full" />
+          <input v-model="subtitle" type="text" class="input input-bordered input-sm w-full" />
         </label>
       </div>
 
-      <fieldset class="space-y-3 rounded-lg border border-base-200 px-3 pb-4 pt-2">
+      <fieldset class="rounded-lg border border-base-200 px-3 pb-3 pt-1">
         <legend class="px-1 text-sm font-medium">{{ t('settings.impressumHeading') }}</legend>
-        <label class="flex min-w-0 flex-col gap-1">
-          <span class="text-xs opacity-80">{{ t('settings.legalNameLabel') }}</span>
-          <input v-model="legalName" type="text" class="input input-bordered w-full" />
-        </label>
-        <label class="flex min-w-0 flex-col gap-1">
-          <span class="text-xs opacity-80">{{ t('settings.legalAddressLabel') }}</span>
-          <textarea
-            v-model="legalAddress"
-            class="textarea textarea-bordered w-full"
-            rows="3"
-            @blur="onLegalAddressBlur"
-          />
-          <span v-if="geocoding" class="text-xs opacity-70">{{ t('inventories.geocoding') }}</span>
-          <span v-else-if="geocodeHint" class="text-xs text-warning">{{ geocodeHint }}</span>
-        </label>
-        <label class="flex min-w-0 flex-col gap-1">
-          <span class="text-xs opacity-80">{{ t('settings.emailLabel') }}</span>
-          <input v-model="email" type="email" class="input input-bordered w-full" />
-        </label>
-        <label class="flex min-w-0 flex-col gap-1">
-          <span class="text-xs opacity-80">{{ t('settings.websiteLabel') }}</span>
-          <input
-            v-model="website"
-            type="url"
-            class="input input-bordered w-full"
-            :placeholder="t('settings.websitePlaceholder')"
-          />
-        </label>
-        <label class="flex min-w-0 flex-col gap-1">
-          <span class="text-xs opacity-80">{{ t('settings.phoneLabel') }}</span>
-          <input v-model="phone" type="text" class="input input-bordered w-full" />
-        </label>
-        <label class="flex min-w-0 flex-col gap-1">
-          <span class="text-xs opacity-80">{{ t('settings.representedByLabel') }}</span>
-          <textarea
-            v-model="representedBy"
-            class="textarea textarea-bordered w-full"
-            rows="2"
-          />
-        </label>
-        <label class="flex min-w-0 flex-col gap-1">
-          <span class="text-xs opacity-80">{{ t('settings.registerLabel') }}</span>
-          <input v-model="register" type="text" class="input input-bordered w-full" />
-        </label>
+        <div class="mt-2 flex flex-col gap-2">
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <label class="flex min-w-0 flex-col gap-1">
+              <span class="text-xs opacity-80">{{ t('settings.legalNameLabel') }}</span>
+              <input v-model="legalName" type="text" class="input input-bordered input-sm w-full" />
+            </label>
+            <label class="flex min-w-0 flex-col gap-1">
+              <span class="text-xs opacity-80">{{ t('settings.registerLabel') }}</span>
+              <input v-model="register" type="text" class="input input-bordered input-sm w-full" />
+            </label>
+          </div>
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <label class="flex min-w-0 flex-col gap-1">
+              <span class="text-xs opacity-80">{{ t('settings.emailLabel') }}</span>
+              <input v-model="email" type="email" class="input input-bordered input-sm w-full" />
+            </label>
+            <label class="flex min-w-0 flex-col gap-1">
+              <span class="text-xs opacity-80">{{ t('settings.phoneLabel') }}</span>
+              <input v-model="phone" type="text" class="input input-bordered input-sm w-full" />
+            </label>
+            <label class="flex min-w-0 flex-col gap-1">
+              <span class="text-xs opacity-80">{{ t('settings.websiteLabel') }}</span>
+              <input
+                v-model="website"
+                type="url"
+                class="input input-bordered input-sm w-full"
+                :placeholder="t('settings.websitePlaceholder')"
+              />
+            </label>
+          </div>
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <label class="flex min-w-0 flex-col gap-1">
+              <span class="text-xs opacity-80">{{ t('settings.representedByLabel') }}</span>
+              <textarea
+                v-model="representedBy"
+                class="textarea textarea-bordered textarea-sm w-full min-h-0"
+                rows="2"
+              />
+            </label>
+            <label class="flex min-w-0 flex-col gap-1">
+              <span class="text-xs opacity-80">{{ t('settings.legalAddressLabel') }}</span>
+              <textarea
+                v-model="legalAddress"
+                class="textarea textarea-bordered textarea-sm w-full min-h-0"
+                rows="2"
+                @blur="onLegalAddressBlur"
+              />
+              <span v-if="geocoding" class="text-xs opacity-70">{{ t('inventories.geocoding') }}</span>
+              <span v-else-if="geocodeHint" class="text-xs text-warning">{{ geocodeHint }}</span>
+            </label>
+          </div>
+        </div>
       </fieldset>
 
-      <fieldset class="space-y-3 rounded-lg border border-base-200 px-3 pb-4 pt-2">
+      <fieldset class="space-y-2 rounded-lg border border-base-200 px-3 pb-3 pt-1">
         <legend class="px-1 text-sm font-medium">{{ t('settings.mapCenterHeading') }}</legend>
-        <p class="text-xs opacity-70">{{ t('settings.mapCenterHint') }}</p>
+        <p class="text-xs opacity-70">
+          {{ t('settings.mapCenterHint') }}
+          {{ t('settings.mapCenterAddressSync') }}
+        </p>
         <InventoryMap
           :latitude="mapLat"
           :longitude="mapLng"

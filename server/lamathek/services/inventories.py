@@ -1,4 +1,4 @@
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -136,6 +136,73 @@ def update_inventory(
         raise ValueError("name_taken") from None
     session.refresh(inventory)
     return inventory
+
+
+def inventory_ids_by_user(session: Session) -> dict[int, list[int]]:
+    rows = session.execute(
+        select(InventoryPermission.user_id, InventoryPermission.inventory_id)
+        .join(Inventory, Inventory.id == InventoryPermission.inventory_id)
+        .order_by(Inventory.name)
+    ).all()
+    grouped: dict[int, list[int]] = {}
+    for user_id, inventory_id in rows:
+        grouped.setdefault(user_id, []).append(inventory_id)
+    return grouped
+
+
+def inventory_ids_for_user(session: Session, user_id: int) -> list[int]:
+    return list(
+        session.scalars(
+            select(InventoryPermission.inventory_id)
+            .join(Inventory, Inventory.id == InventoryPermission.inventory_id)
+            .where(InventoryPermission.user_id == user_id)
+            .order_by(Inventory.name)
+        ).all()
+    )
+
+
+def grant_inventory_permission(
+    session: Session, user: User, inventory: Inventory
+) -> list[int]:
+    existing = session.scalar(
+        select(InventoryPermission.id).where(
+            InventoryPermission.user_id == user.id,
+            InventoryPermission.inventory_id == inventory.id,
+        )
+    )
+    if existing is None:
+        session.add(
+            InventoryPermission(user_id=user.id, inventory_id=inventory.id)
+        )
+        session.commit()
+    return inventory_ids_for_user(session, user.id)
+
+
+def revoke_inventory_permission(
+    session: Session, user: User, inventory: Inventory
+) -> list[int]:
+    from lamathek.services.users import count_superusers
+
+    row = session.scalar(
+        select(InventoryPermission).where(
+            InventoryPermission.user_id == user.id,
+            InventoryPermission.inventory_id == inventory.id,
+        )
+    )
+    if row is None:
+        return inventory_ids_for_user(session, user.id)
+
+    remaining = session.scalar(
+        select(func.count())
+        .select_from(InventoryPermission)
+        .where(InventoryPermission.inventory_id == inventory.id)
+    )
+    if (remaining or 0) <= 1 and count_superusers(session) == 0:
+        raise ValueError("cannot_clear_permissions")
+
+    session.delete(row)
+    session.commit()
+    return inventory_ids_for_user(session, user.id)
 
 
 def permission_user_ids(session: Session, inventory_id: int) -> list[int]:

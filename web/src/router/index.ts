@@ -3,6 +3,7 @@ import HomeView from '../views/HomeView.vue'
 import ImpressumView from '../views/ImpressumView.vue'
 import InventoriesListView from '../views/InventoriesListView.vue'
 import InstallationSettingsView from '../views/InstallationSettingsView.vue'
+import UsersView from '../views/UsersView.vue'
 import InventoryMaterialTypesView from '../views/InventoryMaterialTypesView.vue'
 import InventoryPiecesView from '../views/InventoryPiecesView.vue'
 import PieceDetailView from '../views/PieceDetailView.vue'
@@ -24,6 +25,11 @@ export const router = createRouter({
       path: '/settings',
       name: 'installation-settings',
       component: InstallationSettingsView,
+    },
+    {
+      path: '/users',
+      name: 'users',
+      component: UsersView,
     },
     {
       path: '/impressum',

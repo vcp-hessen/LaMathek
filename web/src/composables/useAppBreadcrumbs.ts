@@ -90,6 +90,8 @@ export function useAppBreadcrumbs() {
         return []
       case 'installation-settings':
         return [{ label: t('settings.heading') }]
+      case 'users':
+        return [{ label: t('users.heading') }]
       case 'impressum':
         return [{ label: t('impressum.heading') }]
       case 'inventories':
