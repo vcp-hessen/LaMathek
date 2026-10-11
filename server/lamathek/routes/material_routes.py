@@ -1,6 +1,7 @@
-from datetime import date
-
 from flask import Blueprint, jsonify, request
+
+from lamathek.routes.http_errors import error_response
+from lamathek.routes.parsing import parse_date
 
 from lamathek.access import require_inventory_manager, require_login, require_superuser
 from lamathek.db import get_session
@@ -45,29 +46,20 @@ from lamathek.services.material import (
 material_bp = Blueprint("material", __name__, url_prefix="/api")
 
 
-def _parse_date(value) -> date | None:
-    if value is None:
-        return None
-    if not isinstance(value, str) or not value.strip():
-        return None
-    try:
-        return date.fromisoformat(value.strip())
-    except ValueError:
-        raise ValueError("invalid_date") from None
-
-
-def _damage_error(exc: ValueError):
-    code = str(exc)
+def _damage_status(code: str) -> int:
     status = 400
     if code == "not_found":
         status = 404
     if code in ("already_repaired",):
         status = 409
-    return jsonify({"error": code}), status
+    return status
 
 
-def _material_type_error(exc: ValueError):
-    code = str(exc)
+def _damage_error(exc: ValueError):
+    return error_response(exc, _damage_status)
+
+
+def _material_type_status(code: str) -> int:
     status = 400
     if code in ("not_found", "invalid_material_type"):
         status = 404
@@ -83,7 +75,11 @@ def _material_type_error(exc: ValueError):
         status = 404
     if code in ("unit_not_for_piece", "invalid_category"):
         status = 400
-    return jsonify({"error": code}), status
+    return status
+
+
+def _material_type_error(exc: ValueError):
+    return error_response(exc, _material_type_status)
 
 
 def _optional_str(value) -> str | None:
@@ -329,7 +325,7 @@ def post_piece_damage(user, piece_id: int):
 
     body = request.get_json(silent=True) or {}
     try:
-        recorded_on = _parse_date(body.get("recordedOn"))
+        recorded_on = parse_date(body.get("recordedOn"))
     except ValueError:
         return jsonify({"error": "invalid_date"}), 400
     if recorded_on is None:
@@ -364,7 +360,7 @@ def post_damage_repair(user, damage_id: int):
 
     body = request.get_json(silent=True) or {}
     try:
-        recorded_on = _parse_date(body.get("recordedOn"))
+        recorded_on = parse_date(body.get("recordedOn"))
     except ValueError:
         return jsonify({"error": "invalid_date"}), 400
     if recorded_on is None:

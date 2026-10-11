@@ -1,33 +1,9 @@
-import os
-import tempfile
 from unittest.mock import patch
 
-from lamathek.app import create_app
-from lamathek.config import Config
-from lamathek import db
-from lamathek.db import Base, get_session
-from lamathek.services.settings import get_installation_settings
+from lamathek.db import get_session
 from lamathek.services.users import upsert_user_from_oidc
 
-
-def _app_with_db():
-    tmp = tempfile.TemporaryDirectory()
-    db_path = os.path.join(tmp.name, "test.sqlite3")
-
-    class TestConfig(Config):
-        SQLALCHEMY_DATABASE_URI = f"sqlite:///{db_path}"
-        TESTING = True
-
-    app = create_app(TestConfig)
-    with app.app_context():
-        Base.metadata.create_all(db.engine)
-        get_installation_settings(get_session())
-    return app, tmp
-
-
-def _login(client, sub: str):
-    with client.session_transaction() as sess:
-        sess["user"] = {"sub": sub, "name": sub, "email": None}
+from conftest import app_with_db as _app_with_db, login as _login
 
 
 def test_inventory_location_fields_round_trip():

@@ -38,6 +38,7 @@ def _load_material_type(session: Session, material_type_id: int) -> MaterialType
             selectinload(MaterialType.stock_lots).selectinload(StockLot.variant_selections),
             selectinload(MaterialType.inventory),
             selectinload(MaterialType.category),
+            selectinload(MaterialType.photos),
         )
     )
 
@@ -51,7 +52,11 @@ def list_material_types(session: Session, inventory_id: int) -> list[MaterialTyp
         session.scalars(
             select(MaterialType)
             .where(MaterialType.inventory_id == inventory_id)
-            .options(*variant_load_options(), selectinload(MaterialType.category))
+            .options(
+                *variant_load_options(),
+                selectinload(MaterialType.category),
+                selectinload(MaterialType.photos),
+            )
             .order_by(MaterialType.name)
         ).all()
     )
@@ -206,6 +211,7 @@ def list_pieces(session: Session, inventory_id: int) -> list[Piece]:
                 *piece_variant_load_options(),
                 selectinload(Piece.material_type).selectinload(MaterialType.inventory),
                 selectinload(Piece.material_set),
+                selectinload(Piece.photos),
             )
             .order_by(Piece.name)
         ).all()
@@ -221,6 +227,8 @@ def piece_by_id(session: Session, piece_id: int) -> Piece | None:
             selectinload(Piece.material_type).selectinload(MaterialType.inventory),
             selectinload(Piece.material_set),
             selectinload(Piece.damages).selectinload(Damage.repair),
+            selectinload(Piece.damages).selectinload(Damage.photos),
+            selectinload(Piece.photos),
         )
     )
 
@@ -491,6 +499,7 @@ def list_stocks(session: Session, inventory_id: int) -> list[MaterialType]:
             )
             .options(
                 selectinload(MaterialType.stock_lots).selectinload(StockLot.variant_selections),
+                selectinload(MaterialType.stock_lots).selectinload(StockLot.photos),
                 *variant_load_options(),
             )
             .order_by(MaterialType.name)

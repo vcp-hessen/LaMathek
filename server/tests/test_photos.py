@@ -13,6 +13,8 @@ from lamathek.services.photo_storage import original_path, thumb_path
 from lamathek.services.settings import get_installation_settings
 from lamathek.services.users import upsert_user_from_oidc
 
+from conftest import login as _login
+
 
 def _tiny_jpeg() -> bytes:
     image = Image.new("RGB", (32, 24), color=(200, 40, 40))
@@ -36,11 +38,6 @@ def _app_with_db():
         Base.metadata.create_all(db.engine)
         get_installation_settings(get_session())
     return app, tmp, Path(media_path)
-
-
-def _login(client, sub: str):
-    with client.session_transaction() as sess:
-        sess["user"] = {"sub": sub, "name": sub, "email": None}
 
 
 def _setup_inventory_and_piece(client):

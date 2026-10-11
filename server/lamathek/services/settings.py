@@ -1,11 +1,6 @@
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from lamathek.models.settings import (
-    DEFAULT_MAP_LATITUDE,
-    DEFAULT_MAP_LONGITUDE,
-    InstallationSettings,
-)
+from lamathek.models.settings import InstallationSettings
 
 DEFAULT_TITLE = "VCP Hessen"
 DEFAULT_SUBTITLE = "Landesmaterial"
@@ -67,7 +62,3 @@ def update_installation_settings(
     session.commit()
     session.refresh(settings)
     return settings
-
-
-def default_map_center() -> tuple[float, float]:
-    return (DEFAULT_MAP_LATITUDE, DEFAULT_MAP_LONGITUDE)

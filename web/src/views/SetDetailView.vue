@@ -7,6 +7,7 @@ import { fetchMaterialTypes, fetchPieces } from '../api/material'
 import { fetchMe } from '../api/me'
 import SuperuserDestructiveDelete from '../components/SuperuserDestructiveDelete.vue'
 import PhotoGallery from '../components/PhotoGallery.vue'
+import { useApiErrorMessage } from '../composables/useApiErrorMessage'
 import { useInventoryQueryKey } from '../composables/useInventoryQueryKey'
 import {
   deleteSet,
@@ -20,6 +21,8 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const queryClient = useQueryClient()
+const { messageFor } = useApiErrorMessage()
+const formError = ref<string | null>(null)
 
 const inventoryId = computed(() => Number(route.params.id))
 const setId = computed(() => Number(route.params.setId))
@@ -86,7 +89,13 @@ const renameMutation = useMutation({
       name: name.value,
       shortName: shortName.value.trim() || null,
     }),
-  onSuccess: invalidateAll,
+  onSuccess: async () => {
+    formError.value = null
+    await invalidateAll()
+  },
+  onError: (error) => {
+    formError.value = messageFor(error)
+  },
 })
 
 const deleteMutation = useMutation({
@@ -101,8 +110,12 @@ const pieceMutation = useMutation({
   mutationFn: (payload: { pieceId: number; role: 'assignment' | 'optional' | null }) =>
     setPieceOnSet(setId.value, payload.pieceId, payload.role),
   onSuccess: async () => {
+    formError.value = null
     addPieceId.value = ''
     await invalidateAll()
+  },
+  onError: (error) => {
+    formError.value = messageFor(error)
   },
 })
 
@@ -113,7 +126,13 @@ const stockMutation = useMutation({
       role: addStockRole.value,
       quantity: addStockQty.value,
     }),
-  onSuccess: invalidateAll,
+  onSuccess: async () => {
+    formError.value = null
+    await invalidateAll()
+  },
+  onError: (error) => {
+    formError.value = messageFor(error)
+  },
 })
 
 function removePiece(pieceId: number) {
@@ -133,6 +152,7 @@ function addPiece() {
   <div class="app-page space-y-6">
     <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
     <template v-else-if="setDetail">
+      <p v-if="formError" class="text-sm text-error">{{ formError }}</p>
       <form class="flex flex-wrap gap-2" @submit.prevent="renameMutation.mutate()">
         <input v-model="name" type="text" class="input input-bordered min-w-0 flex-1" required />
         <input

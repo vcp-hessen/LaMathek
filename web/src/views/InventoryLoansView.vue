@@ -4,6 +4,7 @@ import { computed, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { createLoan, fetchEvents, fetchGroups, fetchLoans, fetchVerantwortliche } from '../api/loans'
+import { useApiErrorMessage } from '../composables/useApiErrorMessage'
 import { useInventoryQueryKey } from '../composables/useInventoryQueryKey'
 import PhotoThumbnail from '../components/PhotoThumbnail.vue'
 
@@ -12,6 +13,8 @@ const props = defineProps<{ inventoryId: number }>()
 const { t } = useI18n()
 const router = useRouter()
 const queryClient = useQueryClient()
+const { messageFor } = useApiErrorMessage()
+const formError = ref<string | null>(null)
 
 const groupName = ref('')
 const eventName = ref('')
@@ -47,6 +50,7 @@ const createMutation = useMutation({
       endsOn: isPermanentKind.value ? undefined : endsOn.value || undefined,
     }),
   onSuccess: async (loan) => {
+    formError.value = null
     groupName.value = ''
     eventName.value = ''
     responsibleUserId.value = ''
@@ -55,6 +59,9 @@ const createMutation = useMutation({
     loanKind.value = 'short'
     await queryClient.invalidateQueries({ queryKey: ['loans', props.inventoryId] })
     await router.push(`/inventories/${props.inventoryId}/loans/${loan.id}`)
+  },
+  onError: (error) => {
+    formError.value = messageFor(error)
   },
 })
 
@@ -101,6 +108,7 @@ function kindLabel(kind: string) {
       @submit.prevent="createMutation.mutate()"
     >
         <h2 class="app-page-title text-base">{{ t('loans.create') }}</h2>
+        <p v-if="formError" class="text-sm text-error">{{ formError }}</p>
         <label class="form-control">
           <span class="label-text">{{ t('loans.group') }}</span>
           <input

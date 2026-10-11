@@ -4,6 +4,7 @@ import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { createSet, fetchSets } from '../api/sets'
+import { useApiErrorMessage } from '../composables/useApiErrorMessage'
 import { useInventoryQueryKey } from '../composables/useInventoryQueryKey'
 import PhotoThumbnail from './PhotoThumbnail.vue'
 
@@ -11,6 +12,8 @@ const props = defineProps<{ inventoryId: number }>()
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
+const { messageFor } = useApiErrorMessage()
+const formError = ref<string | null>(null)
 const newName = ref('')
 const newShortName = ref('')
 
@@ -28,9 +31,13 @@ const createMutation = useMutation({
       shortName: newShortName.value.trim() || null,
     }),
   onSuccess: async () => {
+    formError.value = null
     newName.value = ''
     newShortName.value = ''
     await queryClient.invalidateQueries({ queryKey: ['sets', props.inventoryId] })
+  },
+  onError: (error) => {
+    formError.value = messageFor(error)
   },
 })
 
@@ -60,6 +67,7 @@ const sortedSets = computed(() =>
         class="flex flex-col gap-2 border-t border-base-200 pt-4 sm:flex-row sm:flex-wrap"
         @submit.prevent="createMutation.mutate()"
       >
+        <p v-if="formError" class="w-full text-sm text-error">{{ formError }}</p>
         <input
           v-model="newShortName"
           type="text"

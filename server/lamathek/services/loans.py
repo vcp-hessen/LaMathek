@@ -45,6 +45,7 @@ def _loan_query():
         selectinload(Loan.lines).selectinload(LoanLine.material_type),
         selectinload(Loan.lines).selectinload(LoanLine.return_lines),
         selectinload(Loan.returns).selectinload(LoanReturn.lines),
+        selectinload(Loan.photos),
     )
 
 

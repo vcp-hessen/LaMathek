@@ -6,8 +6,6 @@ export const BATCH_NAME_PLACEHOLDER_TOKENS = {
 
 export type BatchNamePlaceholderKind = keyof typeof BATCH_NAME_PLACEHOLDER_TOKENS
 
-export const BATCH_NAME_PLACEHOLDER_KINDS: BatchNamePlaceholderKind[] = ['number', 'letter', 'roman']
-
 export function batchPlaceholderToken(kind: BatchNamePlaceholderKind): string {
   return BATCH_NAME_PLACEHOLDER_TOKENS[kind]
 }

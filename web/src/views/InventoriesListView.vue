@@ -71,7 +71,7 @@ const editingId = computed(() =>
 )
 
 const { data: permittedUsers } = useQuery({
-  queryKey: computed(() => ['inventoryPermissions', editingId.value]),
+  queryKey: computed(() => ['inventoryPermissionUsers', editingId.value]),
   queryFn: () => fetchInventoryPermissions(editingId.value!),
   enabled: () => editingId.value !== null,
 })
@@ -247,7 +247,7 @@ const updateMutation = useMutation({
     formError.value = null
     savedEdit.value = currentInventoryEdit()
     await refreshInventories()
-    await queryClient.invalidateQueries({ queryKey: ['inventoryPermissions', id] })
+    await queryClient.invalidateQueries({ queryKey: ['inventoryPermissionUsers', id] })
     await queryClient.invalidateQueries({ queryKey: ['inventory', id] })
   },
   onError: (error) => {

@@ -14,17 +14,6 @@ def piece_has_open_severe_damage(session: Session, piece_id: int) -> bool:
     return any(damage.repair is None for damage in damages)
 
 
-def list_damages_for_piece(session: Session, piece_id: int) -> list[Damage]:
-    return list(
-        session.scalars(
-            select(Damage)
-            .where(Damage.piece_id == piece_id)
-            .options(selectinload(Damage.repair))
-            .order_by(Damage.id)
-        ).all()
-    )
-
-
 def create_damage(
     session: Session,
     piece: Piece,
@@ -44,7 +33,7 @@ def create_damage(
     return session.scalar(
         select(Damage)
         .where(Damage.id == damage.id)
-        .options(selectinload(Damage.repair))
+        .options(selectinload(Damage.repair), selectinload(Damage.photos))
     )  # type: ignore[return-value]
 
 
@@ -54,6 +43,7 @@ def damage_by_id(session: Session, damage_id: int) -> Damage | None:
         .where(Damage.id == damage_id)
         .options(
             selectinload(Damage.repair),
+            selectinload(Damage.photos),
             selectinload(Damage.piece)
             .selectinload(Piece.material_type)
             .selectinload(MaterialType.inventory),

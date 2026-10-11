@@ -14,21 +14,25 @@ from lamathek.services.photos import (
     delete_photo,
     inventory_for_photo,
     photo_by_id,
-    photos_to_json,
     set_cover_photo,
 )
+
+from lamathek.routes.http_errors import error_response
 
 photos_bp = Blueprint("photos", __name__, url_prefix="/api")
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 
 
-def _photo_json_error(exc: ValueError):
-    code = str(exc)
+def _photo_status(code: str) -> int:
     status = 400
     if code == "not_found":
         status = 404
-    return jsonify({"error": code}), status
+    return status
+
+
+def _photo_json_error(exc: ValueError):
+    return error_response(exc, _photo_status)
 
 
 def _require_photo_access(user, photo):

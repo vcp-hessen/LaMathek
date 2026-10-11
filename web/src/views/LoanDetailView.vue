@@ -16,12 +16,19 @@ import {
 } from '../api/loans'
 import { fetchSets } from '../api/sets'
 import type { LoanLine } from '../schemas/loan'
+import { useApiErrorMessage } from '../composables/useApiErrorMessage'
 import { useInventoryQueryKey } from '../composables/useInventoryQueryKey'
 import PhotoGallery from '../components/PhotoGallery.vue'
 
 const route = useRoute()
 const { t } = useI18n()
 const queryClient = useQueryClient()
+const { messageFor } = useApiErrorMessage()
+const actionError = ref<string | null>(null)
+
+function onMutationError(error: unknown) {
+  actionError.value = messageFor(error)
+}
 
 const inventoryId = computed(() => Number(route.params.id))
 const loanId = computed(() => Number(route.params.loanId))
@@ -165,46 +172,62 @@ async function invalidate() {
 
 const handOutMutation = useMutation({
   mutationFn: () => handOutLoan(loanId.value),
-  onSuccess: invalidate,
+  onSuccess: async () => {
+    actionError.value = null
+    await invalidate()
+  },
+  onError: onMutationError,
 })
 
 const addSetMutation = useMutation({
   mutationFn: () => addLoanSetAssignmentLines(loanId.value, Number(addSetId.value)),
   onSuccess: async () => {
+    actionError.value = null
     addSetId.value = ''
     await invalidate()
   },
+  onError: onMutationError,
 })
 
 const addOptionalSetMutation = useMutation({
   mutationFn: () => addLoanSetOptionalLines(loanId.value, Number(addOptionalSetId.value)),
   onSuccess: async () => {
+    actionError.value = null
     addOptionalSetId.value = ''
     await invalidate()
   },
+  onError: onMutationError,
 })
 
 const addPieceMutation = useMutation({
   mutationFn: () => addLoanPieceLine(loanId.value, Number(addPieceId.value)),
   onSuccess: async () => {
+    actionError.value = null
     addPieceId.value = ''
     await invalidate()
   },
+  onError: onMutationError,
 })
 
 const addStockMutation = useMutation({
   mutationFn: () =>
     addLoanStockLine(loanId.value, Number(addStockTypeId.value), Number(addStockQty.value)),
   onSuccess: async () => {
+    actionError.value = null
     addStockTypeId.value = ''
     addStockQty.value = '1'
     await invalidate()
   },
+  onError: onMutationError,
 })
 
 const removeMutation = useMutation({
   mutationFn: (lineId: number) => removeLoanLine(loanId.value, lineId),
-  onSuccess: invalidate,
+  onSuccess: async () => {
+    actionError.value = null
+    await invalidate()
+  },
+  onError: onMutationError,
 })
 
 function buildReturnEntries() {
@@ -235,6 +258,7 @@ const returnMutation = useMutation({
     })
   },
   onSuccess: async () => {
+    actionError.value = null
     for (const key of Object.keys(returnOutcomes)) {
       delete returnOutcomes[Number(key)]
     }
@@ -243,6 +267,7 @@ const returnMutation = useMutation({
     }
     await invalidate()
   },
+  onError: onMutationError,
 })
 </script>
 
@@ -250,6 +275,7 @@ const returnMutation = useMutation({
   <div class="app-page space-y-6">
     <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
     <template v-else-if="loan">
+      <p v-if="actionError" class="text-sm text-error">{{ actionError }}</p>
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p class="text-sm text-base-content/70">{{ kindLabel }} · {{ statusLabel }}</p>

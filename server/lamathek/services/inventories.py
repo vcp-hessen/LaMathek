@@ -1,6 +1,6 @@
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from lamathek.models.inventory import Inventory, InventoryPermission
 from lamathek.models.user import User
@@ -44,7 +44,11 @@ def format_content_responsible_users(users: list[User]) -> str:
 
 
 def inventory_by_id(session: Session, inventory_id: int) -> Inventory | None:
-    return session.get(Inventory, inventory_id)
+    return session.scalar(
+        select(Inventory)
+        .where(Inventory.id == inventory_id)
+        .options(selectinload(Inventory.photos))
+    )
 
 
 def user_can_manage_any_inventory(session: Session, user: User) -> bool:

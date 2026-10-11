@@ -1,6 +1,7 @@
-from datetime import date
-
 from flask import Blueprint, jsonify, request
+
+from lamathek.routes.http_errors import error_response
+from lamathek.routes.parsing import parse_date
 from sqlalchemy import select
 
 from lamathek.access import require_inventory_manager, require_login
@@ -33,8 +34,7 @@ from lamathek.services.loans import (
 loans_bp = Blueprint("loans", __name__, url_prefix="/api")
 
 
-def _loan_error(exc: ValueError):
-    code = str(exc)
+def _loan_status(code: str) -> int:
     status = 400
     if code == "not_found":
         status = 404
@@ -56,18 +56,11 @@ def _loan_error(exc: ValueError):
         status = 400
     if code in ("invalid_set", "invalid_piece", "invalid_material_type", "invalid_responsible"):
         status = 400
-    return jsonify({"error": code}), status
+    return status
 
 
-def _parse_date(value) -> date | None:
-    if value is None:
-        return None
-    if not isinstance(value, str) or not value.strip():
-        return None
-    try:
-        return date.fromisoformat(value.strip())
-    except ValueError:
-        raise ValueError("invalid_date") from None
+def _loan_error(exc: ValueError):
+    return error_response(exc, _loan_status)
 
 
 @loans_bp.get("/groups")
@@ -154,8 +147,8 @@ def post_loan(_user, inventory):
     if not isinstance(loan_kind, str):
         return jsonify({"error": "invalid_kind"}), 400
     try:
-        starts_on = _parse_date(body.get("startsOn"))
-        ends_on = _parse_date(body.get("endsOn"))
+        starts_on = parse_date(body.get("startsOn"))
+        ends_on = parse_date(body.get("endsOn"))
     except ValueError:
         return jsonify({"error": "invalid_date"}), 400
 
@@ -219,13 +212,13 @@ def patch_loan(user, loan_id: int):
         kwargs["event_name"] = event_name
     if "startsOn" in body:
         try:
-            kwargs["starts_on"] = _parse_date(body.get("startsOn"))
+            kwargs["starts_on"] = parse_date(body.get("startsOn"))
             kwargs["update_starts_on"] = True
         except ValueError:
             return jsonify({"error": "invalid_date"}), 400
     if "endsOn" in body:
         try:
-            kwargs["ends_on"] = _parse_date(body.get("endsOn"))
+            kwargs["ends_on"] = parse_date(body.get("endsOn"))
             kwargs["update_ends_on"] = True
         except ValueError:
             return jsonify({"error": "invalid_date"}), 400
@@ -312,7 +305,7 @@ def post_loan_return(user, loan_id: int):
 
     body = request.get_json(silent=True) or {}
     try:
-        recorded_on = _parse_date(body.get("recordedOn"))
+        recorded_on = parse_date(body.get("recordedOn"))
     except ValueError:
         return jsonify({"error": "invalid_date"}), 400
     if recorded_on is None:

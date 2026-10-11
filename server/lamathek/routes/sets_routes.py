@@ -1,5 +1,7 @@
 from flask import Blueprint, jsonify, request
 
+from lamathek.routes.http_errors import error_response
+
 from lamathek.access import require_inventory_manager, require_login, require_superuser
 from lamathek.db import get_session
 from lamathek.serializers import set_detail_to_json, set_to_json
@@ -27,8 +29,7 @@ def _optional_str(value) -> str | None:
     return stripped if stripped else None
 
 
-def _set_error(exc: ValueError):
-    code = str(exc)
+def _set_status(code: str) -> int:
     status = 400
     if code in ("not_found", "invalid_piece", "invalid_material_type"):
         status = 404
@@ -36,7 +37,11 @@ def _set_error(exc: ValueError):
         status = 409
     if code in ("over_reserved", "piece_on_other_set"):
         status = 409
-    return jsonify({"error": code}), status
+    return status
+
+
+def _set_error(exc: ValueError):
+    return error_response(exc, _set_status)
 
 
 @sets_bp.get("/inventories/<int:inventory_id>/sets")

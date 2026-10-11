@@ -4,13 +4,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from lamathek.models.inventory import Inventory
 from lamathek.models.material import TRACKING_STOCK, MaterialType, Piece
-from lamathek.models.set import (
-    SET_ROLE_ASSIGNMENT,
-    SET_ROLE_OPTIONAL,
-    VALID_SET_ROLES,
-    MaterialSet,
-    SetStockLine,
-)
+from lamathek.models.set import VALID_SET_ROLES, MaterialSet, SetStockLine
 
 
 def _load_set(session: Session, set_id: int) -> MaterialSet | None:
@@ -21,6 +15,7 @@ def _load_set(session: Session, set_id: int) -> MaterialSet | None:
             selectinload(MaterialSet.inventory),
             selectinload(MaterialSet.pieces).selectinload(Piece.material_type),
             selectinload(MaterialSet.stock_lines).selectinload(SetStockLine.material_type),
+            selectinload(MaterialSet.photos),
         )
     )
 
@@ -72,10 +67,6 @@ def create_set(
         raise _integrity_set_error(exc) from None
     session.refresh(material_set)
     return _load_set(session, material_set.id)  # type: ignore[return-value]
-
-
-def rename_set(session: Session, material_set: MaterialSet, name: str) -> MaterialSet:
-    return update_set(session, material_set, name=name)
 
 
 def update_set(

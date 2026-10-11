@@ -65,13 +65,6 @@ def ordered_variants(material_type: MaterialType) -> list[MaterialTypeVariant]:
     return list(material_type.variants)
 
 
-def variant_axis_map(material_type: MaterialType) -> dict[str, list[str]]:
-    result: dict[str, list[str]] = {}
-    for axis in ordered_variants(material_type):
-        result[axis.label] = [v.value for v in axis.values]
-    return result
-
-
 def variants_to_json(material_type: MaterialType) -> list[dict]:
     return [
         {"label": axis.label, "values": [v.value for v in axis.values]}
@@ -105,15 +98,6 @@ def piece_variant_to_json(piece: Piece) -> dict[str, str]:
 
 def stock_lot_variant_to_json(lot: StockLot) -> dict[str, str]:
     return _selection_map_from_lot(lot)
-
-
-def variant_summary_values(variant_map: dict[str, str], material_type: MaterialType) -> str:
-    parts: list[str] = []
-    for axis in ordered_variants(material_type):
-        value = variant_map.get(axis.label)
-        if value:
-            parts.append(value)
-    return " · ".join(parts)
 
 
 def _parse_variant_body(raw, *, required_all: bool) -> dict[str, str | None]:

@@ -166,35 +166,23 @@ def first_photo_ids_for_column(
 ) -> dict[int, int]:
     if not owner_ids:
         return {}
-    result: dict[int, int] = {}
-    for owner_id in owner_ids:
-        photo = session.scalar(
-            select(Photo)
-            .where(column == owner_id)
-            .order_by(Photo.sort_order, Photo.id)
-            .limit(1)
+    row_number = func.row_number().over(
+        partition_by=column,
+        order_by=(Photo.sort_order, Photo.id),
+    )
+    ranked = (
+        select(
+            column.label("owner_id"),
+            Photo.id.label("photo_id"),
+            row_number.label("rn"),
         )
-        if photo is not None:
-            result[owner_id] = photo.id
-    return result
-
-
-def cover_photo_id_for_piece(session: Session, piece: Piece) -> int | None:
-    own = session.scalar(
-        select(Photo)
-        .where(Photo.piece_id == piece.id)
-        .order_by(Photo.sort_order, Photo.id)
-        .limit(1)
+        .where(column.in_(owner_ids))
+        .subquery()
     )
-    if own is not None:
-        return own.id
-    ref = session.scalar(
-        select(Photo)
-        .where(Photo.material_type_id == piece.material_type_id)
-        .order_by(Photo.sort_order, Photo.id)
-        .limit(1)
-    )
-    return ref.id if ref else None
+    rows = session.execute(
+        select(ranked.c.owner_id, ranked.c.photo_id).where(ranked.c.rn == 1)
+    ).all()
+    return {int(owner_id): int(photo_id) for owner_id, photo_id in rows}
 
 
 def cover_photo_ids_for_pieces(session: Session, pieces: list[Piece]) -> dict[int, int | None]:
@@ -212,24 +200,6 @@ def cover_photo_ids_for_pieces(session: Session, pieces: list[Piece]) -> dict[in
     }
 
 
-def cover_photo_id_for_stock_lot(session: Session, lot: StockLot) -> int | None:
-    own = session.scalar(
-        select(Photo)
-        .where(Photo.stock_lot_id == lot.id)
-        .order_by(Photo.sort_order, Photo.id)
-        .limit(1)
-    )
-    if own is not None:
-        return own.id
-    ref = session.scalar(
-        select(Photo)
-        .where(Photo.material_type_id == lot.material_type_id)
-        .order_by(Photo.sort_order, Photo.id)
-        .limit(1)
-    )
-    return ref.id if ref else None
-
-
 def cover_photo_ids_for_stock_lots(
     session: Session, lots: list[StockLot]
 ) -> dict[int, int | None]:
@@ -245,31 +215,11 @@ def cover_photo_ids_for_stock_lots(
     }
 
 
-def cover_photo_id_for_material_type(session: Session, material_type_id: int) -> int | None:
-    photo = session.scalar(
-        select(Photo)
-        .where(Photo.material_type_id == material_type_id)
-        .order_by(Photo.sort_order, Photo.id)
-        .limit(1)
-    )
-    return photo.id if photo else None
-
-
 def cover_photo_ids_for_material_types(
     session: Session, material_type_ids: list[int]
 ) -> dict[int, int | None]:
     found = first_photo_ids_for_column(session, Photo.material_type_id, material_type_ids)
     return {mt_id: found.get(mt_id) for mt_id in material_type_ids}
-
-
-def cover_photo_id_for_set(session: Session, set_id: int) -> int | None:
-    photo = session.scalar(
-        select(Photo)
-        .where(Photo.set_id == set_id)
-        .order_by(Photo.sort_order, Photo.id)
-        .limit(1)
-    )
-    return photo.id if photo else None
 
 
 def cover_photo_ids_for_sets(session: Session, set_ids: list[int]) -> dict[int, int | None]:
@@ -281,16 +231,6 @@ def cover_photo_id_for_inventory(session: Session, inventory_id: int) -> int | N
     photo = session.scalar(
         select(Photo)
         .where(Photo.inventory_id == inventory_id)
-        .order_by(Photo.sort_order, Photo.id)
-        .limit(1)
-    )
-    return photo.id if photo else None
-
-
-def cover_photo_id_for_loan(session: Session, loan_id: int) -> int | None:
-    photo = session.scalar(
-        select(Photo)
-        .where(Photo.loan_id == loan_id)
         .order_by(Photo.sort_order, Photo.id)
         .limit(1)
     )
