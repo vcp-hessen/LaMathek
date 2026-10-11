@@ -120,11 +120,11 @@ _English_: permanent loan
 _Avoid_: Starterset, starter set, Grundausstattung
 
 **Materialwart**:
-A user role for someone who manages material in the Inventare covered by their Berechtigungen. On the Donnerskopf Inventar, this office is the Beauftragte für Landesmaterial (`materialwart` in code). In the German UI: **Materialwart*in**.
+Someone who manages material in the Inventare covered by their Berechtigungen. On the Donnerskopf Inventar, this office is the Beauftragte für Landesmaterial. In the German UI: **Materialwart*in**. There is no separate global flag; a person is a Materialwart*in only through a Berechtigung on an Inventar.
 _English_: quartermaster
 _Avoid_: Beauftragte für Landesmaterial, Materialteam, admin, staff
 
 **Berechtigung**:
-A user's right to manage one Inventar. A job such as Jugendbildungsreferent, Geschäftsführerin, or FSJler is not a role; that person gets a Berechtigung on the Landesbüro Inventar.
+A user's right to manage one Inventar (a user–Inventar pair). Superusers and Materialwarte who already have a Berechtigung on that Inventar may grant or revoke Berechtigungen there. A job such as Jugendbildungsreferent, Geschäftsführerin, or FSJler is not a role; that person gets a Berechtigung on the Landesbüro Inventar. **Verantwortliche*r** at a Verleih is the person responsible for the borrowed material, not a user role in the database.
 _English_: permission
 _Avoid_: Rolle, job title

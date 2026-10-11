@@ -296,6 +296,13 @@
     "stammdaten": "Stammdaten",
     "rename": "Speichern",
     "permissionsHeading": "Berechtigungen",
+    "permissionsEmpty": "Noch niemand mit Berechtigung für dieses Inventar.",
+    "permissionSearchLabel": "Nutzer*in hinzufügen",
+    "permissionSearchPlaceholder": "Name oder E-Mail suchen …",
+    "permissionSearchNoHits": "Keine Treffer.",
+    "permissionAdd": "Hinzufügen",
+    "permissionRemoveShort": "Entfernen",
+    "permissionRemove": "{name} entfernen",
     "savePermissions": "Berechtigungen speichern",
     "addressLabel": "Adresse",
     "addressOptional": "optional",
@@ -306,7 +313,7 @@
   },
   "superusers": {
     "heading": "Superuser*innen",
-    "role": "Superuser*in",
+    "toggleLabel": "Superuser*in",
     "updateFailed": "Änderung fehlgeschlagen."
   }
 }

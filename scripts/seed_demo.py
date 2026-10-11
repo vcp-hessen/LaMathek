@@ -38,7 +38,7 @@ def main() -> None:
     from lamathek.db import get_session
     from lamathek.models.inventory import Inventory
     from lamathek.models.set import SET_ROLE_ASSIGNMENT, SET_ROLE_OPTIONAL
-    from lamathek.services.inventories import ROLE_VERANTWORTLICHE, create_inventory
+    from lamathek.services.inventories import create_inventory
     from lamathek.services.loans import add_piece_line, add_set_assignment_lines, create_loan
     from lamathek.services.material import (
         create_material_type,
@@ -50,7 +50,7 @@ def main() -> None:
         set_piece_membership,
         upsert_stock_line,
     )
-    from lamathek.services.users import set_user_role, upsert_user_from_oidc
+    from lamathek.services.users import upsert_user_from_oidc
 
     app = create_app()
     with app.app_context():
@@ -70,9 +70,6 @@ def main() -> None:
             email="ver@example.local",
             force_superuser=False,
         )
-        set_user_role(session, ver, ROLE_VERANTWORTLICHE)
-        session.commit()
-
         inventory = create_inventory(session, DEMO_INVENTORY_NAME)
 
         kohte = create_material_type(

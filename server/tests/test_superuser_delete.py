@@ -38,7 +38,6 @@ def _seed_users(app):
         mw = upsert_user_from_oidc(
             session, sub="mw", name="MW", email=None, force_superuser=False
         )
-        mw.role = "materialwart"
         session.commit()
         return mw.id
 

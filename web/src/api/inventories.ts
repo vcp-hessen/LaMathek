@@ -1,5 +1,7 @@
 import { api } from './client'
+import type { User } from '../schemas/user'
 import {
+  inventoryPermissionsPutSchema,
   inventoryPermissionsSchema,
   inventorySchema,
   inventoryWriteSchema,
@@ -41,17 +43,17 @@ export async function updateInventory(
   return inventorySchema.parse(response.data)
 }
 
-export async function fetchInventoryPermissions(id: number): Promise<number[]> {
+export async function fetchInventoryPermissions(id: number): Promise<User[]> {
   const response = await api.get(`/api/inventories/${id}/permissions`)
-  return inventoryPermissionsSchema.parse(response.data).userIds
+  return inventoryPermissionsSchema.parse(response.data).users
 }
 
 export async function replaceInventoryPermissions(
   id: number,
   userIds: number[],
-): Promise<number[]> {
+): Promise<User[]> {
   const response = await api.put(`/api/inventories/${id}/permissions`, { userIds })
-  return inventoryPermissionsSchema.parse(response.data).userIds
+  return inventoryPermissionsPutSchema.parse(response.data).users ?? []
 }
 
 export async function deleteInventory(id: number): Promise<void> {

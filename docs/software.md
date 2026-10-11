@@ -6,7 +6,7 @@ What LaMathek is for. How it is built lives in [docs/adr](./adr/). Domain langua
 
 LaMathek keeps track of material held by VCP Hessen. This installation does not track material held by Stämme, Bezirke, or the Bund.
 
-The user roles are Materialwart*in and Verantwortliche*r (code: `materialwart`, `verantwortliche`). A Materialwart*in manages only the Inventare covered by their Berechtigungen. Job titles are not roles: the Jugendbildungsreferent, the Geschäftsführerin, and an FSJler get a Berechtigung on the Landesbüro Inventar. A Gruppe does not use LaMathek.
+Anyone who signs in is a user. A **Materialwart*in** manages only Inventare where they have a **Berechtigung** (user–Inventar pair). Superusers manage the installation and may grant Berechtigungen on any Inventar; Materialwarte with a Berechtigung may grant or revoke Berechtigungen on that Inventar only. Job titles are not roles: the Jugendbildungsreferent, the Geschäftsführerin, and an FSJler get a Berechtigung on the Landesbüro Inventar. At a Verleih, any signed-in user may be chosen as **Verantwortliche*r** (responsible person for the loan). A Gruppe does not use LaMathek.
 
 An Inventar is the material kept at one place. Donnerskopf holds the Landesmaterial. The Landesbüro holds material such as a Beamer, board games, and button machines. A Set, an Einzelteil, and a Menge each belong to one Inventar.
 

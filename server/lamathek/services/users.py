@@ -2,7 +2,6 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from lamathek.models.user import User
-from lamathek.services.inventories import VALID_ROLES
 
 
 def upsert_user_from_oidc(
@@ -55,8 +54,18 @@ def set_superuser(session: Session, user: User, is_superuser: bool) -> None:
     session.commit()
 
 
-def set_user_role(session: Session, user: User, role: str) -> None:
-    if role not in VALID_ROLES:
-        raise ValueError("invalid_role")
-    user.role = role
-    session.commit()
+def search_users(session: Session, query: str, *, limit: int = 20) -> list[User]:
+    trimmed = query.strip()
+    if len(trimmed) < 2:
+        return []
+    pattern = f"%{trimmed}%"
+    return list(
+        session.scalars(
+            select(User)
+            .where(
+                (User.name.ilike(pattern)) | (User.email.ilike(pattern)),
+            )
+            .order_by(User.name, User.email)
+            .limit(limit)
+        ).all()
+    )

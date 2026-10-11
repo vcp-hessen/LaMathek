@@ -32,7 +32,6 @@ def user_to_json(user: User) -> dict:
         "name": user.name,
         "email": user.email,
         "isSuperuser": user.is_superuser,
-        "role": user.role,
     }
 
 

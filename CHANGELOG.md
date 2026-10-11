@@ -9,12 +9,14 @@ LaMathek uses [CalVer](https://calver.org/) as `YYYY.MM.MICRO`. Nothing has been
 
 ### Added
 
+- Inventar-Berechtigungen: Superuser und berechtigte Materialwarte vergeben und entziehen Nutzer–Inventar-Paare; Nutzer*innen-Suche beim Hinzufügen (`/api/users/search`).
 - Staging-Image (`Dockerfile`) für Coolify: gebautes Frontend, Flask auf `0.0.0.0`, Alembic beim Start, SQLite über ein Volume.
 - Optionales Live-Reload-Compose (`deploy/docker-compose.dev.yml`) mit Bind-Mount, Flask-Reloader und Vite-HMR.
 - Superuser-only Löschen für Inventare, Materialarten, Stücke und Sets mit Bestätigungsdialog und Hinweis auf unwiderruflich mitgelöschte abhängige Daten.
 
 ### Changed
 
+- Berechtigungen: globale Rolle Materialwart/Verantwortliche entfällt; Materialwart*in nur noch über Inventar-Berechtigung; am Verleih ist jede angemeldete Nutzer*in als Verantwortliche*r wählbar.
 - Materialarten: beliebig viele Variantenbezeichner mit je eigener Werteliste; Einzelteile speichern je Bezeichner einen Wert, Mengenposten optional pro Bezeichner (`variant` als Objekt in der API).
 - Mengen bestehen aus Mengenposten (optionale Bezeichnung, optionale Variante, Anzahl). Verleih und Set rechnen mit der Summe. Eine Kiste ist keine Einzelteil.
 - Variantenwerte bei Materialarten: einzeln per Eingabe und „Hinzufügen“ (DaisyUI-Join und Badges) statt kommagetrenntem Textfeld; Reihenfolge per Sortable.js (`vue-draggable-plus`) mit Live-Verschiebung; neue Werte werden lexikographisch (de) einsortiert.

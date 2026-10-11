@@ -6,7 +6,6 @@ export const meSchema = z.object({
   name: z.string().nullable().optional(),
   email: z.string().nullable().optional(),
   isSuperuser: z.boolean(),
-  role: z.enum(['materialwart', 'verantwortliche']),
 })
 
 export type Me = z.infer<typeof meSchema>

@@ -5,16 +5,9 @@ from sqlalchemy.orm import Session
 from lamathek.models.inventory import Inventory, InventoryPermission
 from lamathek.models.user import User
 
-ROLE_MATERIALWART = "materialwart"
-ROLE_VERANTWORTLICHE = "verantwortliche"
-VALID_ROLES = frozenset({ROLE_MATERIALWART, ROLE_VERANTWORTLICHE})
-
-
 def list_inventories_for_user(session: Session, user: User) -> list[Inventory]:
     if user.is_superuser:
         return list(session.scalars(select(Inventory).order_by(Inventory.name)).all())
-    if user.role != ROLE_MATERIALWART:
-        return []
     return list(
         session.scalars(
             select(Inventory)
@@ -57,8 +50,6 @@ def inventory_by_id(session: Session, inventory_id: int) -> Inventory | None:
 def user_can_manage_any_inventory(session: Session, user: User) -> bool:
     if user.is_superuser:
         return True
-    if user.role != ROLE_MATERIALWART:
-        return False
     permission = session.scalar(
         select(InventoryPermission.id).where(InventoryPermission.user_id == user.id)
     )
@@ -68,8 +59,6 @@ def user_can_manage_any_inventory(session: Session, user: User) -> bool:
 def user_can_manage_inventory(session: Session, user: User, inventory: Inventory) -> bool:
     if user.is_superuser:
         return True
-    if user.role != ROLE_MATERIALWART:
-        return False
     permission = session.scalar(
         select(InventoryPermission).where(
             InventoryPermission.user_id == user.id,
@@ -158,6 +147,17 @@ def permission_user_ids(session: Session, inventory_id: int) -> list[int]:
     return list(rows)
 
 
+def permission_users(session: Session, inventory_id: int) -> list[User]:
+    user_ids = permission_user_ids(session, inventory_id)
+    if not user_ids:
+        return []
+    return list(
+        session.scalars(
+            select(User).where(User.id.in_(user_ids)).order_by(User.name, User.email)
+        ).all()
+    )
+
+
 def delete_inventory(session: Session, inventory: Inventory) -> None:
     session.delete(inventory)
     session.commit()
@@ -166,12 +166,30 @@ def delete_inventory(session: Session, inventory: Inventory) -> None:
 def replace_permissions(
     session: Session, inventory: Inventory, user_ids: list[int]
 ) -> list[int]:
+    from lamathek.services.users import count_superusers
+
+    unique_ids: list[int] = []
+    seen: set[int] = set()
+    for user_id in user_ids:
+        if user_id in seen:
+            continue
+        seen.add(user_id)
+        unique_ids.append(user_id)
+
+    if not unique_ids and count_superusers(session) == 0:
+        raise ValueError("cannot_clear_permissions")
+
+    if unique_ids:
+        found = session.scalars(select(User.id).where(User.id.in_(unique_ids))).all()
+        if len(found) != len(unique_ids):
+            raise ValueError("invalid_user_ids")
+
     session.execute(
         delete(InventoryPermission).where(
             InventoryPermission.inventory_id == inventory.id
         )
     )
-    for user_id in user_ids:
+    for user_id in unique_ids:
         session.add(InventoryPermission(user_id=user_id, inventory_id=inventory.id))
     session.commit()
     return permission_user_ids(session, inventory.id)

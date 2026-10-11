@@ -5,9 +5,8 @@ from lamathek.app import create_app
 from lamathek.config import Config
 from lamathek import db
 from lamathek.db import Base, get_session
-from lamathek.services.inventories import ROLE_VERANTWORTLICHE
 from lamathek.services.settings import get_installation_settings
-from lamathek.services.users import set_user_role, upsert_user_from_oidc
+from lamathek.services.users import upsert_user_from_oidc
 
 
 def _app_with_db():
@@ -43,8 +42,6 @@ def _verantwortliche_id(client) -> int:
         user = upsert_user_from_oidc(
             session, sub="ver", name="Ver", email=None, force_superuser=False
         )
-        set_user_role(session, user, ROLE_VERANTWORTLICHE)
-        session.commit()
         return user.id
 
 

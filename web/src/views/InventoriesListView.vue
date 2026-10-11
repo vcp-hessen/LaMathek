@@ -66,15 +66,15 @@ const editingId = computed(() =>
   typeof expandedKey.value === 'number' ? expandedKey.value : null,
 )
 
-const { data: permittedIds } = useQuery({
+const { data: permittedUsers } = useQuery({
   queryKey: computed(() => ['inventoryPermissions', editingId.value]),
   queryFn: () => fetchInventoryPermissions(editingId.value!),
-  enabled: () => me.value?.isSuperuser === true && editingId.value !== null,
+  enabled: () => editingId.value !== null,
 })
 
-watch([editingId, permittedIds], ([id, ids]) => {
-  if (id === null || !ids || permissionsSyncedFor.value === id) return
-  editUserIds.value = [...ids]
+watch([editingId, permittedUsers], ([id, users]) => {
+  if (id === null || !users || permissionsSyncedFor.value === id) return
+  editUserIds.value = users.map((user) => user.id)
   permissionsSyncedFor.value = id
 })
 
@@ -83,7 +83,7 @@ const sortedInventories = computed(() =>
 )
 
 const permissionsReady = computed(
-  () => !me.value?.isSuperuser || permissionsSyncedFor.value === editingId.value,
+  () => permissionsSyncedFor.value === editingId.value,
 )
 
 function resetCreateDraft() {
@@ -188,9 +188,7 @@ const updateMutation = useMutation({
         longitude: editLongitude.value,
       }),
     ).then(async (inventory) => {
-      if (me.value?.isSuperuser) {
-        await replaceInventoryPermissions(id, editUserIds.value)
-      }
+      await replaceInventoryPermissions(id, editUserIds.value)
       return inventory
     }),
   onSuccess: async (_data, id) => {
@@ -320,8 +318,9 @@ const deleteMutation = useMutation({
                   :default-longitude="mapDefaults.longitude"
                 />
                 <InventoryPermissionEditor
-                  v-if="me?.isSuperuser"
+                  v-if="editingId === inv.id"
                   v-model="editUserIds"
+                  :inventory-id="inv.id"
                 />
                 <p v-if="formError && expandedKey === inv.id" class="text-sm text-error">
                   {{ formError }}

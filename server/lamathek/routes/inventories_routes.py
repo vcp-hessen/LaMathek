@@ -2,14 +2,14 @@ from flask import Blueprint, jsonify, request
 
 from lamathek.access import require_inventory_manager, require_login, require_superuser
 from lamathek.db import get_session
-from lamathek.serializers import inventory_to_json
 from lamathek.routes.inventory_fields import inventory_location_from_body
+from lamathek.serializers import inventory_to_json, user_to_json
 from lamathek.services.inventories import (
     create_inventory,
     delete_inventory,
     inventory_by_id,
     list_inventories_for_user,
-    permission_user_ids,
+    permission_users,
     replace_permissions,
     update_inventory,
 )
@@ -93,18 +93,16 @@ def remove_inventory(_user, inventory_id: int):
 
 
 @inventories_bp.get("/inventories/<int:inventory_id>/permissions")
-@require_superuser
-def get_permissions(_user, inventory_id: int):
+@require_inventory_manager()
+def get_permissions(_user, inventory):
     session = get_session()
-    inventory = inventory_by_id(session, inventory_id)
-    if inventory is None:
-        return jsonify({"error": "not_found"}), 404
-    return jsonify({"userIds": permission_user_ids(session, inventory_id)})
+    users = permission_users(session, inventory.id)
+    return jsonify({"users": [user_to_json(u) for u in users]})
 
 
 @inventories_bp.put("/inventories/<int:inventory_id>/permissions")
-@require_superuser
-def put_permissions(_user, inventory_id: int):
+@require_inventory_manager()
+def put_permissions(_user, inventory):
     body = request.get_json(silent=True) or {}
     user_ids = body.get("userIds")
     if not isinstance(user_ids, list) or not all(
@@ -112,8 +110,18 @@ def put_permissions(_user, inventory_id: int):
     ):
         return jsonify({"error": "invalid_user_ids"}), 400
     session = get_session()
-    inventory = inventory_by_id(session, inventory_id)
-    if inventory is None:
-        return jsonify({"error": "not_found"}), 404
-    ids = replace_permissions(session, inventory, user_ids)
-    return jsonify({"userIds": ids})
+    try:
+        ids = replace_permissions(session, inventory, user_ids)
+    except ValueError as exc:
+        if str(exc) == "cannot_clear_permissions":
+            return jsonify({"error": "cannot_clear_permissions"}), 409
+        if str(exc) == "invalid_user_ids":
+            return jsonify({"error": "invalid_user_ids"}), 400
+        raise
+    users = permission_users(session, inventory.id)
+    return jsonify(
+        {
+            "userIds": ids,
+            "users": [user_to_json(u) for u in users],
+        }
+    )

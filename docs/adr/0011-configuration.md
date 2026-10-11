@@ -10,7 +10,7 @@ Each LaMathek installation is deployed once and then run by Materialwarte. Some 
 
 **Database** holds installation settings that operators may change without touching the server: display title and subtitle, legal imprint fields for the public Impressum page, and the default map centre used when an Inventar has no coordinates. Rows are created with defaults on first migration or first boot. Superusers edit them in the application.
 
-A **superuser** is an installation-wide administrator, not a Materialwart role and not tied to one Inventar. The first person who signs in with OpenID Connect while no superuser exists becomes a superuser. Later superusers are appointed by existing superusers. Superusers manage installation settings and can grant Berechtigungen; ordinary Materialwarte only manage Inventare they are allowed to.
+A **superuser** is an installation-wide administrator, not tied to one Inventar. The first person who signs in with OpenID Connect while no superuser exists becomes a superuser. Later superusers are appointed by existing superusers. Superusers manage installation settings and can grant Berechtigungen on any Inventar. A **Materialwart*in** is anyone with a Berechtigung on an Inventar; they manage that Inventar and may grant or revoke Berechtigungen on it. There is no global Materialwart or Verantwortliche*r flag on users.
 
 The product name LaMathek can stay in code and i18n as the software name; the database title and subtitle identify this deployment (for example VCP Hessen and Landesmaterial).
 

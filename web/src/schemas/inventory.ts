@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { userSchema } from './user'
 
 export const inventorySchema = z.object({
   id: z.number(),
@@ -22,5 +23,10 @@ export type InventoryWritePayload = z.infer<typeof inventoryWriteSchema>
 export type Inventory = z.infer<typeof inventorySchema>
 
 export const inventoryPermissionsSchema = z.object({
+  users: z.array(userSchema),
+})
+
+export const inventoryPermissionsPutSchema = z.object({
   userIds: z.array(z.number()),
+  users: z.array(userSchema).optional(),
 })

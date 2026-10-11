@@ -12,7 +12,7 @@ from lamathek.serializers import (
     loan_detail_to_json,
     loan_to_json,
 )
-from lamathek.services.inventories import ROLE_VERANTWORTLICHE, user_can_manage_inventory
+from lamathek.services.inventories import user_can_manage_any_inventory, user_can_manage_inventory
 from lamathek.services.loans import (
     add_piece_line,
     add_set_assignment_lines,
@@ -115,11 +115,11 @@ def post_event(_user):
 
 @loans_bp.get("/users/verantwortliche")
 @require_login
-def get_verantwortliche(_user):
+def get_verantwortliche(user):
     session = get_session()
-    users = session.scalars(
-        select(User).where(User.role == ROLE_VERANTWORTLICHE).order_by(User.name)
-    ).all()
+    if not user_can_manage_any_inventory(session, user):
+        return jsonify({"error": "forbidden"}), 403
+    users = session.scalars(select(User).order_by(User.name, User.email)).all()
     from lamathek.serializers import user_to_json
 
     return jsonify([user_to_json(u) for u in users])

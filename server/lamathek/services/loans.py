@@ -32,7 +32,6 @@ from lamathek.models.set import (
     SetStockLine,
 )
 from lamathek.models.user import User
-from lamathek.services.inventories import ROLE_VERANTWORTLICHE
 from lamathek.services.damages import piece_has_open_severe_damage
 from lamathek.services.sets import set_by_id as load_set_by_id
 
@@ -96,8 +95,6 @@ def get_or_create_event(session: Session, name: str) -> Event:
 def _validate_responsible(session: Session, user_id: int) -> User:
     user = session.get(User, user_id)
     if user is None:
-        raise ValueError("invalid_responsible")
-    if user.role != ROLE_VERANTWORTLICHE:
         raise ValueError("invalid_responsible")
     return user
 

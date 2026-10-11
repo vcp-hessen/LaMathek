@@ -90,7 +90,6 @@ def test_geocode_endpoint():
                 email=None,
                 force_superuser=False,
             )
-            mw.role = "materialwart"
             upsert_user_from_oidc(
                 session,
                 sub="su",
