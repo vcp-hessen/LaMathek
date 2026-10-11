@@ -188,8 +188,7 @@ function onRemoveInventory(user: ManagedUser, inventoryId: number) {
     <p v-else-if="!me?.isSuperuser" class="text-sm text-base-content/70">
       {{ t('users.superuserOnly') }}
     </p>
-    <div v-else class="card bg-base-100 shadow-md">
-      <div class="card-body gap-3 p-4 text-left">
+    <div v-else class="flex flex-col gap-3 text-left">
         <label class="flex min-w-0 flex-col gap-1 sm:max-w-sm">
           <span class="sr-only">{{ t('users.searchLabel') }}</span>
           <input
@@ -311,7 +310,6 @@ function onRemoveInventory(user: ManagedUser, inventoryId: number) {
           </div>
         </div>
         <p v-if="actionError" class="text-sm text-error">{{ actionError }}</p>
-      </div>
     </div>
   </div>
 </template>

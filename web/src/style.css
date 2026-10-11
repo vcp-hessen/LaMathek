@@ -97,7 +97,19 @@
 
 @layer components {
   .app-page {
-    @apply mx-auto w-full max-w-7xl p-6;
+    @apply mx-auto flex w-full max-w-7xl flex-1 flex-col bg-base-100 p-6;
+  }
+
+  .app-section {
+    @apply flex flex-col text-left;
+  }
+
+  .app-section-header {
+    @apply border-b border-base-200 pb-3;
+  }
+
+  .app-page-title {
+    @apply text-lg font-semibold;
   }
 
   /* Data tables: stronger header, subtle zebra (not full base-200 stripes). */

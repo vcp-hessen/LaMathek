@@ -98,8 +98,7 @@ const onSubmit = handleSubmit(async (values) => {
 </script>
 
 <template>
-  <form class="card bg-base-100 shadow-md" @submit="onSubmit">
-    <div class="card-body gap-4 p-4 text-left sm:p-6">
+  <form class="app-section gap-4" @submit="onSubmit">
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label class="flex min-w-0 flex-col gap-1">
           <span class="text-xs opacity-80">{{ t('settings.titleLabel') }}</span>
@@ -249,11 +248,10 @@ const onSubmit = handleSubmit(async (values) => {
       <p v-if="mutation.isError.value" class="text-sm text-error">
         {{ t('settings.saveFailed') }}
       </p>
-      <div class="card-actions justify-end">
+      <div class="flex justify-end pt-2">
         <button type="submit" class="btn btn-primary" :disabled="isSubmitting">
           {{ t('settings.save') }}
         </button>
       </div>
-    </div>
   </form>
 </template>

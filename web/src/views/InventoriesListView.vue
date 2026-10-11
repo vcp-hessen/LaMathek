@@ -277,11 +277,9 @@ const deleteMutation = useMutation({
 </script>
 
 <template>
-  <div class="app-page">
-    <div class="card bg-base-100 shadow-md">
-      <div class="card-body gap-4 text-left">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <h2 class="card-title text-lg">{{ t('inventories.title') }}</h2>
+  <div class="app-page gap-4">
+        <div class="app-section-header flex flex-wrap items-center justify-between gap-2">
+          <h2 class="app-page-title">{{ t('inventories.title') }}</h2>
           <button
             v-if="me?.isSuperuser && !isLoading"
             type="button"
@@ -417,7 +415,5 @@ const deleteMutation = useMutation({
             <template v-else> {{ t('inventories.emptyHintUser') }}</template>
           </li>
         </ul>
-      </div>
-    </div>
   </div>
 </template>

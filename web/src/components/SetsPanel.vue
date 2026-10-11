@@ -40,9 +40,8 @@ const sortedSets = computed(() =>
 </script>
 
 <template>
-  <div class="card bg-base-100 shadow-md">
-    <div class="card-body gap-4 text-left">
-      <h2 class="card-title text-lg">{{ t('sets.heading') }}</h2>
+  <div class="flex flex-col gap-4 text-left">
+      <h2 class="app-section-header app-page-title">{{ t('sets.heading') }}</h2>
       <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
       <ul v-else class="menu rounded-box bg-base-200/50">
         <li v-for="set in sortedSets" :key="set.id">
@@ -78,6 +77,5 @@ const sortedSets = computed(() =>
           {{ t('sets.create') }}
         </button>
       </form>
-    </div>
   </div>
 </template>

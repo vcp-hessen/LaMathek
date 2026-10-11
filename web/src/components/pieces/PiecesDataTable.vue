@@ -270,7 +270,7 @@ function goToPage(next: number) {
 </script>
 
 <template>
-  <div class="rounded-lg border border-base-200 bg-base-100">
+  <div class="rounded-lg border border-base-200">
     <PiecesTableToolbar
       :search-query="globalFilter"
       :material-type-id="materialTypeFilter"

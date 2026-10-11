@@ -270,20 +270,19 @@ const returnMutation = useMutation({
         </button>
       </div>
 
-      <section class="card bg-base-100 shadow-md">
-        <div class="card-body gap-4 text-left">
-          <h2 class="card-title text-base">{{ t('photos.heading') }}</h2>
+      <section class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
+        
+          <h2 class="app-page-title text-base">{{ t('photos.heading') }}</h2>
           <PhotoGallery
             :owner="{ kind: 'loan', loanId: loan.id }"
             :photos="loan.photos ?? []"
             @change="() => queryClient.invalidateQueries({ queryKey: ['loan', loanId] })"
           />
-        </div>
       </section>
 
-      <section class="card bg-base-100 shadow-md">
-        <div class="card-body gap-3 text-left">
-          <h2 class="card-title text-base">{{ t('loans.linesHeading') }}</h2>
+      <section class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
+        
+          <h2 class="app-page-title text-base">{{ t('loans.linesHeading') }}</h2>
           <div class="space-y-4 text-sm">
             <div v-for="group in lineGroups.groups" :key="group.setId" class="space-y-2">
               <p class="font-semibold text-base-content/90">
@@ -385,12 +384,11 @@ const returnMutation = useMutation({
             </ul>
             <p v-if="!loan.lines.length" class="opacity-70">{{ t('loans.linesEmpty') }}</p>
           </div>
-        </div>
       </section>
 
-      <section v-if="isHandedOut && outstandingLines.length" class="card bg-base-100 shadow-md">
-        <div class="card-body gap-4 text-left">
-          <h2 class="card-title text-base">{{ t('loans.returnHeading') }}</h2>
+      <section v-if="isHandedOut && outstandingLines.length" class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
+        
+          <h2 class="app-page-title text-base">{{ t('loans.returnHeading') }}</h2>
           <form class="space-y-4" @submit.prevent="returnMutation.mutate()">
             <label class="form-control w-full max-w-xs">
               <span class="label-text">{{ t('loans.returnRecordedOn') }}</span>
@@ -432,12 +430,11 @@ const returnMutation = useMutation({
               {{ t('loans.submitReturn') }}
             </button>
           </form>
-        </div>
       </section>
 
-      <section v-if="loan.returns.length" class="card bg-base-100 shadow-md">
-        <div class="card-body gap-3 text-left">
-          <h2 class="card-title text-base">{{ t('loans.returnHistoryHeading') }}</h2>
+      <section v-if="loan.returns.length" class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
+        
+          <h2 class="app-page-title text-base">{{ t('loans.returnHistoryHeading') }}</h2>
           <ul class="space-y-3 text-sm">
             <li
               v-for="ret in loan.returns"
@@ -458,12 +455,11 @@ const returnMutation = useMutation({
               </ul>
             </li>
           </ul>
-        </div>
       </section>
 
-      <section v-if="isPlanned" class="card bg-base-100 shadow-md">
-        <div class="card-body gap-4 text-left">
-          <h2 class="card-title text-base">{{ t('loans.addLine') }}</h2>
+      <section v-if="isPlanned" class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
+        
+          <h2 class="app-page-title text-base">{{ t('loans.addLine') }}</h2>
           <form class="flex flex-wrap gap-2" @submit.prevent="addSetMutation.mutate()">
             <select v-model="addSetId" class="select select-bordered min-w-0 flex-1" required>
               <option disabled value="">{{ t('loans.pickSet') }}</option>
@@ -523,7 +519,6 @@ const returnMutation = useMutation({
               {{ t('loans.addStock') }}
             </button>
           </form>
-        </div>
       </section>
     </template>
   </div>

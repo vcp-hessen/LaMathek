@@ -78,7 +78,7 @@ function kindLabel(kind: string) {
     <h1 class="text-2xl font-bold">{{ t('loans.heading') }}</h1>
 
     <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
-    <ul v-else class="menu rounded-box bg-base-100 shadow">
+    <ul v-else class="menu rounded-box border border-base-200 bg-base-100">
       <li v-for="loan in sortedLoans" :key="loan.id">
         <RouterLink :to="`/inventories/${inventoryId}/loans/${loan.id}`" class="flex items-center gap-3">
           <PhotoThumbnail :photo-id="loan.coverPhotoId" />
@@ -96,9 +96,11 @@ function kindLabel(kind: string) {
       </li>
     </ul>
 
-    <form class="card bg-base-100 shadow-md" @submit.prevent="createMutation.mutate()">
-      <div class="card-body gap-3 text-left">
-        <h2 class="card-title text-base">{{ t('loans.create') }}</h2>
+    <form
+      class="app-section gap-3 border-t border-base-200 pt-6"
+      @submit.prevent="createMutation.mutate()"
+    >
+        <h2 class="app-page-title text-base">{{ t('loans.create') }}</h2>
         <label class="form-control">
           <span class="label-text">{{ t('loans.group') }}</span>
           <input
@@ -157,7 +159,6 @@ function kindLabel(kind: string) {
         <button type="submit" class="btn btn-primary" :disabled="createMutation.isPending.value">
           {{ t('loans.create') }}
         </button>
-      </div>
     </form>
   </div>
 </template>

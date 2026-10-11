@@ -270,10 +270,9 @@ const batchMutation = useMutation({
 </script>
 
 <template>
-  <div class="card bg-base-100 shadow-md">
-    <div class="card-body gap-4 text-left">
-      <div class="flex flex-wrap items-center justify-between gap-2 gap-y-1">
-        <h2 class="card-title shrink-0 text-lg">{{ t('material.piecesHeading') }}</h2>
+  <div class="flex flex-col gap-4 text-left">
+      <div class="app-section-header flex flex-wrap items-center justify-between gap-2 gap-y-1">
+        <h2 class="app-page-title shrink-0">{{ t('material.piecesHeading') }}</h2>
         <div v-if="!isLoading && canAddPieces" class="flex flex-wrap gap-1">
           <button
             type="button"
@@ -527,6 +526,5 @@ const batchMutation = useMutation({
           />
         </template>
       </template>
-    </div>
   </div>
 </template>

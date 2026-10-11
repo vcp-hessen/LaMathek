@@ -136,7 +136,7 @@ async function onSignOut() {
       />
     </aside>
 
-    <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col bg-base-100">
       <header class="navbar sticky top-0 z-20 border-b border-base-300/50 bg-base-100 shadow-sm">
         <div class="flex-none md:hidden">
           <button
@@ -167,7 +167,7 @@ async function onSignOut() {
         </div>
       </header>
 
-      <main class="flex min-h-0 flex-1 flex-col">
+      <main class="flex min-h-0 flex-1 flex-col bg-base-100">
         <RouterView />
       </main>
       <AppFooter :settings="settings" />

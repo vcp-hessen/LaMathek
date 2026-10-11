@@ -146,21 +146,20 @@ function addPiece() {
         </button>
       </form>
 
-      <section class="card bg-base-100 shadow-md">
-        <div class="card-body gap-4 text-left">
-          <h2 class="card-title text-base">{{ t('photos.heading') }}</h2>
+      <section class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
+        
+          <h2 class="app-page-title text-base">{{ t('photos.heading') }}</h2>
           <PhotoGallery
             :owner="{ kind: 'set', setId: setDetail.id }"
             :photos="setDetail.photos ?? []"
             @change="() => queryClient.invalidateQueries({ queryKey: ['set', setId] })"
           />
-        </div>
       </section>
 
       <div class="grid gap-6 md:grid-cols-2">
-        <section class="card bg-base-100 shadow-md">
-          <div class="card-body gap-3 text-left">
-            <h2 class="card-title text-base">{{ t('sets.assignment') }}</h2>
+        <section class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
+          
+            <h2 class="app-page-title text-base">{{ t('sets.assignment') }}</h2>
             <ul class="space-y-1 text-sm">
               <li v-for="p in setDetail.assignmentPieces" :key="p.id" class="flex justify-between gap-2">
                 <span>{{ p.name }} <span class="opacity-60">· {{ p.materialTypeName }}</span></span>
@@ -175,12 +174,11 @@ function addPiece() {
                 {{ t('sets.listEmpty') }}
               </li>
             </ul>
-          </div>
         </section>
 
-        <section class="card bg-base-100 shadow-md">
-          <div class="card-body gap-3 text-left">
-            <h2 class="card-title text-base">{{ t('sets.optionals') }}</h2>
+        <section class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
+          
+            <h2 class="app-page-title text-base">{{ t('sets.optionals') }}</h2>
             <ul class="space-y-1 text-sm">
               <li v-for="p in setDetail.optionalPieces" :key="p.id" class="flex justify-between gap-2">
                 <span>{{ p.name }}</span>
@@ -195,13 +193,12 @@ function addPiece() {
                 {{ t('sets.listEmpty') }}
               </li>
             </ul>
-          </div>
         </section>
       </div>
 
-      <div class="card bg-base-100 shadow-md">
-        <div class="card-body gap-4 text-left">
-          <h2 class="card-title text-base">{{ t('sets.addPiece') }}</h2>
+      <div class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
+        
+          <h2 class="app-page-title text-base">{{ t('sets.addPiece') }}</h2>
           <div class="flex flex-wrap gap-2">
             <select v-model="addPieceId" class="select select-bordered min-w-48 flex-1">
               <option value="">{{ t('sets.pickPiece') }}</option>
@@ -223,12 +220,11 @@ function addPiece() {
               {{ t('sets.add') }}
             </button>
           </div>
-        </div>
       </div>
 
-      <div v-if="stockTypes.length" class="card bg-base-100 shadow-md">
-        <div class="card-body gap-4 text-left">
-          <h2 class="card-title text-base">{{ t('sets.addStock') }}</h2>
+      <div v-if="stockTypes.length" class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
+        
+          <h2 class="app-page-title text-base">{{ t('sets.addStock') }}</h2>
           <div class="flex flex-wrap gap-2">
             <select v-model="addStockTypeId" class="select select-bordered min-w-40 flex-1">
               <option value="">{{ t('sets.pickStockType') }}</option>
@@ -255,7 +251,6 @@ function addPiece() {
               {{ t('sets.reserve') }}
             </button>
           </div>
-        </div>
       </div>
 
       <SuperuserDestructiveDelete

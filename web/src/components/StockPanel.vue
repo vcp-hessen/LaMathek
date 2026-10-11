@@ -250,10 +250,9 @@ watch(
 </script>
 
 <template>
-  <div class="card bg-base-100 shadow-md">
-    <div class="card-body gap-4 text-left">
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <h2 class="card-title text-lg">{{ t('material.stockHeading') }}</h2>
+  <div class="flex flex-col gap-4 text-left">
+      <div class="app-section-header flex flex-wrap items-center justify-between gap-2">
+        <h2 class="app-page-title">{{ t('material.stockHeading') }}</h2>
         <button
           v-if="!isLoading && canAddLots"
           type="button"
@@ -440,6 +439,5 @@ watch(
           </li>
         </ul>
       </template>
-    </div>
   </div>
 </template>

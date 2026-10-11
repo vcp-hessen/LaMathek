@@ -190,9 +190,9 @@ function damageStatusLabel(damage: Damage): string {
   <div class="app-page space-y-6">
     <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
     <template v-else-if="piece">
-      <section class="card bg-base-100 shadow-md">
-        <div class="card-body gap-3 text-left">
-          <h1 class="card-title text-lg">{{ t('material.pieceStammdatenHeading') }}</h1>
+      <section class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
+        
+          <h1 class="app-page-title">{{ t('material.pieceStammdatenHeading') }}</h1>
           <form class="space-y-3" @submit.prevent="updateMutation.mutate()">
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <label class="flex min-w-0 flex-col gap-1">
@@ -245,23 +245,21 @@ function damageStatusLabel(damage: Damage): string {
               </button>
             </div>
           </form>
-        </div>
       </section>
 
-      <section class="card bg-base-100 shadow-md">
-        <div class="card-body gap-4 text-left">
-          <h2 class="card-title text-base">{{ t('photos.heading') }}</h2>
+      <section class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
+        
+          <h2 class="app-page-title text-base">{{ t('photos.heading') }}</h2>
           <PhotoGallery
             :owner="{ kind: 'piece', pieceId: piece.id }"
             :photos="piece.photos ?? []"
             @change="invalidate"
           />
-        </div>
       </section>
 
-      <section class="card bg-base-100 shadow-md">
-        <div class="card-body gap-4 text-left">
-          <h2 class="card-title text-base">{{ t('damage.historyHeading') }}</h2>
+      <section class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
+        
+          <h2 class="app-page-title text-base">{{ t('damage.historyHeading') }}</h2>
           <ul v-if="piece.damages.length" class="list-none space-y-3 text-sm">
             <li
               v-for="damage in piece.damages"
@@ -321,12 +319,11 @@ function damageStatusLabel(damage: Damage): string {
             </li>
           </ul>
           <p v-else class="text-sm opacity-70">{{ t('damage.historyEmpty') }}</p>
-        </div>
       </section>
 
-      <section class="card bg-base-100 shadow-md">
-        <div class="card-body gap-4 text-left">
-          <h2 class="card-title text-base">{{ t('damage.newHeading') }}</h2>
+      <section class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
+        
+          <h2 class="app-page-title text-base">{{ t('damage.newHeading') }}</h2>
           <form class="space-y-3" @submit.prevent="damageMutation.mutate()">
             <label class="flex min-w-0 flex-col gap-1 sm:max-w-xs">
               <span class="text-xs opacity-80">{{ t('damage.recordedOn') }}</span>
@@ -360,7 +357,6 @@ function damageStatusLabel(damage: Damage): string {
               </button>
             </div>
           </form>
-        </div>
       </section>
     </template>
   </div>
