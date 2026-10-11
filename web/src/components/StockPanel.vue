@@ -38,6 +38,7 @@ const filterMaterialTypeId = ref('')
 const drafts = reactive<
   Record<number, { label: string; variant: Record<string, string>; quantity: number }>
 >({})
+const savedEdits = ref<Record<number, string>>({})
 const newLot = reactive({
   materialTypeId: '',
   label: '',
@@ -123,12 +124,32 @@ function resetNewLotDraft() {
   newLot.quantity = 1
 }
 
+function lotEditSnapshot(lotId: number) {
+  const draft = drafts[lotId]
+  if (!draft) return ''
+  const variant = lotVariantPayload(draft.variant)
+  const variantEntries = Object.keys(variant)
+    .sort()
+    .map((label) => [label, variant[label]])
+  return JSON.stringify({
+    label: draft.label.trim(),
+    variant: variantEntries,
+    quantity: draft.quantity,
+  })
+}
+
+function lotDirty(lotId: number) {
+  const saved = savedEdits.value[lotId]
+  return saved !== undefined && lotEditSnapshot(lotId) !== saved
+}
+
 function fillDraft(lot: StockLotListItem) {
   drafts[lot.id] = {
     label: lot.label ?? '',
     variant: syncVariantMapKeys(lot.variant, lot.variants),
     quantity: lot.quantity,
   }
+  savedEdits.value = { ...savedEdits.value, [lot.id]: lotEditSnapshot(lot.id) }
 }
 
 function lotSummaryMeta(lot: StockLotListItem): string {
@@ -191,7 +212,10 @@ const updateMutation = useMutation({
       quantity: draft.quantity,
     })
   },
-  onSuccess: refresh,
+  onSuccess: async (_data, lotId) => {
+    savedEdits.value = { ...savedEdits.value, [lotId]: lotEditSnapshot(lotId) }
+    await refresh()
+  },
   onError: (error) => {
     formError.value = messageFor(error)
   },
@@ -381,7 +405,7 @@ watch(
                     <button
                       type="submit"
                       class="btn btn-primary btn-sm"
-                      :disabled="updateMutation.isPending.value"
+                      :disabled="updateMutation.isPending.value || !lotDirty(lot.id)"
                     >
                       {{ t('material.save') }}
                     </button>

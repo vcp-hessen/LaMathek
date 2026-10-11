@@ -46,6 +46,7 @@ const variant = ref<Record<string, string>>({})
 const editMaterialTypeId = ref<string>('')
 const editPieceName = ref('')
 const editVariant = ref<Record<string, string>>({})
+const savedEdit = ref<string | null>(null)
 
 const batchMaterialTypeId = ref<string>('')
 const batchCount = ref(4)
@@ -217,6 +218,18 @@ function resetBatchDraft() {
   namePatternTouched.value = false
 }
 
+function pieceEditSnapshot() {
+  return JSON.stringify({
+    name: editPieceName.value,
+    materialTypeId: Number(editMaterialTypeId.value),
+    variant: variantPayload(editTypeAxes.value, editVariant.value) ?? null,
+  })
+}
+
+const editDirty = computed(
+  () => savedEdit.value !== null && pieceEditSnapshot() !== savedEdit.value,
+)
+
 function loadEditDraft(piece: Piece) {
   editMaterialTypeId.value = String(piece.materialTypeId)
   editPieceName.value = piece.name
@@ -224,6 +237,7 @@ function loadEditDraft(piece: Piece) {
   editVariant.value = mt
     ? syncVariantMapKeys(piece.variant, mt.variants)
     : { ...piece.variant }
+  savedEdit.value = pieceEditSnapshot()
   formError.value = null
 }
 
@@ -329,6 +343,7 @@ const updateMutation = useMutation({
     }),
   onSuccess: async () => {
     formError.value = null
+    savedEdit.value = pieceEditSnapshot()
     await queryClient.invalidateQueries({ queryKey: ['pieces', props.inventoryId] })
   },
   onError: (error) => {
@@ -650,7 +665,7 @@ watch(expandedKey, (key) => {
                       <button
                         type="submit"
                         class="btn btn-primary btn-sm"
-                        :disabled="updateMutation.isPending.value"
+                        :disabled="updateMutation.isPending.value || !editDirty"
                       >
                         {{ t('material.save') }}
                       </button>

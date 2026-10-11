@@ -48,6 +48,7 @@ const editUnit = ref('')
 const editConsumable = ref(false)
 const editVariants = ref<VariantAxis[]>([])
 const editCategoryText = ref('')
+const savedEdit = ref<string | null>(null)
 
 const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
 
@@ -119,6 +120,29 @@ function resetCreateDraft() {
   categoryText.value = ''
 }
 
+function materialEditSnapshot() {
+  const variants = editVariants.value
+    .map((axis) => ({
+      label: axis.label.trim(),
+      values: axis.values.map((value) => value.trim()).filter(Boolean),
+    }))
+    .filter((axis) => axis.label && axis.values.length)
+  return JSON.stringify({
+    name: editName.value,
+    tracking: editTracking.value,
+    shortName: editShortName.value.trim(),
+    description: editDescription.value.trim(),
+    unit: editTracking.value === 'stock' ? editUnit.value.trim() : '',
+    consumable: editConsumable.value,
+    variants,
+    categoryText: editCategoryText.value.trim(),
+  })
+}
+
+const editDirty = computed(
+  () => savedEdit.value !== null && materialEditSnapshot() !== savedEdit.value,
+)
+
 function loadEditDraft(mt: MaterialType) {
   editName.value = mt.name
   editTracking.value = mt.tracking
@@ -131,6 +155,7 @@ function loadEditDraft(mt: MaterialType) {
     values: [...axis.values],
   }))
   editCategoryText.value = mt.categoryName ?? ''
+  savedEdit.value = materialEditSnapshot()
   formError.value = null
 }
 
@@ -215,6 +240,7 @@ const updateMutation = useMutation({
     ),
   onSuccess: async () => {
     formError.value = null
+    savedEdit.value = materialEditSnapshot()
     await queryClient.invalidateQueries({ queryKey: ['materialTypes', props.inventoryId] })
     await queryClient.invalidateQueries({ queryKey: ['stocks', props.inventoryId] })
     await queryClient.invalidateQueries({ queryKey: ['categories'] })
@@ -346,7 +372,7 @@ watch(expandedKey, (key) => {
                 <button
                   type="submit"
                   class="btn btn-primary btn-sm"
-                  :disabled="updateMutation.isPending.value"
+                  :disabled="updateMutation.isPending.value || !editDirty"
                 >
                   {{ t('material.save') }}
                 </button>

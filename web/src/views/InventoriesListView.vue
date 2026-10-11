@@ -45,6 +45,7 @@ const editLatitude = ref<number | null>(null)
 const editLongitude = ref<number | null>(null)
 const editUserIds = ref<number[]>([])
 const permissionsSyncedFor = ref<number | null>(null)
+const savedEdit = ref<{ payload: InventoryWritePayload; userIds: number[] } | null>(null)
 
 const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
 const { data: settings } = useQuery({
@@ -72,10 +73,36 @@ const { data: permittedUsers } = useQuery({
   enabled: () => editingId.value !== null,
 })
 
+function sortedIds(ids: number[]) {
+  return [...ids].sort((a, b) => a - b)
+}
+
+function currentInventoryEdit() {
+  return {
+    payload: buildPayload({
+      name: editName.value,
+      address: editAddress.value,
+      notes: editNotes.value,
+      latitude: editLatitude.value,
+      longitude: editLongitude.value,
+    }),
+    userIds: sortedIds(editUserIds.value),
+  }
+}
+
+const editDirty = computed(
+  () =>
+    savedEdit.value !== null &&
+    JSON.stringify(currentInventoryEdit()) !== JSON.stringify(savedEdit.value),
+)
+
 watch([editingId, permittedUsers], ([id, users]) => {
   if (id === null || !users || permissionsSyncedFor.value === id) return
   editUserIds.value = users.map((user) => user.id)
   permissionsSyncedFor.value = id
+  if (savedEdit.value) {
+    savedEdit.value = { ...savedEdit.value, userIds: sortedIds(editUserIds.value) }
+  }
 })
 
 const sortedInventories = computed(() =>
@@ -100,6 +127,16 @@ function loadEditDraft(inv: Inventory) {
   editNotes.value = inv.notes ?? ''
   editLatitude.value = inv.latitude
   editLongitude.value = inv.longitude
+  savedEdit.value = {
+    payload: buildPayload({
+      name: inv.name,
+      address: inv.address ?? '',
+      notes: inv.notes ?? '',
+      latitude: inv.latitude,
+      longitude: inv.longitude,
+    }),
+    userIds: [],
+  }
 }
 
 function buildPayload(fields: {
@@ -193,6 +230,7 @@ const updateMutation = useMutation({
     }),
   onSuccess: async (_data, id) => {
     formError.value = null
+    savedEdit.value = currentInventoryEdit()
     await refreshInventories()
     await queryClient.invalidateQueries({ queryKey: ['inventoryPermissions', id] })
     await queryClient.invalidateQueries({ queryKey: ['inventory', id] })
@@ -335,7 +373,7 @@ const deleteMutation = useMutation({
                   <button
                     type="submit"
                     class="btn btn-primary btn-sm"
-                    :disabled="updateMutation.isPending.value || !permissionsReady"
+                    :disabled="updateMutation.isPending.value || !permissionsReady || !editDirty"
                   >
                     {{ t('inventories.rename') }}
                   </button>
