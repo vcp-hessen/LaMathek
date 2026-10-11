@@ -32,6 +32,11 @@ class MaterialSet(Base):
         cascade="all, delete-orphan",
     )
     pieces: Mapped[list["Piece"]] = relationship(back_populates="material_set")
+    photos: Mapped[list["Photo"]] = relationship(
+        back_populates="material_set",
+        cascade="all, delete-orphan",
+        order_by="Photo.sort_order",
+    )
 
 
 class SetStockLine(Base):

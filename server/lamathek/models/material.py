@@ -49,6 +49,11 @@ class MaterialType(Base):
         cascade="all, delete-orphan",
         order_by="StockLot.id",
     )
+    photos: Mapped[list["Photo"]] = relationship(
+        back_populates="material_type",
+        cascade="all, delete-orphan",
+        order_by="Photo.sort_order",
+    )
 
 
 class MaterialTypeVariant(Base):
@@ -127,6 +132,11 @@ class Piece(Base):
         cascade="all, delete-orphan",
         order_by="Damage.id",
     )
+    photos: Mapped[list["Photo"]] = relationship(
+        back_populates="piece",
+        cascade="all, delete-orphan",
+        order_by="Photo.sort_order",
+    )
 
 
 class PieceVariantValue(Base):
@@ -163,6 +173,11 @@ class StockLot(Base):
     variant_selections: Mapped[list["StockLotVariantValue"]] = relationship(
         back_populates="stock_lot",
         cascade="all, delete-orphan",
+    )
+    photos: Mapped[list["Photo"]] = relationship(
+        back_populates="stock_lot",
+        cascade="all, delete-orphan",
+        order_by="Photo.sort_order",
     )
 
 

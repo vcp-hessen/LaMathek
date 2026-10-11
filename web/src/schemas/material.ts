@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { photoMetaSchema } from './photo'
 
 export const categorySchema = z.object({
   id: z.number(),
@@ -28,6 +29,8 @@ export const materialTypeSchema = z.object({
   categoryId: z.number().nullable(),
   categoryName: z.string().nullable(),
   variants: z.array(variantAxisSchema),
+  coverPhotoId: z.number().nullish(),
+  photos: z.array(photoMetaSchema).optional(),
 })
 
 export type MaterialType = z.infer<typeof materialTypeSchema>
@@ -41,6 +44,7 @@ export const pieceSchema = z.object({
   setId: z.number().nullable(),
   setRole: z.enum(['assignment', 'optional']).nullable(),
   setName: z.string().nullable(),
+  coverPhotoId: z.number().nullish(),
 })
 
 export type Piece = z.infer<typeof pieceSchema>
@@ -58,10 +62,12 @@ export const damageSchema = z.object({
   severe: z.boolean(),
   open: z.boolean(),
   repair: repairSchema.nullable(),
+  photos: z.array(photoMetaSchema).optional(),
 })
 
 export const pieceDetailSchema = pieceSchema.extend({
   inventoryId: z.number(),
+  photos: z.array(photoMetaSchema).optional(),
   damages: z.array(damageSchema),
 })
 
@@ -73,6 +79,8 @@ export const stockLotSchema = z.object({
   label: z.string().nullable(),
   variant: variantMapSchema,
   quantity: z.number(),
+  coverPhotoId: z.number().nullish(),
+  photos: z.array(photoMetaSchema).optional(),
 })
 
 export const stockRowSchema = z.object({
@@ -81,6 +89,7 @@ export const stockRowSchema = z.object({
   unit: z.string().nullable(),
   variants: z.array(variantAxisSchema),
   quantity: z.number(),
+  coverPhotoId: z.number().nullish(),
   lots: z.array(stockLotSchema),
 })
 

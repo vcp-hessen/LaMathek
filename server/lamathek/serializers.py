@@ -23,6 +23,7 @@ from lamathek.services.variants import (
 from lamathek.models.set import SET_ROLE_ASSIGNMENT, SET_ROLE_OPTIONAL, MaterialSet
 from lamathek.models.settings import InstallationSettings
 from lamathek.models.user import User
+from lamathek.services.photos import photos_to_json
 
 
 def user_to_json(user: User) -> dict:
@@ -35,15 +36,24 @@ def user_to_json(user: User) -> dict:
     }
 
 
-def inventory_to_json(inventory: Inventory) -> dict:
-    return {
+def inventory_to_json(
+    inventory: Inventory,
+    *,
+    cover_photo_id: int | None = None,
+    include_photos: bool = False,
+) -> dict:
+    data = {
         "id": inventory.id,
         "name": inventory.name,
         "address": inventory.address,
         "latitude": inventory.latitude,
         "longitude": inventory.longitude,
         "notes": inventory.notes,
+        "coverPhotoId": cover_photo_id,
     }
+    if include_photos:
+        data["photos"] = photos_to_json(list(inventory.photos))
+    return data
 
 
 def settings_to_json(settings: InstallationSettings, session: Session) -> dict:
@@ -75,9 +85,14 @@ def category_to_json(category: Category) -> dict:
     return {"id": category.id, "name": category.name}
 
 
-def material_type_to_json(material_type: MaterialType) -> dict:
+def material_type_to_json(
+    material_type: MaterialType,
+    *,
+    cover_photo_id: int | None = None,
+    include_photos: bool = False,
+) -> dict:
     category = material_type.category
-    return {
+    data = {
         "id": material_type.id,
         "inventoryId": material_type.inventory_id,
         "name": material_type.name,
@@ -89,7 +104,11 @@ def material_type_to_json(material_type: MaterialType) -> dict:
         "categoryId": material_type.category_id,
         "categoryName": category.name if category is not None else None,
         "variants": variants_to_json(material_type),
+        "coverPhotoId": cover_photo_id,
     }
+    if include_photos:
+        data["photos"] = photos_to_json(list(material_type.photos))
+    return data
 
 
 def repair_to_json(repair: Repair) -> dict:
@@ -108,10 +127,11 @@ def damage_to_json(damage: Damage) -> dict:
         "severe": damage.severe,
         "open": damage.repair is None,
         "repair": repair_to_json(damage.repair) if damage.repair else None,
+        "photos": photos_to_json(list(damage.photos)),
     }
 
 
-def piece_to_json(piece: Piece) -> dict:
+def piece_to_json(piece: Piece, *, cover_photo_id: int | None = None) -> dict:
     return {
         "id": piece.id,
         "materialTypeId": piece.material_type_id,
@@ -121,27 +141,30 @@ def piece_to_json(piece: Piece) -> dict:
         "setId": piece.set_id,
         "setRole": piece.set_role,
         "setName": piece.material_set.name if piece.material_set else None,
+        "coverPhotoId": cover_photo_id,
     }
 
 
-def piece_detail_to_json(piece: Piece) -> dict:
+def piece_detail_to_json(piece: Piece, *, cover_photo_id: int | None = None) -> dict:
     return {
-        **piece_to_json(piece),
+        **piece_to_json(piece, cover_photo_id=cover_photo_id),
         "inventoryId": piece.material_type.inventory_id,
+        "photos": photos_to_json(list(piece.photos)),
         "damages": [damage_to_json(d) for d in piece.damages],
     }
 
 
-def set_to_json(material_set: MaterialSet) -> dict:
+def set_to_json(material_set: MaterialSet, *, cover_photo_id: int | None = None) -> dict:
     return {
         "id": material_set.id,
         "inventoryId": material_set.inventory_id,
         "name": material_set.name,
         "shortName": material_set.short_name,
+        "coverPhotoId": cover_photo_id,
     }
 
 
-def set_detail_to_json(material_set: MaterialSet) -> dict:
+def set_detail_to_json(material_set: MaterialSet, *, cover_photo_id: int | None = None) -> dict:
     assignment_pieces = []
     optional_pieces = []
     for piece in material_set.pieces:
@@ -167,7 +190,8 @@ def set_detail_to_json(material_set: MaterialSet) -> dict:
             optional_stock.append(row)
 
     return {
-        **set_to_json(material_set),
+        **set_to_json(material_set, cover_photo_id=cover_photo_id),
+        "photos": photos_to_json(list(material_set.photos)),
         "assignmentPieces": sorted(assignment_pieces, key=lambda p: p["name"]),
         "optionalPieces": sorted(optional_pieces, key=lambda p: p["name"]),
         "assignmentStock": sorted(assignment_stock, key=lambda r: r["materialTypeName"]),
@@ -263,7 +287,7 @@ def _loan_return_to_json(loan_return: LoanReturn) -> dict:
     }
 
 
-def loan_to_json(loan: Loan) -> dict:
+def loan_to_json(loan: Loan, *, cover_photo_id: int | None = None) -> dict:
     return {
         "id": loan.id,
         "inventoryId": loan.inventory_id,
@@ -277,31 +301,42 @@ def loan_to_json(loan: Loan) -> dict:
         "eventName": loan.event.name if loan.event else None,
         "startsOn": loan.starts_on.isoformat() if loan.starts_on else None,
         "endsOn": loan.ends_on.isoformat() if loan.ends_on else None,
+        "coverPhotoId": cover_photo_id,
     }
 
 
-def loan_detail_to_json(loan: Loan) -> dict:
+def loan_detail_to_json(loan: Loan, *, cover_photo_id: int | None = None) -> dict:
     return {
-        **loan_to_json(loan),
+        **loan_to_json(loan, cover_photo_id=cover_photo_id),
+        "photos": photos_to_json(list(loan.photos)),
         "lines": [_loan_line_to_json(line) for line in loan.lines],
         "returns": [_loan_return_to_json(r) for r in loan.returns],
     }
 
 
-def stock_to_json(material_type: MaterialType) -> dict:
+def stock_to_json(
+    material_type: MaterialType,
+    *,
+    cover_photo_id: int | None = None,
+    lot_cover_photo_ids: dict[int, int | None] | None = None,
+) -> dict:
     lots = list(material_type.stock_lots)
+    lot_covers = lot_cover_photo_ids or {}
     return {
         "materialTypeId": material_type.id,
         "materialTypeName": material_type.name,
         "unit": material_type.unit,
         "variants": variants_to_json(material_type),
         "quantity": sum(lot.quantity for lot in lots),
+        "coverPhotoId": cover_photo_id,
         "lots": [
             {
                 "id": lot.id,
                 "label": lot.label,
                 "variant": stock_lot_variant_to_json(lot),
                 "quantity": lot.quantity,
+                "coverPhotoId": lot_covers.get(lot.id),
+                "photos": photos_to_json(list(lot.photos)),
             }
             for lot in lots
         ],

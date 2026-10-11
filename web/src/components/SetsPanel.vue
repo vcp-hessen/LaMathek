@@ -5,6 +5,7 @@ import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { createSet, fetchSets } from '../api/sets'
 import { useInventoryQueryKey } from '../composables/useInventoryQueryKey'
+import PhotoThumbnail from './PhotoThumbnail.vue'
 
 const props = defineProps<{ inventoryId: number }>()
 
@@ -45,8 +46,11 @@ const sortedSets = computed(() =>
       <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
       <ul v-else class="menu rounded-box bg-base-200/50">
         <li v-for="set in sortedSets" :key="set.id">
-          <RouterLink :to="`/inventories/${inventoryId}/sets/${set.id}`">
-            <span v-if="set.shortName">{{ set.shortName }} · </span>{{ set.name }}
+          <RouterLink :to="`/inventories/${inventoryId}/sets/${set.id}`" class="flex items-center gap-3">
+            <PhotoThumbnail :photo-id="set.coverPhotoId" />
+            <span>
+              <span v-if="set.shortName">{{ set.shortName }} · </span>{{ set.name }}
+            </span>
           </RouterLink>
         </li>
         <li v-if="!sortedSets.length" class="px-4 py-3 text-sm opacity-70">

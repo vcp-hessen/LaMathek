@@ -6,6 +6,7 @@ import {
   createInventory,
   deleteInventory,
   fetchInventories,
+  fetchInventory,
   fetchInventoryPermissions,
   replaceInventoryPermissions,
   updateInventory,
@@ -17,6 +18,8 @@ import ExpandableRow from '../components/ExpandableRow.vue'
 import SuperuserDestructiveDelete from '../components/SuperuserDestructiveDelete.vue'
 import InventoryLocationFields from '../components/InventoryLocationFields.vue'
 import InventoryPermissionEditor from '../components/InventoryPermissionEditor.vue'
+import PhotoGallery from '../components/PhotoGallery.vue'
+import PhotoThumbnail from '../components/PhotoThumbnail.vue'
 import { useApiErrorMessage } from '../composables/useApiErrorMessage'
 import type { Inventory } from '../schemas/inventory'
 import { useInventoryStore } from '../stores/inventory'
@@ -72,6 +75,18 @@ const { data: permittedUsers } = useQuery({
   queryFn: () => fetchInventoryPermissions(editingId.value!),
   enabled: () => editingId.value !== null,
 })
+
+const { data: editingInventory } = useQuery({
+  queryKey: computed(() => ['inventory', editingId.value]),
+  queryFn: () => fetchInventory(editingId.value!),
+  enabled: () => editingId.value !== null,
+})
+
+async function refreshInventoryPhotos() {
+  if (editingId.value === null) return
+  await queryClient.invalidateQueries({ queryKey: ['inventory', editingId.value] })
+  await queryClient.invalidateQueries({ queryKey: ['inventories'] })
+}
 
 function sortedIds(ids: number[]) {
   return [...ids].sort((a, b) => a - b)
@@ -331,11 +346,14 @@ const deleteMutation = useMutation({
             @toggle="toggleRow(inv.id)"
           >
             <template #summary>
-              <div class="flex flex-wrap items-baseline justify-between gap-2">
+              <div class="flex flex-wrap items-center gap-3">
+                <PhotoThumbnail :photo-id="inv.coverPhotoId" />
+                <div class="flex flex-1 flex-wrap items-baseline justify-between gap-2">
                 <span class="font-medium">{{ inv.name }}</span>
                 <span v-if="summaryMeta(inv)" class="text-sm text-base-content/70">
                   {{ summaryMeta(inv) }}
                 </span>
+                </div>
               </div>
             </template>
             <template #editor>
@@ -360,6 +378,14 @@ const deleteMutation = useMutation({
                   v-model="editUserIds"
                   :inventory-id="inv.id"
                 />
+                <div v-if="editingId === inv.id && editingInventory">
+                  <h3 class="mb-2 text-sm font-semibold">{{ t('photos.heading') }}</h3>
+                  <PhotoGallery
+                    :owner="{ kind: 'inventory', inventoryId: inv.id }"
+                    :photos="editingInventory.photos ?? []"
+                    @change="refreshInventoryPhotos"
+                  />
+                </div>
                 <p v-if="formError && expandedKey === inv.id" class="text-sm text-error">
                   {{ formError }}
                 </p>

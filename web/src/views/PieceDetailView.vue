@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n'
 import { createDamageRepair, createPieceDamage, fetchMaterialTypes, fetchPiece } from '../api/material'
 import type { Damage } from '../schemas/material'
 import { variantMapSummary } from '../utils/variantDisplay'
+import PhotoGallery from '../components/PhotoGallery.vue'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -101,6 +102,17 @@ function damageStatusLabel(damage: Damage): string {
 
       <section class="card bg-base-100 shadow-md">
         <div class="card-body gap-4 text-left">
+          <h2 class="card-title text-base">{{ t('photos.heading') }}</h2>
+          <PhotoGallery
+            :owner="{ kind: 'piece', pieceId: piece.id }"
+            :photos="piece.photos ?? []"
+            @change="invalidate"
+          />
+        </div>
+      </section>
+
+      <section class="card bg-base-100 shadow-md">
+        <div class="card-body gap-4 text-left">
           <h2 class="card-title text-base">{{ t('damage.historyHeading') }}</h2>
           <ul v-if="piece.damages.length" class="list-none space-y-3 text-sm">
             <li
@@ -113,6 +125,13 @@ function damageStatusLabel(damage: Damage): string {
                 <span class="text-xs opacity-80">{{ damageStatusLabel(damage) }}</span>
               </div>
               <p v-if="damage.note" class="mt-2 text-sm opacity-90">{{ damage.note }}</p>
+              <div class="mt-3">
+                <PhotoGallery
+                  :owner="{ kind: 'damage', damageId: damage.id }"
+                  :photos="damage.photos ?? []"
+                  @change="invalidate"
+                />
+              </div>
               <p v-if="damage.repair" class="mt-2 text-xs opacity-80">
                 {{ t('damage.repairedOn', { date: damage.repair.recordedOn }) }}
                 <template v-if="damage.repair.note"> · {{ damage.repair.note }}</template>

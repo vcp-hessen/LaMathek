@@ -18,6 +18,8 @@ import { useInventoryQueryKey } from '../composables/useInventoryQueryKey'
 import ExpandableRow from './ExpandableRow.vue'
 import MaterialTypeFormFields from './MaterialTypeFormFields.vue'
 import SuperuserDestructiveDelete from './SuperuserDestructiveDelete.vue'
+import PhotoGallery from './PhotoGallery.vue'
+import PhotoThumbnail from './PhotoThumbnail.vue'
 
 const NEW_ROW = 'new' as const
 type ExpandedKey = number | typeof NEW_ROW | null
@@ -339,11 +341,14 @@ watch(expandedKey, (key) => {
           @toggle="toggleRow(mt.id)"
         >
           <template #summary>
-            <div class="flex flex-wrap items-baseline justify-between gap-2">
+            <div class="flex flex-wrap items-center gap-3">
+              <PhotoThumbnail :photo-id="mt.coverPhotoId" />
+              <div class="flex flex-1 flex-wrap items-baseline justify-between gap-2">
               <span class="font-medium">
                 <template v-if="mt.shortName">{{ mt.shortName }} · </template>{{ mt.name }}
               </span>
               <span class="text-sm text-base-content/70">{{ summaryMeta(mt) }}</span>
+              </div>
             </div>
           </template>
           <template #editor>
@@ -359,6 +364,16 @@ watch(expandedKey, (key) => {
                 v-model:category-text="editCategoryText"
                 :categories="categoryList"
               />
+              <div>
+                <h3 class="mb-2 text-sm font-semibold">{{ t('photos.heading') }}</h3>
+                <PhotoGallery
+                  :owner="{ kind: 'materialType', materialTypeId: mt.id }"
+                  :photos="mt.photos ?? []"
+                  @change="
+                    () => queryClient.invalidateQueries({ queryKey: materialTypesQueryKey })
+                  "
+                />
+              </div>
               <p v-if="formError && expandedKey === mt.id" class="text-sm text-error">
                 {{ formError }}
               </p>

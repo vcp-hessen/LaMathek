@@ -8,6 +8,8 @@ __pycache__/
 server/.venv/
 server/*.egg-info/
 *.sqlite3
+media/
+server/media/
 
 web/node_modules/
 web/dist/

@@ -12,6 +12,7 @@ from lamathek.models.material import (
     StockLotVariantValue,
 )
 from lamathek.models.set import MaterialSet, SetStockLine
+from lamathek.models.photo import Photo
 from lamathek.models.settings import InstallationSettings
 from lamathek.models.user import User
 
@@ -37,5 +38,6 @@ __all__ = [
     "SetStockLine",
     "StockLot",
     "StockLotVariantValue",
+    "Photo",
     "User",
 ]

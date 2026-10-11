@@ -79,6 +79,11 @@ A recorded harm on an Einzelteil, kept after repair. Severe Schaden means that E
 _English_: damage
 _Avoid_: Defekt, Zustand, condition
 
+**Foto**:
+An image file stored beside the database, linked to an Einzelteil, Mengenposten, Set, Materialart, Schaden, Inventar, or Verleih. The first Foto in sort order is the cover image; Einzelteil and Mengenposten lists may show the Materialart reference Foto when they have none of their own.
+_English_: photo
+_Avoid_: Bild, Anhang, attachment
+
 **Reparatur**:
 The repair of a Schaden, kept with that Schaden.
 _English_: repair

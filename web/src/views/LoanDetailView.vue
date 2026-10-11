@@ -17,6 +17,7 @@ import {
 import { fetchSets } from '../api/sets'
 import type { LoanLine } from '../schemas/loan'
 import { useInventoryQueryKey } from '../composables/useInventoryQueryKey'
+import PhotoGallery from '../components/PhotoGallery.vue'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -268,6 +269,17 @@ const returnMutation = useMutation({
           {{ t('loans.handOut') }}
         </button>
       </div>
+
+      <section class="card bg-base-100 shadow-md">
+        <div class="card-body gap-4 text-left">
+          <h2 class="card-title text-base">{{ t('photos.heading') }}</h2>
+          <PhotoGallery
+            :owner="{ kind: 'loan', loanId: loan.id }"
+            :photos="loan.photos ?? []"
+            @change="() => queryClient.invalidateQueries({ queryKey: ['loan', loanId] })"
+          />
+        </div>
+      </section>
 
       <section class="card bg-base-100 shadow-md">
         <div class="card-body gap-3 text-left">

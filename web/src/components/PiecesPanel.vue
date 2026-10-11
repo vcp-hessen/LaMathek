@@ -17,6 +17,7 @@ import { fetchSets } from '../api/sets'
 import { useApiErrorMessage } from '../composables/useApiErrorMessage'
 import { useInventoryQueryKey } from '../composables/useInventoryQueryKey'
 import ExpandableRow from './ExpandableRow.vue'
+import PhotoThumbnail from './PhotoThumbnail.vue'
 import SuperuserDestructiveDelete from './SuperuserDestructiveDelete.vue'
 import VariantAxisSelects from './VariantAxisSelects.vue'
 import {
@@ -614,11 +615,14 @@ watch(expandedKey, (key) => {
               @toggle="toggleRow(piece.id)"
             >
               <template #summary>
-                <div class="flex flex-wrap items-baseline justify-between gap-2">
+                <div class="flex flex-wrap items-center gap-3">
+                  <PhotoThumbnail :photo-id="piece.coverPhotoId" />
+                  <div class="flex flex-1 flex-wrap items-baseline justify-between gap-2">
                   <span class="font-medium">{{ piece.name }}</span>
                   <span v-if="pieceSummaryMeta(piece)" class="text-sm text-base-content/70">
                     {{ pieceSummaryMeta(piece) }}
                   </span>
+                  </div>
                 </div>
               </template>
               <template #editor>

@@ -23,6 +23,11 @@ class Damage(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+    photos: Mapped[list["Photo"]] = relationship(
+        back_populates="damage",
+        cascade="all, delete-orphan",
+        order_by="Photo.sort_order",
+    )
 
 
 class Repair(Base):

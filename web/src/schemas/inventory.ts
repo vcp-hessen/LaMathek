@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { photoMetaSchema } from './photo'
 import { userSchema } from './user'
 
 export const inventorySchema = z.object({
@@ -8,6 +9,8 @@ export const inventorySchema = z.object({
   latitude: z.number().nullable(),
   longitude: z.number().nullable(),
   notes: z.string().nullable(),
+  coverPhotoId: z.number().nullish(),
+  photos: z.array(photoMetaSchema).optional(),
 })
 
 export const inventoryWriteSchema = z.object({

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { photoMetaSchema } from './photo'
 
 export const loanKindSchema = z.enum(['short', 'permanent'])
 
@@ -44,6 +45,7 @@ export const loanSchema = z.object({
   eventName: z.string().nullable(),
   startsOn: z.string().nullable(),
   endsOn: z.string().nullable(),
+  coverPhotoId: z.number().nullish(),
 })
 
 export const loanLineSchema = z.discriminatedUnion('kind', [
@@ -68,6 +70,7 @@ export const loanLineSchema = z.discriminatedUnion('kind', [
 ])
 
 export const loanDetailSchema = loanSchema.extend({
+  photos: z.array(photoMetaSchema).optional(),
   lines: z.array(loanLineSchema),
   returns: z.array(loanReturnSchema),
 })

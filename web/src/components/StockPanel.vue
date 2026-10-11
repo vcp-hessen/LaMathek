@@ -6,6 +6,8 @@ import { createStockLot, deleteStockLot, fetchStocks, updateStockLot } from '../
 import { useApiErrorMessage } from '../composables/useApiErrorMessage'
 import { useInventoryQueryKey } from '../composables/useInventoryQueryKey'
 import ExpandableRow from './ExpandableRow.vue'
+import PhotoGallery from './PhotoGallery.vue'
+import PhotoThumbnail from './PhotoThumbnail.vue'
 import VariantAxisSelects from './VariantAxisSelects.vue'
 import type { StockLot, VariantAxis } from '../schemas/material'
 import {
@@ -349,11 +351,14 @@ watch(
               @toggle="toggleLotRow(lot.id)"
             >
               <template #summary>
-                <div class="flex flex-wrap items-baseline justify-between gap-2">
+                <div class="flex flex-wrap items-center gap-3">
+                  <PhotoThumbnail :photo-id="lot.coverPhotoId" />
+                  <div class="flex flex-1 flex-wrap items-baseline justify-between gap-2">
                   <span class="font-medium">
                     {{ lot.label?.trim() || t('material.stockLotUnlabeled') }}
                   </span>
                   <span class="text-sm text-base-content/70">{{ lotSummaryMeta(lot) }}</span>
+                  </div>
                 </div>
               </template>
               <template #editor>
@@ -390,6 +395,18 @@ watch(
                       required
                     />
                   </label>
+                  <div>
+                    <h3 class="mb-2 text-sm font-semibold">{{ t('photos.heading') }}</h3>
+                    <PhotoGallery
+                      :owner="{
+                        kind: 'stockLot',
+                        inventoryId: props.inventoryId,
+                        lotId: lot.id,
+                      }"
+                      :photos="lot.photos ?? []"
+                      @change="() => queryClient.invalidateQueries({ queryKey: stocksQueryKey })"
+                    />
+                  </div>
                   <p v-if="formError && expandedKey === lot.id" class="text-sm text-error">
                     {{ formError }}
                   </p>

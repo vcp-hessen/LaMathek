@@ -88,6 +88,11 @@ class Loan(Base):
         cascade="all, delete-orphan",
         order_by="LoanReturn.id",
     )
+    photos: Mapped[list["Photo"]] = relationship(
+        back_populates="loan",
+        cascade="all, delete-orphan",
+        order_by="Photo.sort_order",
+    )
 
 
 class LoanLine(Base):

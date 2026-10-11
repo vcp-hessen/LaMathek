@@ -13,6 +13,7 @@ from lamathek.serializers import (
     loan_to_json,
 )
 from lamathek.services.inventories import user_can_manage_any_inventory, user_can_manage_inventory
+from lamathek.services.photos import cover_photo_ids_for_loans
 from lamathek.services.loans import (
     add_piece_line,
     add_set_assignment_lines,
@@ -130,7 +131,10 @@ def get_verantwortliche(user):
 def get_loans(_user, inventory):
     session = get_session()
     loans = list_loans(session, inventory.id)
-    return jsonify([loan_to_json(loan) for loan in loans])
+    covers = cover_photo_ids_for_loans(session, [loan.id for loan in loans])
+    return jsonify(
+        [loan_to_json(loan, cover_photo_id=covers.get(loan.id)) for loan in loans]
+    )
 
 
 @loans_bp.post("/inventories/<int:inventory_id>/loans")
@@ -181,7 +185,8 @@ def get_loan(user, loan_id: int):
         return jsonify({"error": "not_found"}), 404
     if not user_can_manage_inventory(session, user, loan.inventory):
         return jsonify({"error": "forbidden"}), 403
-    return jsonify(loan_detail_to_json(loan))
+    covers = cover_photo_ids_for_loans(session, [loan.id])
+    return jsonify(loan_detail_to_json(loan, cover_photo_id=covers.get(loan.id)))
 
 
 @loans_bp.patch("/loans/<int:loan_id>")

@@ -4,6 +4,10 @@ from lamathek.access import require_inventory_manager, require_login, require_su
 from lamathek.db import get_session
 from lamathek.routes.inventory_fields import inventory_location_from_body
 from lamathek.serializers import inventory_to_json, user_to_json
+from lamathek.services.photos import (
+    cover_photo_id_for_inventory,
+    cover_photo_ids_for_inventories,
+)
 from lamathek.services.inventories import (
     create_inventory,
     delete_inventory,
@@ -22,7 +26,13 @@ inventories_bp = Blueprint("inventories", __name__, url_prefix="/api")
 def list_inventories(user):
     session = get_session()
     inventories = list_inventories_for_user(session, user)
-    return jsonify([inventory_to_json(i) for i in inventories])
+    covers = cover_photo_ids_for_inventories(session, [i.id for i in inventories])
+    return jsonify(
+        [
+            inventory_to_json(i, cover_photo_id=covers.get(i.id))
+            for i in inventories
+        ]
+    )
 
 
 @inventories_bp.post("/inventories")
@@ -72,13 +82,20 @@ def patch_inventory(user, inventory):
         if str(exc) == "invalid_coordinates":
             return jsonify({"error": "invalid_coordinates"}), 400
         raise
-    return jsonify(inventory_to_json(inventory))
+    cover = cover_photo_id_for_inventory(session, inventory.id)
+    return jsonify(
+        inventory_to_json(inventory, cover_photo_id=cover, include_photos=True)
+    )
 
 
 @inventories_bp.get("/inventories/<int:inventory_id>")
 @require_inventory_manager()
 def get_inventory(_user, inventory):
-    return jsonify(inventory_to_json(inventory))
+    session = get_session()
+    cover = cover_photo_id_for_inventory(session, inventory.id)
+    return jsonify(
+        inventory_to_json(inventory, cover_photo_id=cover, include_photos=True)
+    )
 
 
 @inventories_bp.delete("/inventories/<int:inventory_id>")

@@ -4,6 +4,7 @@ from lamathek.access import require_inventory_manager, require_login, require_su
 from lamathek.db import get_session
 from lamathek.serializers import set_detail_to_json, set_to_json
 from lamathek.services.inventories import user_can_manage_inventory
+from lamathek.services.photos import cover_photo_ids_for_sets
 from lamathek.services.sets import (
     create_set,
     delete_set,
@@ -43,7 +44,8 @@ def _set_error(exc: ValueError):
 def get_sets(_user, inventory):
     session = get_session()
     sets = list_sets(session, inventory.id)
-    return jsonify([set_to_json(s) for s in sets])
+    covers = cover_photo_ids_for_sets(session, [s.id for s in sets])
+    return jsonify([set_to_json(s, cover_photo_id=covers.get(s.id)) for s in sets])
 
 
 @sets_bp.post("/inventories/<int:inventory_id>/sets")
@@ -71,7 +73,10 @@ def get_set(user, set_id: int):
         return jsonify({"error": "not_found"}), 404
     if not user_can_manage_inventory(session, user, material_set.inventory):
         return jsonify({"error": "forbidden"}), 403
-    return jsonify(set_detail_to_json(material_set))
+    covers = cover_photo_ids_for_sets(session, [material_set.id])
+    return jsonify(
+        set_detail_to_json(material_set, cover_photo_id=covers.get(material_set.id))
+    )
 
 
 @sets_bp.patch("/sets/<int:set_id>")

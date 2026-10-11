@@ -30,6 +30,11 @@ class Inventory(Base):
         back_populates="inventory",
         cascade="all, delete-orphan",
     )
+    photos: Mapped[list["Photo"]] = relationship(
+        back_populates="inventory",
+        cascade="all, delete-orphan",
+        order_by="Photo.sort_order",
+    )
 
 
 class InventoryPermission(Base):

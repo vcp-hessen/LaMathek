@@ -41,6 +41,18 @@ def _sqlite_path() -> Path:
     return path
 
 
+def media_path() -> Path:
+    raw = os.environ.get("MEDIA_PATH")
+    if raw:
+        path = Path(raw)
+        if not path.is_absolute():
+            path = (REPO_ROOT / path).resolve()
+    else:
+        path = _sqlite_path().parent / "media"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 def _database_url() -> str:
     explicit = os.environ.get("DATABASE_URL")
     if explicit:

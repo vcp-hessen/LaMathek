@@ -18,6 +18,11 @@ from lamathek.services.inventories import (
     user_can_manage_any_inventory,
     user_can_manage_inventory,
 )
+from lamathek.services.photos import (
+    cover_photo_ids_for_material_types,
+    cover_photo_ids_for_pieces,
+    cover_photo_ids_for_stock_lots,
+)
 from lamathek.services.material import (
     create_material_type,
     create_piece,
@@ -123,7 +128,17 @@ def get_categories(user):
 def get_material_types(_user, inventory):
     session = get_session()
     types = list_material_types(session, inventory.id)
-    return jsonify([material_type_to_json(t) for t in types])
+    covers = cover_photo_ids_for_material_types(session, [t.id for t in types])
+    return jsonify(
+        [
+            material_type_to_json(
+                t,
+                cover_photo_id=covers.get(t.id),
+                include_photos=True,
+            )
+            for t in types
+        ]
+    )
 
 
 @material_bp.post("/inventories/<int:inventory_id>/material-types")
@@ -222,7 +237,10 @@ def patch_material_type(user, material_type_id: int):
 def get_pieces(_user, inventory):
     session = get_session()
     pieces = list_pieces(session, inventory.id)
-    return jsonify([piece_to_json(p) for p in pieces])
+    covers = cover_photo_ids_for_pieces(session, pieces)
+    return jsonify(
+        [piece_to_json(p, cover_photo_id=covers.get(p.id)) for p in pieces]
+    )
 
 
 @material_bp.post("/inventories/<int:inventory_id>/pieces")
@@ -295,7 +313,8 @@ def get_piece(user, piece_id: int):
         return jsonify({"error": "not_found"}), 404
     if not user_can_manage_inventory(session, user, piece.material_type.inventory):
         return jsonify({"error": "forbidden"}), 403
-    return jsonify(piece_detail_to_json(piece))
+    covers = cover_photo_ids_for_pieces(session, [piece])
+    return jsonify(piece_detail_to_json(piece, cover_photo_id=covers.get(piece.id)))
 
 
 @material_bp.post("/pieces/<int:piece_id>/damages")
@@ -422,7 +441,21 @@ def _optional_lot_text(body: dict, key: str) -> str | None:
 def get_stocks(_user, inventory):
     session = get_session()
     rows = list_stocks(session, inventory.id)
-    return jsonify([stock_to_json(mt) for mt in rows])
+    all_lots = [lot for mt in rows for lot in mt.stock_lots]
+    lot_covers = cover_photo_ids_for_stock_lots(session, all_lots)
+    type_covers = cover_photo_ids_for_material_types(session, [mt.id for mt in rows])
+    return jsonify(
+        [
+            stock_to_json(
+                mt,
+                cover_photo_id=type_covers.get(mt.id),
+                lot_cover_photo_ids={
+                    lot.id: lot_covers.get(lot.id) for lot in mt.stock_lots
+                },
+            )
+            for mt in rows
+        ]
+    )
 
 
 @material_bp.post("/inventories/<int:inventory_id>/stocks/<int:material_type_id>/lots")

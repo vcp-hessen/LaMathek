@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n'
 import { fetchMaterialTypes, fetchPieces } from '../api/material'
 import { fetchMe } from '../api/me'
 import SuperuserDestructiveDelete from '../components/SuperuserDestructiveDelete.vue'
+import PhotoGallery from '../components/PhotoGallery.vue'
 import { useInventoryQueryKey } from '../composables/useInventoryQueryKey'
 import {
   deleteSet,
@@ -144,6 +145,17 @@ function addPiece() {
           {{ t('sets.rename') }}
         </button>
       </form>
+
+      <section class="card bg-base-100 shadow-md">
+        <div class="card-body gap-4 text-left">
+          <h2 class="card-title text-base">{{ t('photos.heading') }}</h2>
+          <PhotoGallery
+            :owner="{ kind: 'set', setId: setDetail.id }"
+            :photos="setDetail.photos ?? []"
+            @change="() => queryClient.invalidateQueries({ queryKey: ['set', setId] })"
+          />
+        </div>
+      </section>
 
       <div class="grid gap-6 md:grid-cols-2">
         <section class="card bg-base-100 shadow-md">

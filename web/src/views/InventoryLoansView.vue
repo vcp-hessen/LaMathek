@@ -5,6 +5,7 @@ import { RouterLink, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { createLoan, fetchEvents, fetchGroups, fetchLoans, fetchVerantwortliche } from '../api/loans'
 import { useInventoryQueryKey } from '../composables/useInventoryQueryKey'
+import PhotoThumbnail from '../components/PhotoThumbnail.vue'
 
 const props = defineProps<{ inventoryId: number }>()
 
@@ -79,7 +80,8 @@ function kindLabel(kind: string) {
     <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
     <ul v-else class="menu rounded-box bg-base-100 shadow">
       <li v-for="loan in sortedLoans" :key="loan.id">
-        <RouterLink :to="`/inventories/${inventoryId}/loans/${loan.id}`">
+        <RouterLink :to="`/inventories/${inventoryId}/loans/${loan.id}`" class="flex items-center gap-3">
+          <PhotoThumbnail :photo-id="loan.coverPhotoId" />
           <span class="flex flex-1 flex-col gap-0.5">
             <span>{{ loan.groupName }} · {{ loan.responsibleUserName }}</span>
             <span class="text-xs opacity-70">
