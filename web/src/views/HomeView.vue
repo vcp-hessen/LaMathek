@@ -37,7 +37,7 @@ watchEffect(() => {
 </script>
 
 <template>
-  <div class="hero min-h-[calc(100vh-4rem)]">
+  <div class="hero min-h-0 flex-1">
       <div class="hero-content flex-col gap-8">
         <div class="max-w-md text-center">
           <img

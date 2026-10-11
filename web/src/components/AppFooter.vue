@@ -19,7 +19,7 @@ const siteUrl = computed(() => websiteHref(props.settings?.website))
 </script>
 
 <template>
-  <footer class="mt-auto shrink-0 border-t border-base-300/50 bg-base-100">
+  <footer class="shrink-0 border-t border-base-300/50 bg-base-100">
     <div
       class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-2.5 text-center text-xs text-base-content/80"
     >

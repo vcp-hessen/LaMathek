@@ -85,7 +85,7 @@ async function onSignOut() {
 </script>
 
 <template>
-  <div class="flex min-h-screen bg-base-200">
+  <div class="flex min-h-dvh bg-base-200">
     <Teleport to="body">
       <div
         v-if="ui.mobileMenuOpen"
@@ -119,7 +119,7 @@ async function onSignOut() {
     </Teleport>
 
     <aside
-      class="sticky top-0 z-10 hidden h-screen shrink-0 flex-col border-r border-vcp-blau bg-vcp-blau transition-[width] duration-200 md:flex"
+      class="sticky top-0 z-10 hidden h-dvh shrink-0 flex-col border-r border-vcp-blau bg-vcp-blau transition-[width] duration-200 md:flex"
       :class="ui.sidebarExpanded ? 'w-56' : 'w-14'"
     >
       <AppSidebarChrome
@@ -135,7 +135,7 @@ async function onSignOut() {
       />
     </aside>
 
-    <div class="flex min-h-screen min-w-0 flex-1 flex-col">
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col">
       <header class="navbar sticky top-0 z-20 border-b border-base-300/50 bg-base-100 shadow-sm">
         <div class="flex-none md:hidden">
           <button
@@ -180,7 +180,7 @@ async function onSignOut() {
         </div>
       </header>
 
-      <main class="flex-1">
+      <main class="flex min-h-0 flex-1 flex-col">
         <RouterView />
       </main>
       <AppFooter :settings="settings" />
