@@ -228,13 +228,53 @@ def piece_by_id(session: Session, piece_id: int) -> Piece | None:
 MAX_PIECES_BATCH_COUNT = 24
 
 
+_BATCH_NAME_PLACEHOLDERS = ("{n}", "{a}", "{r}")
+
+
+def _active_batch_placeholder(pattern: str) -> str | None:
+    found = [token for token in _BATCH_NAME_PLACEHOLDERS if token in pattern]
+    if len(found) != 1:
+        return None
+    return found[0]
+
+
+def _int_to_roman_lower(num: int) -> str:
+    if num < 1 or num > 3999:
+        raise ValueError("invalid_name_pattern")
+    values = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
+    symbols = ["m", "cm", "d", "cd", "c", "xc", "l", "xl", "x", "ix", "v", "iv", "i"]
+    result: list[str] = []
+    n = num
+    for value, symbol in zip(values, symbols, strict=True):
+        while n >= value:
+            result.append(symbol)
+            n -= value
+    return "".join(result)
+
+
+def _piece_value_for_batch_placeholder(token: str, index: int) -> str:
+    if token == "{n}":
+        return str(index)
+    if token == "{a}":
+        if index < 1 or index > 26:
+            raise ValueError("invalid_name_pattern")
+        return chr(ord("a") + index - 1)
+    if token == "{r}":
+        return _int_to_roman_lower(index)
+    raise ValueError("invalid_name_pattern")
+
+
 def _piece_names_from_pattern(pattern: str, count: int) -> list[str]:
     if not isinstance(pattern, str) or not pattern.strip():
         raise ValueError("invalid_name_pattern")
     normalized = pattern.strip()
-    if "{n}" not in normalized:
+    token = _active_batch_placeholder(normalized)
+    if token is None or normalized.count(token) != 1:
         raise ValueError("invalid_name_pattern")
-    return [normalized.replace("{n}", str(n)) for n in range(1, count + 1)]
+    names: list[str] = []
+    for index in range(1, count + 1):
+        names.append(normalized.replace(token, _piece_value_for_batch_placeholder(token, index)))
+    return names
 
 
 def _new_piece_row(

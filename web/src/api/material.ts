@@ -54,6 +54,7 @@ export async function deleteMaterialType(id: number): Promise<void> {
   await api.delete(`/api/material-types/${id}`)
 }
 
+/** Full inventory list. For large inventories, add server-side q/page/pageSize and switch callers. */
 export async function fetchPieces(inventoryId: number): Promise<Piece[]> {
   const response = await api.get(`/api/inventories/${inventoryId}/pieces`)
   return pieceSchema.array().parse(response.data)

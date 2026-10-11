@@ -1,19 +1,34 @@
 <script setup lang="ts">
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { createDamageRepair, createPieceDamage, fetchMaterialTypes, fetchPiece } from '../api/material'
-import type { Damage } from '../schemas/material'
-import { variantMapSummary } from '../utils/variantDisplay'
+import {
+  createDamageRepair,
+  createPieceDamage,
+  deletePiece,
+  fetchMaterialTypes,
+  fetchPiece,
+  updatePiece,
+} from '../api/material'
+import type { Damage, PieceDetail } from '../schemas/material'
+import { fetchMe } from '../api/me'
+import { useApiErrorMessage } from '../composables/useApiErrorMessage'
 import PhotoGallery from '../components/PhotoGallery.vue'
+import SuperuserDestructiveDelete from '../components/SuperuserDestructiveDelete.vue'
+import VariantAxisSelects from '../components/VariantAxisSelects.vue'
+import { syncVariantMapKeys } from '../utils/variantDisplay'
 
 const route = useRoute()
+const router = useRouter()
 const { t } = useI18n()
+const { messageFor } = useApiErrorMessage()
 const queryClient = useQueryClient()
 
 const pieceId = computed(() => Number(route.params.pieceId))
 const inventoryId = computed(() => Number(route.params.id))
+
+const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
 
 const { data: materialTypes } = useQuery({
   queryKey: ['materialTypes', inventoryId],
@@ -27,6 +42,68 @@ const { data: piece, isLoading } = useQuery({
   enabled: () => Number.isFinite(pieceId.value),
 })
 
+const pieceTypes = computed(() =>
+  (materialTypes.value ?? []).filter((mt) => mt.tracking === 'piece'),
+)
+
+const editMaterialTypeId = ref<string>('')
+const editPieceName = ref('')
+const editVariant = ref<Record<string, string>>({})
+const savedEdit = ref<string | null>(null)
+const stammdatenError = ref<string | null>(null)
+
+const editSelectedType = computed(() =>
+  pieceTypes.value.find((mt) => String(mt.id) === editMaterialTypeId.value),
+)
+
+const editTypeAxes = computed(() => editSelectedType.value?.variants ?? [])
+
+function variantPayload(axes: { label: string; values: string[] }[], map: Record<string, string>) {
+  if (!axes.length) return undefined
+  const payload: Record<string, string> = {}
+  for (const axis of axes) {
+    const value = map[axis.label]?.trim()
+    if (value) payload[axis.label] = value
+  }
+  return payload
+}
+
+function stammdatenSnapshot() {
+  return JSON.stringify({
+    name: editPieceName.value,
+    materialTypeId: Number(editMaterialTypeId.value),
+    variant: variantPayload(editTypeAxes.value, editVariant.value) ?? null,
+  })
+}
+
+const editDirty = computed(
+  () => savedEdit.value !== null && stammdatenSnapshot() !== savedEdit.value,
+)
+
+function loadStammdatenFromPiece(p: PieceDetail) {
+  editMaterialTypeId.value = String(p.materialTypeId)
+  editPieceName.value = p.name
+  const mt = pieceTypes.value.find((row) => row.id === p.materialTypeId)
+  editVariant.value = mt ? syncVariantMapKeys(p.variant, mt.variants) : { ...p.variant }
+  savedEdit.value = stammdatenSnapshot()
+  stammdatenError.value = null
+}
+
+watch(
+  [piece, pieceTypes],
+  () => {
+    if (piece.value) loadStammdatenFromPiece(piece.value)
+  },
+  { immediate: true },
+)
+
+watch(editMaterialTypeId, (newId, oldId) => {
+  if (oldId && newId !== oldId && piece.value) {
+    const mt = pieceTypes.value.find((row) => String(row.id) === newId)
+    if (mt) editVariant.value = syncVariantMapKeys(editVariant.value, mt.variants)
+  }
+})
+
 const damageRecordedOn = ref(new Date().toISOString().slice(0, 10))
 const damageNote = ref('')
 const damageSevere = ref(false)
@@ -34,9 +111,42 @@ const damageSevere = ref(false)
 const repairNotes = ref<Record<number, string>>({})
 const repairDates = ref<Record<number, string>>({})
 
-async function invalidate() {
+async function invalidatePiece() {
   await queryClient.invalidateQueries({ queryKey: ['piece', pieceId.value] })
 }
+
+async function invalidate() {
+  await invalidatePiece()
+}
+
+const updateMutation = useMutation({
+  mutationFn: () =>
+    updatePiece(pieceId.value, {
+      name: editPieceName.value,
+      materialTypeId: Number(editMaterialTypeId.value),
+      variant: variantPayload(editTypeAxes.value, editVariant.value),
+    }),
+  onSuccess: async () => {
+    stammdatenError.value = null
+    savedEdit.value = stammdatenSnapshot()
+    await invalidatePiece()
+    await queryClient.invalidateQueries({ queryKey: ['pieces', inventoryId.value] })
+  },
+  onError: (error) => {
+    stammdatenError.value = messageFor(error)
+  },
+})
+
+const deleteMutation = useMutation({
+  mutationFn: () => deletePiece(pieceId.value),
+  onSuccess: async () => {
+    await queryClient.invalidateQueries({ queryKey: ['pieces', inventoryId.value] })
+    await router.push(`/inventories/${inventoryId.value}/pieces`)
+  },
+  onError: (error) => {
+    stammdatenError.value = messageFor(error)
+  },
+})
 
 const damageMutation = useMutation({
   mutationFn: () =>
@@ -69,13 +179,6 @@ const repairMutation = useMutation({
   onSuccess: invalidate,
 })
 
-const variantSummary = computed(() => {
-  if (!piece.value) return ''
-  const mt = materialTypes.value?.find((row) => row.id === piece.value?.materialTypeId)
-  if (!mt) return ''
-  return variantMapSummary(mt.variants, piece.value.variant)
-})
-
 function damageStatusLabel(damage: Damage): string {
   if (damage.open && damage.severe) return t('damage.statusOpenSevere')
   if (damage.open) return t('damage.statusOpen')
@@ -88,15 +191,60 @@ function damageStatusLabel(damage: Damage): string {
     <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
     <template v-else-if="piece">
       <section class="card bg-base-100 shadow-md">
-        <div class="card-body gap-2 text-left">
-          <h1 class="card-title text-lg">{{ piece.name }}</h1>
-          <p class="text-sm text-base-content/70">
-            {{ piece.materialTypeName }}
-            <template v-if="variantSummary"> · {{ variantSummary }}</template>
-            <template v-if="piece.setName">
-              · {{ t('sets.onSet', { name: piece.setName }) }}
-            </template>
-          </p>
+        <div class="card-body gap-3 text-left">
+          <h1 class="card-title text-lg">{{ t('material.pieceStammdatenHeading') }}</h1>
+          <form class="space-y-3" @submit.prevent="updateMutation.mutate()">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <label class="flex min-w-0 flex-col gap-1">
+                <span class="text-xs opacity-80">{{ t('material.pieceType') }}</span>
+                <select
+                  v-model="editMaterialTypeId"
+                  class="select select-bordered select-sm w-full"
+                  required
+                >
+                  <option v-for="mt in pieceTypes" :key="mt.id" :value="String(mt.id)">
+                    {{ mt.name }}
+                  </option>
+                </select>
+              </label>
+              <VariantAxisSelects
+                v-if="editTypeAxes.length"
+                v-model="editVariant"
+                :axes="editTypeAxes"
+                compact
+                inline
+              />
+            </div>
+            <label class="flex min-w-0 flex-col gap-1">
+              <span class="text-xs opacity-80">{{ t('material.pieceName') }}</span>
+              <input
+                v-model="editPieceName"
+                type="text"
+                class="input input-bordered input-sm w-full"
+                required
+              />
+            </label>
+            <p v-if="piece.setName" class="text-sm text-base-content/70">
+              {{ t('sets.onSet', { name: piece.setName }) }}
+            </p>
+            <p v-if="stammdatenError" class="text-sm text-error">{{ stammdatenError }}</p>
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <SuperuserDestructiveDelete
+                v-if="me?.isSuperuser"
+                :label="t('material.pieceDelete')"
+                :warning="t('destructive.pieceWarning')"
+                :disabled="deleteMutation.isPending.value"
+                @confirmed="deleteMutation.mutate()"
+              />
+              <button
+                type="submit"
+                class="btn btn-primary btn-sm ms-auto"
+                :disabled="updateMutation.isPending.value || !editDirty"
+              >
+                {{ t('material.save') }}
+              </button>
+            </div>
+          </form>
         </div>
       </section>
 

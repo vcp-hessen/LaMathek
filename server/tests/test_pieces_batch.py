@@ -152,7 +152,73 @@ def test_batch_rejects_set_id_and_name_together():
         tmp.cleanup()
 
 
-def test_batch_requires_n_placeholder_in_pattern():
+def test_batch_pieces_with_letter_placeholder():
+    app, tmp = _app_with_db()
+    try:
+        with app.app_context():
+            session = get_session()
+            upsert_user_from_oidc(
+                session, sub="su", name="SU", email=None, force_superuser=True
+            )
+            session.commit()
+
+        client = app.test_client()
+        inv_id = _setup_inventory(client)
+        plane = client.post(
+            f"/api/inventories/{inv_id}/material-types",
+            json={"name": "Plane", "tracking": "piece"},
+        )
+        plane_id = plane.get_json()["id"]
+
+        batch = client.post(
+            f"/api/inventories/{inv_id}/pieces/batch",
+            json={
+                "materialTypeId": plane_id,
+                "count": 3,
+                "namePattern": "Gruppe-{a}",
+            },
+        )
+        assert batch.status_code == 201
+        names = [p["name"] for p in batch.get_json()["pieces"]]
+        assert names == ["Gruppe-a", "Gruppe-b", "Gruppe-c"]
+    finally:
+        tmp.cleanup()
+
+
+def test_batch_pieces_with_roman_placeholder():
+    app, tmp = _app_with_db()
+    try:
+        with app.app_context():
+            session = get_session()
+            upsert_user_from_oidc(
+                session, sub="su", name="SU", email=None, force_superuser=True
+            )
+            session.commit()
+
+        client = app.test_client()
+        inv_id = _setup_inventory(client)
+        plane = client.post(
+            f"/api/inventories/{inv_id}/material-types",
+            json={"name": "Plane", "tracking": "piece"},
+        )
+        plane_id = plane.get_json()["id"]
+
+        batch = client.post(
+            f"/api/inventories/{inv_id}/pieces/batch",
+            json={
+                "materialTypeId": plane_id,
+                "count": 4,
+                "namePattern": "J3-{r}",
+            },
+        )
+        assert batch.status_code == 201
+        names = [p["name"] for p in batch.get_json()["pieces"]]
+        assert names == ["J3-i", "J3-ii", "J3-iii", "J3-iv"]
+    finally:
+        tmp.cleanup()
+
+
+def test_batch_requires_placeholder_in_pattern():
     app, tmp = _app_with_db()
     try:
         with app.app_context():

@@ -62,17 +62,17 @@ const sortedSets = computed(() =>
         @submit.prevent="createMutation.mutate()"
       >
         <input
+          v-model="newShortName"
+          type="text"
+          class="input input-bordered w-full sm:w-28"
+          :placeholder="t('sets.shortNameOptional')"
+        />
+        <input
           v-model="newName"
           type="text"
           class="input input-bordered min-w-0 flex-1"
           :placeholder="t('sets.newName')"
           required
-        />
-        <input
-          v-model="newShortName"
-          type="text"
-          class="input input-bordered w-full sm:w-28"
-          :placeholder="t('sets.shortNameOptional')"
         />
         <button type="submit" class="btn btn-primary" :disabled="createMutation.isPending.value">
           {{ t('sets.create') }}

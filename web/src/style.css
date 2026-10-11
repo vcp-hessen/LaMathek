@@ -99,6 +99,37 @@
   .app-page {
     @apply mx-auto w-full max-w-7xl p-6;
   }
+
+  /* Data tables: stronger header, subtle zebra (not full base-200 stripes). */
+  .pieces-table thead tr {
+    background-color: var(--color-base-200);
+  }
+
+  .pieces-table tbody tr {
+    background-color: var(--color-base-100);
+  }
+
+  .pieces-table tbody tr:nth-child(even) {
+    background-color: var(--color-vcp-luftgrau);
+  }
+
+  .pieces-table tbody tr:hover,
+  .pieces-table tbody tr:focus-visible {
+    background-color: color-mix(in srgb, var(--color-base-200) 35%, var(--color-base-100));
+  }
+
+  [data-theme='dark'] .pieces-table thead tr {
+    background-color: var(--color-base-300);
+  }
+
+  [data-theme='dark'] .pieces-table tbody tr:nth-child(even) {
+    background-color: color-mix(in srgb, var(--color-base-300) 40%, var(--color-base-100));
+  }
+
+  [data-theme='dark'] .pieces-table tbody tr:hover,
+  [data-theme='dark'] .pieces-table tbody tr:focus-visible {
+    background-color: color-mix(in srgb, var(--color-base-300) 55%, var(--color-base-100));
+  }
 }
 
 @layer base {
