@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { fetchInstallationSettings } from '../api/settings'
+import { websiteHref } from '../composables/useWebsiteHref'
 
 const { t } = useI18n()
 const { data: settings, isLoading } = useQuery({
@@ -18,6 +19,18 @@ const email = computed(() => settings.value?.email?.trim() || '')
 const phone = computed(() => settings.value?.phone?.trim() || '')
 const hasController = computed(
   () => !!(legalName.value || legalAddress.value || email.value || phone.value),
+)
+
+const hostName = computed(() => settings.value?.hostName?.trim() || '')
+const hostAddress = computed(() => settings.value?.hostAddress?.trim() || '')
+const hostPrivacyUrl = computed(() => websiteHref(settings.value?.hostPrivacyUrl))
+const authProviderName = computed(() => settings.value?.authProviderName?.trim() || '')
+const authProviderSameHost = computed(() => settings.value?.authProviderSameHost === true)
+const authorityName = computed(() => settings.value?.authorityName?.trim() || '')
+const authorityUrl = computed(() => websiteHref(settings.value?.authorityUrl))
+
+const showAuthSameHostNote = computed(
+  () => authProviderSameHost.value && hostName.value.length > 0 && authProviderName.value.length > 0,
 )
 </script>
 
@@ -55,23 +68,31 @@ const hasController = computed(
     <section class="space-y-3">
       <h2 class="text-lg font-medium">2. Hosting</h2>
       <p>
-        Die Anwendung läuft auf einem Server in der Hetzner Cloud. Dabei können technisch
+        Die Anwendung wird auf einem Server des Betreibers gehostet. Dabei können technisch
         erforderliche Zugriffsdaten anfallen, insbesondere IP-Adresse, Datum und Uhrzeit des
         Abrufs, aufgerufene Adresse und Browserkennung. Sie dienen dem Betrieb, der Sicherheit
         und der Fehleranalyse.
       </p>
-      <p>
-        Auftragsverarbeiter ist die Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen
-        (Art. 28 DSGVO). Sie verarbeitet die Daten nur nach Weisung des Betreibers. Hinweise
-        zum Datenschutz bei Hetzner:
-        <a
-          href="https://www.hetzner.com/de/legal/privacy-policy"
-          class="link"
-          target="_blank"
-          rel="noopener noreferrer"
-          >Datenschutzhinweise der Hetzner Online GmbH</a
-        >.
-      </p>
+      <template v-if="!isLoading">
+        <div v-if="hostName" class="space-y-1">
+          <p>
+            Auftragsverarbeiter ist {{ hostName }} (Art. 28 DSGVO). Die Daten werden nur nach
+            Weisung des Betreibers verarbeitet.
+          </p>
+          <p v-if="hostAddress" class="whitespace-pre-wrap">{{ hostAddress }}</p>
+          <p v-if="hostPrivacyUrl">
+            Hinweise zum Datenschutz beim Hoster:
+            <a
+              :href="hostPrivacyUrl"
+              class="link"
+              target="_blank"
+              rel="noopener noreferrer"
+              >{{ settings?.hostPrivacyUrl }}</a
+            >.
+          </p>
+        </div>
+        <p v-else class="opacity-70">{{ t('privacy.hostNotConfigured') }}</p>
+      </template>
       <p>
         Rechtsgrundlage für den Betrieb ist Art. 6 Abs. 1 lit. f DSGVO. Das berechtigte
         Interesse ist ein sicherer und funktionsfähiger Betrieb. Die Daten bleiben nur so
@@ -103,17 +124,26 @@ const hasController = computed(
 
     <section class="space-y-3">
       <h2 class="text-lg font-medium">4. Anmeldung</h2>
-      <p>
-        Der Zugang läuft über OpenID Connect zum Keycloak der VCP-Hessen-Landescloud
-        (Landesaccount). Dieser Dienst wird ebenfalls in der Hetzner Cloud betrieben, beim
-        selben Auftragsverarbeiter wie die Anwendung. Beim Anmelden leitet die Anwendung dorthin
-        weiter. Keycloak verarbeitet die Anmeldung, insbesondere Nutzerkennung, Name,
-        E-Mail-Adresse und die dabei anfallende IP-Adresse.
-      </p>
+      <template v-if="!isLoading">
+        <p v-if="authProviderName">
+          Der Zugang läuft über OpenID Connect zu {{ authProviderName }}. Beim Anmelden leitet
+          die Anwendung dorthin weiter. Der Anmelde-Dienst verarbeitet die Anmeldung,
+          insbesondere Nutzerkennung, Name, E-Mail-Adresse und die dabei anfallende IP-Adresse.
+          <template v-if="showAuthSameHostNote">
+            Dieser Dienst wird beim selben Auftragsverarbeiter wie die Anwendung betrieben.
+          </template>
+        </p>
+        <p v-else>
+          Der Zugang läuft über OpenID Connect. Beim Anmelden leitet die Anwendung zum
+          konfigurierten Identitätsanbieter weiter. Dieser verarbeitet die Anmeldung in eigener
+          Verantwortung.
+        </p>
+      </template>
+      <p v-else>{{ t('auth.loading') }}</p>
       <p>
         Zurück in dieser Anwendung werden Nutzerkennung (sub), Anzeigename und E-Mail-Adresse
-        gespeichert, soweit Keycloak sie übermittelt. Damit werden Konto, Berechtigungen und die
-        Zuordnung als Verantwortliche*r eines Verleihs geführt.
+        gespeichert, soweit der Anmelde-Dienst sie übermittelt. Damit werden Konto,
+        Berechtigungen und die Zuordnung als Verantwortliche*r eines Verleihs geführt.
       </p>
       <p>
         Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO, soweit die Nutzung zur Mitgliedschaft
@@ -196,16 +226,20 @@ const hasController = computed(
       <p>
         Außerdem haben Sie das Recht, sich bei einer Datenschutz-Aufsichtsbehörde zu
         beschweren, insbesondere in dem Mitgliedstaat Ihres Aufenthaltsorts, Ihres
-        Arbeitsplatzes oder des Orts des mutmaßlichen Verstoßes. Für den Sitz in Hessen ist
-        das der
-        <a
-          href="https://datenschutz.hessen.de"
-          class="link"
-          target="_blank"
-          rel="noopener noreferrer"
-          >Hessische Beauftragte für Datenschutz und Informationsfreiheit</a
-        >
-        (HBDI).
+        Arbeitsplatzes oder des Orts des mutmaßlichen Verstoßes.
+        <template v-if="authorityName">
+          Zuständig kann insbesondere
+          <a
+            v-if="authorityUrl"
+            :href="authorityUrl"
+            class="link"
+            target="_blank"
+            rel="noopener noreferrer"
+            >{{ authorityName }}</a
+          >
+          <template v-else>{{ authorityName }}</template>
+          sein.
+        </template>
       </p>
       <p>Für diese Rechte und weitere Fragen erreichen Sie die verantwortliche Stelle über die oben genannten Kontaktdaten.</p>
     </section>

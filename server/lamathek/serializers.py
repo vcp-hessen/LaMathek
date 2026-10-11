@@ -61,6 +61,13 @@ def settings_to_json(settings: InstallationSettings, session: Session) -> dict:
         "contentResponsible": format_content_responsible_users(managers),
         "mapLatitude": settings.map_latitude,
         "mapLongitude": settings.map_longitude,
+        "hostName": settings.host_name,
+        "hostAddress": settings.host_address,
+        "hostPrivacyUrl": settings.host_privacy_url,
+        "authProviderName": settings.auth_provider_name,
+        "authProviderSameHost": settings.auth_provider_same_host,
+        "authorityName": settings.authority_name,
+        "authorityUrl": settings.authority_url,
     }
 
 

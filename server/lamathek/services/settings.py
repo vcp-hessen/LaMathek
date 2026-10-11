@@ -37,6 +37,13 @@ def update_installation_settings(
     register: str,
     map_latitude: float,
     map_longitude: float,
+    host_name: str,
+    host_address: str,
+    host_privacy_url: str,
+    auth_provider_name: str,
+    auth_provider_same_host: bool,
+    authority_name: str,
+    authority_url: str,
 ) -> InstallationSettings:
     settings = get_installation_settings(session)
     settings.title = title.strip()
@@ -50,6 +57,13 @@ def update_installation_settings(
     settings.register = register.strip()
     settings.map_latitude = map_latitude
     settings.map_longitude = map_longitude
+    settings.host_name = host_name.strip()
+    settings.host_address = host_address.strip()
+    settings.host_privacy_url = host_privacy_url.strip()
+    settings.auth_provider_name = auth_provider_name.strip()
+    settings.auth_provider_same_host = auth_provider_same_host
+    settings.authority_name = authority_name.strip()
+    settings.authority_url = authority_url.strip()
     session.commit()
     session.refresh(settings)
     return settings

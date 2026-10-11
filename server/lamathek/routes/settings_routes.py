@@ -41,6 +41,14 @@ def patch_settings(_user):
     ):
         return jsonify({"error": "invalid_map_center"}), 400
 
+    same_host = body.get("authProviderSameHost")
+    if same_host is None:
+        auth_provider_same_host = False
+    elif not isinstance(same_host, bool):
+        return jsonify({"error": "invalid_field"}), 400
+    else:
+        auth_provider_same_host = same_host
+
     try:
         session = get_session()
         settings = update_installation_settings(
@@ -56,6 +64,13 @@ def patch_settings(_user):
             register=text_field("register"),
             map_latitude=float(map_latitude),
             map_longitude=float(map_longitude),
+            host_name=text_field("hostName"),
+            host_address=text_field("hostAddress"),
+            host_privacy_url=text_field("hostPrivacyUrl"),
+            auth_provider_name=text_field("authProviderName"),
+            auth_provider_same_host=auth_provider_same_host,
+            authority_name=text_field("authorityName"),
+            authority_url=text_field("authorityUrl"),
         )
     except ValueError:
         return jsonify({"error": "invalid_field"}), 400

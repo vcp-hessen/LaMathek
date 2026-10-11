@@ -1,4 +1,4 @@
-from sqlalchemy import CheckConstraint, Float, String, Text
+from sqlalchemy import Boolean, CheckConstraint, Float, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from lamathek.db import Base
@@ -27,3 +27,12 @@ class InstallationSettings(Base):
     map_longitude: Mapped[float] = mapped_column(
         Float, nullable=False, default=DEFAULT_MAP_LONGITUDE
     )
+    host_name: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    host_address: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    host_privacy_url: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    auth_provider_name: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    auth_provider_same_host: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
+    authority_name: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    authority_url: Mapped[str] = mapped_column(String(512), nullable=False, default="")

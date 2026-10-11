@@ -37,6 +37,13 @@ const [representedBy] = defineField('representedBy')
 const [register] = defineField('register')
 const [mapLatitude] = defineField('mapLatitude')
 const [mapLongitude] = defineField('mapLongitude')
+const [hostName] = defineField('hostName')
+const [hostAddress] = defineField('hostAddress')
+const [hostPrivacyUrl] = defineField('hostPrivacyUrl')
+const [authProviderName] = defineField('authProviderName')
+const [authProviderSameHost] = defineField('authProviderSameHost')
+const [authorityName] = defineField('authorityName')
+const [authorityUrl] = defineField('authorityUrl')
 
 const mapLat = computed({
   get: () => (typeof mapLatitude.value === 'number' ? mapLatitude.value : null),
@@ -155,6 +162,69 @@ const onSubmit = handleSubmit(async (values) => {
               />
               <span v-if="geocoding" class="text-xs opacity-70">{{ t('inventories.geocoding') }}</span>
               <span v-else-if="geocodeHint" class="text-xs text-warning">{{ geocodeHint }}</span>
+            </label>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="rounded-lg border border-base-200 px-3 pb-3 pt-1">
+        <legend class="px-1 text-sm font-medium">{{ t('settings.privacyHeading') }}</legend>
+        <p class="mt-1 text-xs opacity-70">{{ t('settings.privacyHint') }}</p>
+        <div class="mt-2 flex flex-col gap-2">
+          <label class="flex min-w-0 flex-col gap-1">
+            <span class="text-xs opacity-80">{{ t('settings.hostNameLabel') }}</span>
+            <input v-model="hostName" type="text" class="input input-bordered input-sm w-full" />
+          </label>
+          <label class="flex min-w-0 flex-col gap-1">
+            <span class="text-xs opacity-80">{{ t('settings.hostAddressLabel') }}</span>
+            <textarea
+              v-model="hostAddress"
+              class="textarea textarea-bordered textarea-sm w-full min-h-0"
+              rows="2"
+            />
+          </label>
+          <label class="flex min-w-0 flex-col gap-1">
+            <span class="text-xs opacity-80">{{ t('settings.hostPrivacyUrlLabel') }}</span>
+            <input
+              v-model="hostPrivacyUrl"
+              type="url"
+              class="input input-bordered input-sm w-full"
+              :placeholder="t('settings.websitePlaceholder')"
+            />
+          </label>
+          <label class="flex min-w-0 flex-col gap-1">
+            <span class="text-xs opacity-80">{{ t('settings.authProviderNameLabel') }}</span>
+            <input
+              v-model="authProviderName"
+              type="text"
+              class="input input-bordered input-sm w-full"
+            />
+          </label>
+          <label class="flex cursor-pointer items-center gap-2">
+            <input
+              v-model="authProviderSameHost"
+              type="checkbox"
+              class="checkbox checkbox-sm"
+            />
+            <span class="text-xs">{{ t('settings.authProviderSameHostLabel') }}</span>
+          </label>
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <label class="flex min-w-0 flex-col gap-1">
+              <span class="text-xs opacity-80">{{ t('settings.authorityNameLabel') }}</span>
+              <input
+                v-model="authorityName"
+                type="text"
+                class="input input-bordered input-sm w-full"
+              />
+            </label>
+            <label class="flex min-w-0 flex-col gap-1">
+              <span class="text-xs opacity-80">{{ t('settings.authorityUrlLabel') }}</span>
+              <input
+                v-model="authorityUrl"
+                type="url"
+                class="input input-bordered input-sm w-full"
+                :placeholder="t('settings.websitePlaceholder')"
+              />
             </label>
           </div>
         </div>

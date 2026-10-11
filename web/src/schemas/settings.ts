@@ -13,6 +13,13 @@ export const installationSettingsSchema = z.object({
   contentResponsible: z.string(),
   mapLatitude: z.number(),
   mapLongitude: z.number(),
+  hostName: z.string(),
+  hostAddress: z.string(),
+  hostPrivacyUrl: z.string(),
+  authProviderName: z.string(),
+  authProviderSameHost: z.boolean(),
+  authorityName: z.string(),
+  authorityUrl: z.string(),
 })
 
 export type InstallationSettings = z.infer<typeof installationSettingsSchema>

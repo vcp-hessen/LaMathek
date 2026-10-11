@@ -157,6 +157,13 @@ def test_settings_impressum_and_map_center():
                 "register": "VR 123",
                 "mapLatitude": 50.1,
                 "mapLongitude": 8.2,
+                "hostName": "Hetzner Online GmbH",
+                "hostAddress": "Industriestr. 25\n91710 Gunzenhausen",
+                "hostPrivacyUrl": "https://www.hetzner.com/de/legal/privacy-policy",
+                "authProviderName": "Keycloak der VCP-Hessen-Landescloud",
+                "authProviderSameHost": True,
+                "authorityName": "Hessischer Beauftragter für Datenschutz und Informationsfreiheit",
+                "authorityUrl": "https://datenschutz.hessen.de",
             },
         )
         assert patch.status_code == 200
@@ -164,5 +171,8 @@ def test_settings_impressum_and_map_center():
         assert body["legalName"] == "VCP Hessen e. V."
         assert body["website"] == "https://vcp-hessen.de"
         assert body["mapLatitude"] == 50.1
+        assert body["hostName"] == "Hetzner Online GmbH"
+        assert body["authProviderSameHost"] is True
+        assert body["authorityName"].startswith("Hessischer")
     finally:
         tmp.cleanup()

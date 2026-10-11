@@ -33,6 +33,8 @@ def test_settings_public_and_superuser_bootstrap():
         data = response.get_json()
         assert data["title"] == "VCP Hessen"
         assert data["subtitle"] == "Landesmaterial"
+        assert data["hostName"] == ""
+        assert data["authProviderSameHost"] is False
 
         with app.app_context():
             session = get_session()
@@ -62,6 +64,13 @@ def test_settings_public_and_superuser_bootstrap():
                 "register": "",
                 "mapLatitude": 50.65,
                 "mapLongitude": 9.16,
+                "hostName": "",
+                "hostAddress": "",
+                "hostPrivacyUrl": "",
+                "authProviderName": "",
+                "authProviderSameHost": False,
+                "authorityName": "",
+                "authorityUrl": "",
             },
         )
         assert patch.status_code == 200

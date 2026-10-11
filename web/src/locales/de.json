@@ -79,6 +79,15 @@
     "mapCenterHeading": "Kartenmittelpunkt",
     "mapCenterHint": "Standard-Zoom für Inventarkarten ohne eigene Koordinaten.",
     "mapCenterAddressSync": "Wird bei Änderung der Anschrift automatisch aktualisiert (Geocoding beim Verlassen des Feldes).",
+    "privacyHeading": "Datenschutz",
+    "privacyHint": "Angaben für die öffentliche Datenschutzerklärung. Leere Felder werden dort nicht genannt.",
+    "hostNameLabel": "Hoster (Auftragsverarbeiter)",
+    "hostAddressLabel": "Hoster, Anschrift",
+    "hostPrivacyUrlLabel": "Hoster, Datenschutz-Link",
+    "authProviderNameLabel": "Anmelde-Dienst",
+    "authProviderSameHostLabel": "Anmelde-Dienst liegt beim selben Hoster",
+    "authorityNameLabel": "Aufsichtsbehörde",
+    "authorityUrlLabel": "Aufsichtsbehörde, Link",
     "save": "Speichern",
     "saveFailed": "Speichern fehlgeschlagen.",
     "superuserOnly": "Nur Superuser*innen können die Einstellungen bearbeiten."
@@ -90,7 +99,8 @@
   },
   "privacy": {
     "nav": "Datenschutz",
-    "heading": "Datenschutzerklärung"
+    "heading": "Datenschutzerklärung",
+    "hostNotConfigured": "Noch keine Angaben zum Hoster hinterlegt."
   },
   "footer": {
     "website": "Website"
