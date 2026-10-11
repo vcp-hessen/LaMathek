@@ -117,3 +117,5 @@ Regeln:
 - Auf farbigem Grund stehen Zeichen und Sternchen weiß.
 
 In LaMathek trägt die Seitenleiste je Navigationsziel ein passendes Zeichen aus der Schrift `waldlaeuferzeichen-pfadfinden`. Die Lexikon-Bedeutung steht im `title` des Zeichens, die sichtbare Beschriftung bleibt die Funktion der App. Kein WLZ-Raster als Dekor. Für leere Zustände oder andere Momente gilt dieselbe Regel: ein Zeichen nur mit erklärter Bedeutung, sonst keins.
+
+Allgemeine Bedienelemente ohne WLZ-Bedeutung (Menü, Chevron, spätere Aktions-Icons) nutzen Heroicons über die Komponente `UiIcon` im Web-Client, siehe ADR 0014.

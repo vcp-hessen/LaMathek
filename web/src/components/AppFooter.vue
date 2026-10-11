@@ -23,22 +23,22 @@ const siteUrl = computed(() => websiteHref(props.settings?.website))
     <div
       class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-2.5 text-center text-xs text-base-content/80"
     >
-      <span v-if="provider" class="font-medium">{{ provider }}</span>
+      <a
+        v-if="siteUrl"
+        :href="siteUrl"
+        class="link link-hover font-medium"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {{ provider || props.settings?.website }}
+      </a>
+      <span v-else-if="provider" class="font-medium">{{ provider }}</span>
       <RouterLink to="/impressum" class="link link-hover">
         {{ t('impressum.nav') }}
       </RouterLink>
       <RouterLink to="/datenschutz" class="link link-hover">
         {{ t('privacy.nav') }}
       </RouterLink>
-      <a
-        v-if="siteUrl"
-        :href="siteUrl"
-        class="link link-hover"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        {{ t('footer.website') }}
-      </a>
     </div>
   </footer>
 </template>

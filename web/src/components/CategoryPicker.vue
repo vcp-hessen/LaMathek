@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Category } from '../schemas/material'
+import UiIcon from './UiIcon.vue'
 
 const props = defineProps<{
   categories: Category[]
@@ -148,12 +149,7 @@ function isSelected(item: MenuItem) {
       @mousedown.prevent
       @click="toggleMenu"
     >
-      <svg viewBox="0 0 20 20" class="size-4 opacity-70" aria-hidden="true">
-        <path
-          fill="currentColor"
-          d="M5.2 7.5a.75.75 0 0 1 1.06 0L10 11.23l3.74-3.73a.75.75 0 1 1 1.06 1.06l-4.27 4.27a.75.75 0 0 1-1.06 0L5.2 8.56a.75.75 0 0 1 0-1.06Z"
-        />
-      </svg>
+      <UiIcon name="chevronDown" size-class="size-4 opacity-70" />
     </button>
     <ul
       v-if="open"
