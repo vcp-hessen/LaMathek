@@ -94,6 +94,8 @@ export function useAppBreadcrumbs() {
         return [{ label: t('users.heading') }]
       case 'impressum':
         return [{ label: t('impressum.heading') }]
+      case 'privacy':
+        return [{ label: t('privacy.heading') }]
       case 'inventories':
         return [{ label: t('inventories.title') }]
       case 'inventory-material-types':

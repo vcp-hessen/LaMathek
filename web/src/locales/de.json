@@ -88,6 +88,10 @@
     "heading": "Impressum",
     "empty": "Noch keine Angaben hinterlegt."
   },
+  "privacy": {
+    "nav": "Datenschutz",
+    "heading": "Datenschutzerklärung"
+  },
   "footer": {
     "website": "Website"
   },

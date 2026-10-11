@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import ImpressumView from '../views/ImpressumView.vue'
+import PrivacyView from '../views/PrivacyView.vue'
 import InventoriesListView from '../views/InventoriesListView.vue'
 import InstallationSettingsView from '../views/InstallationSettingsView.vue'
 import UsersView from '../views/UsersView.vue'
@@ -35,6 +36,11 @@ export const router = createRouter({
       path: '/impressum',
       name: 'impressum',
       component: ImpressumView,
+    },
+    {
+      path: '/datenschutz',
+      name: 'privacy',
+      component: PrivacyView,
     },
     {
       path: '/inventories',

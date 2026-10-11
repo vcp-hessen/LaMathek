@@ -27,6 +27,9 @@ const siteUrl = computed(() => websiteHref(props.settings?.website))
       <RouterLink to="/impressum" class="link link-hover">
         {{ t('impressum.nav') }}
       </RouterLink>
+      <RouterLink to="/datenschutz" class="link link-hover">
+        {{ t('privacy.nav') }}
+      </RouterLink>
       <a
         v-if="siteUrl"
         :href="siteUrl"
