@@ -15,8 +15,7 @@ export type BreadcrumbItem = {
 
 const sectionLabelByRoute: Record<string, string> = {
   'inventory-material-types': 'nav.materialTypes',
-  'inventory-pieces': 'nav.pieces',
-  'inventory-stock': 'nav.stock',
+  'inventory-material': 'nav.material',
   'inventory-sets': 'nav.sets',
   'inventory-loans': 'nav.loans',
 }
@@ -99,8 +98,7 @@ export function useAppBreadcrumbs() {
       case 'inventories':
         return [{ label: t('inventories.title') }]
       case 'inventory-material-types':
-      case 'inventory-pieces':
-      case 'inventory-stock':
+      case 'inventory-material':
       case 'inventory-sets':
       case 'inventory-loans': {
         const id = routeInventoryId.value
@@ -132,11 +130,11 @@ export function useAppBreadcrumbs() {
       }
       case 'piece-detail': {
         const id = routeInventoryId.value
-        const label = pieceDetail.value?.name ?? t('material.piecesHeading')
+        const label = pieceDetail.value?.name ?? t('material.materialHeading')
         if (id === null) return [{ label }]
         return [
           ...inventoryTrail(id),
-          { label: t('nav.pieces'), to: `/inventories/${id}/pieces` },
+          { label: t('nav.material'), to: `/inventories/${id}/material` },
           { label },
         ]
       }

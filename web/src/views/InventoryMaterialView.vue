@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import StockPanel from '../components/StockPanel.vue'
+import MaterialPanel from '../components/MaterialPanel.vue'
 
 const route = useRoute()
 const inventoryId = computed(() => Number(route.params.id))
@@ -9,7 +9,7 @@ const inventoryId = computed(() => Number(route.params.id))
 
 <template>
   <div class="app-page">
-    <StockPanel
+    <MaterialPanel
       v-if="Number.isFinite(inventoryId)"
       :key="inventoryId"
       :inventory-id="inventoryId"

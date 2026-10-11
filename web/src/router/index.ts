@@ -6,11 +6,10 @@ import InventoriesListView from '../views/InventoriesListView.vue'
 import InstallationSettingsView from '../views/InstallationSettingsView.vue'
 import UsersView from '../views/UsersView.vue'
 import InventoryMaterialTypesView from '../views/InventoryMaterialTypesView.vue'
-import InventoryPiecesView from '../views/InventoryPiecesView.vue'
+import InventoryMaterialView from '../views/InventoryMaterialView.vue'
 import PieceDetailView from '../views/PieceDetailView.vue'
 import InventoryLoansView from '../views/InventoryLoansView.vue'
 import InventorySetsView from '../views/InventorySetsView.vue'
-import InventoryStockView from '../views/InventoryStockView.vue'
 import LoanDetailView from '../views/LoanDetailView.vue'
 import SetDetailView from '../views/SetDetailView.vue'
 
@@ -53,9 +52,13 @@ export const router = createRouter({
       component: InventoryMaterialTypesView,
     },
     {
+      path: '/inventories/:id/material',
+      name: 'inventory-material',
+      component: InventoryMaterialView,
+    },
+    {
       path: '/inventories/:id/pieces',
-      name: 'inventory-pieces',
-      component: InventoryPiecesView,
+      redirect: (to) => `/inventories/${to.params.id}/material`,
     },
     {
       path: '/inventories/:id/pieces/:pieceId',
@@ -64,8 +67,7 @@ export const router = createRouter({
     },
     {
       path: '/inventories/:id/stock',
-      name: 'inventory-stock',
-      component: InventoryStockView,
+      redirect: (to) => `/inventories/${to.params.id}/material`,
     },
     {
       path: '/inventories/:id/sets',

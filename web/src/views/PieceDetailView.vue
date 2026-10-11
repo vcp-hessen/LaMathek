@@ -141,7 +141,7 @@ const deleteMutation = useMutation({
   mutationFn: () => deletePiece(pieceId.value),
   onSuccess: async () => {
     await queryClient.invalidateQueries({ queryKey: ['pieces', inventoryId.value] })
-    await router.push(`/inventories/${inventoryId.value}/pieces`)
+    await router.push(`/inventories/${inventoryId.value}/material`)
   },
   onError: (error) => {
     stammdatenError.value = messageFor(error)

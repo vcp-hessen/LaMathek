@@ -58,8 +58,8 @@ watch(
 
 const inventoryRouteNames = new Set([
   'inventory-material-types',
-  'inventory-pieces',
-  'inventory-stock',
+  'inventory-material',
+  'piece-detail',
   'inventory-sets',
   'inventory-loans',
   'loan-detail',

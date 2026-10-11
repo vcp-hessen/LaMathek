@@ -1,18 +1,24 @@
 <script setup lang="ts">
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { computed, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   createPiece,
   createPiecesBatch,
+  createStockLot,
   fetchMaterialTypes,
   fetchPieces,
+  fetchStocks,
 } from '../api/material'
 import { fetchSets } from '../api/sets'
 import { useApiErrorMessage } from '../composables/useApiErrorMessage'
 import { useInventoryQueryKey } from '../composables/useInventoryQueryKey'
 import VariantAxisSelects from './VariantAxisSelects.vue'
-import PiecesDataTable from './pieces/PiecesDataTable.vue'
+import MaterialDataTable from './material/MaterialDataTable.vue'
+import {
+  materialRowsFromPiecesAndLots,
+  type StockLotListItem,
+} from './material/materialTableSetup'
 import {
   batchPlaceholderKindFromPattern,
   batchPlaceholderToken,
@@ -20,11 +26,13 @@ import {
   stripBatchPlaceholders,
   type BatchNamePlaceholderKind,
 } from '../utils/batchNamePattern'
+import { ChevronDownIcon } from '@heroicons/vue/24/outline'
 import { emptyVariantMap } from '../utils/variantDisplay'
 
 const NEW_ROW = 'new' as const
 const BATCH_ROW = 'batch' as const
-type ExpandedKey = typeof NEW_ROW | typeof BATCH_ROW | null
+const NEW_LOT = 'newLot' as const
+type ExpandedKey = typeof NEW_ROW | typeof BATCH_ROW | typeof NEW_LOT | null
 
 const props = defineProps<{ inventoryId: number }>()
 
@@ -52,7 +60,15 @@ const batchPlaceholderKind = ref<BatchNamePlaceholderKind>('number')
 
 const materialTypesQueryKey = useInventoryQueryKey('materialTypes', () => props.inventoryId)
 const piecesQueryKey = useInventoryQueryKey('pieces', () => props.inventoryId)
+const stocksQueryKey = useInventoryQueryKey('stocks', () => props.inventoryId)
 const setsQueryKey = useInventoryQueryKey('sets', () => props.inventoryId)
+
+const newLot = reactive({
+  materialTypeId: '',
+  label: '',
+  variant: {} as Record<string, string>,
+  quantity: 1,
+})
 
 const { data: types } = useQuery({
   queryKey: materialTypesQueryKey,
@@ -64,18 +80,66 @@ const { data: sets } = useQuery({
   queryFn: () => fetchSets(props.inventoryId),
 })
 
-const { data: pieces, isLoading } = useQuery({
+const { data: pieces, isLoading: piecesLoading } = useQuery({
   queryKey: piecesQueryKey,
   queryFn: () => fetchPieces(props.inventoryId),
 })
+
+const { data: stocks, isLoading: stocksLoading } = useQuery({
+  queryKey: stocksQueryKey,
+  queryFn: () => fetchStocks(props.inventoryId),
+})
+
+const isLoading = computed(() => piecesLoading.value || stocksLoading.value)
 
 const pieceTypes = computed(() =>
   (types.value ?? []).filter((mt) => mt.tracking === 'piece'),
 )
 
-const canAddPieces = computed(() => pieceTypes.value.length > 0)
+const stockTypes = computed(() => stocks.value ?? [])
 
-const totalPieceCount = computed(() => (pieces.value ?? []).length)
+const canAddPieces = computed(() => pieceTypes.value.length > 0)
+const canAddLots = computed(() => stockTypes.value.length > 0)
+
+const stockLots = computed((): StockLotListItem[] =>
+  stockTypes.value.flatMap((row) =>
+    row.lots.map((lot) => ({
+      ...lot,
+      materialTypeId: row.materialTypeId,
+      materialTypeName: row.materialTypeName,
+      unit: row.unit,
+      variants: row.variants,
+    })),
+  ),
+)
+
+const materialRows = computed(() =>
+  materialRowsFromPiecesAndLots(pieces.value ?? [], stockLots.value),
+)
+
+const hasAnyMaterial = computed(() => materialRows.value.length > 0)
+
+const selectedNewStockType = computed(() =>
+  stockTypes.value.find((row) => String(row.materialTypeId) === newLot.materialTypeId),
+)
+
+const newTypeAxes = computed(() => selectedNewStockType.value?.variants ?? [])
+
+function lotVariantPayload(map: Record<string, string>): Record<string, string> {
+  const payload: Record<string, string> = {}
+  for (const [label, value] of Object.entries(map)) {
+    const trimmed = value?.trim()
+    if (trimmed) payload[label] = trimmed
+  }
+  return payload
+}
+
+function resetNewLotDraft() {
+  newLot.materialTypeId = stockTypes.value[0] ? String(stockTypes.value[0].materialTypeId) : ''
+  newLot.label = ''
+  newLot.variant = emptyVariantMap(newTypeAxes.value)
+  newLot.quantity = 1
+}
 
 const selectedType = computed(() =>
   pieceTypes.value.find((mt) => String(mt.id) === materialTypeId.value),
@@ -205,10 +269,35 @@ function openBatchRow() {
   formError.value = null
 }
 
+function openNewLotRow() {
+  if (!canAddLots.value) return
+  expandedKey.value = NEW_LOT
+  resetNewLotDraft()
+  formError.value = null
+}
+
+function onCreateMenuSelect(kind: typeof NEW_ROW | typeof BATCH_ROW | typeof NEW_LOT) {
+  if (kind === NEW_ROW) {
+    expandedKey.value === NEW_ROW ? closeExpandedRow() : openNewRow()
+  } else if (kind === BATCH_ROW) {
+    expandedKey.value === BATCH_ROW ? closeExpandedRow() : openBatchRow()
+  } else {
+    expandedKey.value === NEW_LOT ? closeExpandedRow() : openNewLotRow()
+  }
+  ;(document.activeElement as HTMLElement | null)?.blur()
+}
+
 function closeExpandedRow() {
   expandedKey.value = null
   formError.value = null
 }
+
+watch(
+  () => newLot.materialTypeId,
+  () => {
+    newLot.variant = emptyVariantMap(newTypeAxes.value)
+  },
+)
 
 const createMutation = useMutation({
   mutationFn: () => {
@@ -267,29 +356,65 @@ const batchMutation = useMutation({
     formError.value = messageFor(error)
   },
 })
+
+const createLotMutation = useMutation({
+  mutationFn: () =>
+    createStockLot(props.inventoryId, Number(newLot.materialTypeId), {
+      label: newLot.label.trim() || null,
+      variant: lotVariantPayload(newLot.variant),
+      quantity: newLot.quantity,
+    }),
+  onSuccess: async () => {
+    expandedKey.value = null
+    formError.value = null
+    resetNewLotDraft()
+    await queryClient.invalidateQueries({ queryKey: [...stocksQueryKey.value] })
+  },
+  onError: (error) => {
+    formError.value = messageFor(error)
+  },
+})
 </script>
 
 <template>
   <div class="flex flex-col gap-4 text-left">
       <div class="app-section-header flex flex-wrap items-center justify-between gap-2 gap-y-1">
-        <h2 class="app-page-title shrink-0">{{ t('material.piecesHeading') }}</h2>
-        <div v-if="!isLoading && canAddPieces" class="flex flex-wrap gap-1">
+        <h2 class="app-page-title shrink-0">{{ t('material.materialHeading') }}</h2>
+        <div
+          v-if="!isLoading && (canAddPieces || canAddLots)"
+          class="dropdown dropdown-end"
+        >
           <button
             type="button"
-            class="btn btn-ghost btn-sm"
-            :aria-expanded="expandedKey === NEW_ROW"
-            @click="expandedKey === NEW_ROW ? closeExpandedRow() : openNewRow()"
+            tabindex="0"
+            class="btn btn-ghost btn-sm gap-1"
+            :aria-expanded="expandedKey !== null"
+            :aria-haspopup="true"
           >
-            {{ t('material.pieceNew') }}
+            {{ t('material.createMenu') }}
+            <ChevronDownIcon class="size-4 opacity-70" aria-hidden="true" />
           </button>
-          <button
-            type="button"
-            class="btn btn-ghost btn-sm"
-            :aria-expanded="expandedKey === BATCH_ROW"
-            @click="expandedKey === BATCH_ROW ? closeExpandedRow() : openBatchRow()"
+          <ul
+            tabindex="0"
+            class="dropdown-content menu menu-sm z-20 mt-1 w-56 rounded-box border border-base-200 bg-base-100 p-1 shadow-lg"
+            role="menu"
           >
-            {{ t('material.pieceBatchNew') }}
-          </button>
+            <li v-if="canAddPieces" role="none">
+              <button type="button" role="menuitem" @click="onCreateMenuSelect(NEW_ROW)">
+                {{ t('material.pieceNew') }}
+              </button>
+            </li>
+            <li v-if="canAddPieces" role="none">
+              <button type="button" role="menuitem" @click="onCreateMenuSelect(BATCH_ROW)">
+                {{ t('material.pieceBatchNew') }}
+              </button>
+            </li>
+            <li v-if="canAddLots" role="none">
+              <button type="button" role="menuitem" @click="onCreateMenuSelect(NEW_LOT)">
+                {{ t('material.stockLotMenu') }}
+              </button>
+            </li>
+          </ul>
         </div>
       </div>
 
@@ -510,21 +635,78 @@ const batchMutation = useMutation({
         </form>
       </section>
 
+      <section
+        v-if="expandedKey === NEW_LOT"
+        class="rounded-lg border border-base-200 bg-base-200/30 p-3 sm:p-4"
+      >
+        <h3 class="mb-3 text-sm font-semibold">{{ t('material.stockLotAdd') }}</h3>
+        <form class="space-y-3" @submit.prevent="createLotMutation.mutate()">
+          <label class="flex min-w-0 flex-col gap-1">
+            <span class="text-xs opacity-80">{{ t('material.filterMaterialType') }}</span>
+            <select v-model="newLot.materialTypeId" class="select select-bordered w-full" required>
+              <option
+                v-for="row in stockTypes"
+                :key="row.materialTypeId"
+                :value="String(row.materialTypeId)"
+              >
+                {{ row.materialTypeName }}
+              </option>
+            </select>
+          </label>
+          <label class="flex min-w-0 flex-col gap-1">
+            <span class="text-xs opacity-80">{{ t('material.stockLotLabel') }}</span>
+            <input
+              v-model="newLot.label"
+              type="text"
+              class="input input-bordered w-full"
+              :placeholder="t('material.stockLotLabelPlaceholder')"
+            />
+          </label>
+          <VariantAxisSelects
+            v-if="newTypeAxes.length"
+            v-model="newLot.variant"
+            :axes="newTypeAxes"
+            optional
+          />
+          <label class="flex min-w-0 flex-col gap-1">
+            <span class="text-xs opacity-80">{{ t('material.stockQuantity') }}</span>
+            <input
+              v-model.number="newLot.quantity"
+              type="number"
+              min="0"
+              step="1"
+              class="input input-bordered w-full"
+              required
+            />
+          </label>
+          <p v-if="formError" class="text-sm text-error">{{ formError }}</p>
+          <div class="flex justify-end gap-2">
+            <button type="button" class="btn btn-ghost btn-sm" @click="closeExpandedRow">
+              {{ t('material.cancel') }}
+            </button>
+            <button
+              type="submit"
+              class="btn btn-primary btn-sm"
+              :disabled="createLotMutation.isPending.value"
+            >
+              {{ t('material.stockLotAdd') }}
+            </button>
+          </div>
+        </form>
+      </section>
+
       <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
       <template v-else>
-        <p v-if="!canAddPieces" class="text-sm opacity-70">{{ t('material.piecesNeedType') }}</p>
-        <template v-else>
-          <p v-if="totalPieceCount === 0" class="text-sm opacity-70">
-            {{ t('material.piecesEmpty') }}
-          </p>
-          <PiecesDataTable
-            v-else
-            :inventory-id="inventoryId"
-            :pieces="pieces ?? []"
-            :piece-types="pieceTypes"
-            :material-types="types ?? []"
-          />
-        </template>
+        <p v-if="!canAddPieces && !canAddLots" class="text-sm opacity-70">
+          {{ t('material.materialNeedTypes') }}
+        </p>
+        <p v-else-if="!hasAnyMaterial" class="text-sm opacity-70">{{ t('material.empty') }}</p>
+        <MaterialDataTable
+          v-else
+          :inventory-id="inventoryId"
+          :rows="materialRows"
+          :material-types="types ?? []"
+        />
       </template>
   </div>
 </template>

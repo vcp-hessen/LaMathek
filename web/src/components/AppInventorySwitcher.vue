@@ -24,8 +24,7 @@ const inventoryStore = useInventoryStore()
 
 const inventorySectionRoutes = new Set([
   'inventory-material-types',
-  'inventory-pieces',
-  'inventory-stock',
+  'inventory-material',
   'inventory-sets',
   'inventory-loans',
 ])

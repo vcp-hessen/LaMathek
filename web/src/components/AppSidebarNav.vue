@@ -31,18 +31,11 @@ const workspaceLinks = computed(() => {
       glyph: 'split' as WlzGlyphId,
     },
     {
-      key: 'pieces',
-      to: `${base}/pieces`,
-      routeName: 'inventory-pieces',
-      label: t('nav.pieces'),
+      key: 'material',
+      to: `${base}/material`,
+      routeName: 'inventory-material',
+      label: t('nav.material'),
       glyph: 'full' as WlzGlyphId,
-    },
-    {
-      key: 'stock',
-      to: `${base}/stock`,
-      routeName: 'inventory-stock',
-      label: t('nav.stock'),
-      glyph: 'empty' as WlzGlyphId,
     },
     {
       key: 'sets',
@@ -65,6 +58,7 @@ function isWorkspaceLinkActive(linkRouteName: string): boolean {
   if (route.name === linkRouteName) return true
   if (linkRouteName === 'inventory-sets' && route.name === 'set-detail') return true
   if (linkRouteName === 'inventory-loans' && route.name === 'loan-detail') return true
+  if (linkRouteName === 'inventory-material' && route.name === 'piece-detail') return true
   return false
 }
 
