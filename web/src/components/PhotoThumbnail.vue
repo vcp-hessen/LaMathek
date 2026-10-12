@@ -11,17 +11,18 @@ const props = withDefaults(
   {
     size: '160',
     alt: '',
-    class: 'h-10 w-10 rounded object-cover bg-base-200',
+    class: 'size-10 shrink-0 overflow-hidden rounded bg-base-200',
   },
 )
 </script>
 
 <template>
-  <img
-    v-if="photoId"
-    :src="photoUrl(photoId, size)"
-    :alt="alt"
-    :class="props.class"
-    loading="lazy"
-  />
+  <div v-if="photoId" :class="props.class">
+    <img
+      :src="photoUrl(photoId, size)"
+      :alt="alt"
+      class="size-full max-w-none object-cover"
+      loading="lazy"
+    />
+  </div>
 </template>

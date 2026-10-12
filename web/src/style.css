@@ -134,10 +134,12 @@
   }
 
   .pieces-table-col-photo {
-    width: 2.75rem;
-    max-width: 2.75rem;
+    width: 3.5rem;
+    min-width: 3.5rem;
+    max-width: 3.5rem;
     padding-left: 0.5rem;
     padding-right: 0.25rem;
+    vertical-align: middle;
   }
 
   .pieces-table-col-lead {
