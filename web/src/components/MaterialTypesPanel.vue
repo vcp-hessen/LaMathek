@@ -11,7 +11,6 @@ import {
   updateMaterialType,
   type MaterialTypeWritePayload,
 } from '../api/material'
-import { fetchMe } from '../api/me'
 import type { Category, MaterialType, VariantAxis } from '../schemas/material'
 import { variantAxesSummary } from '../utils/variantDisplay'
 import { useApiErrorMessage } from '../composables/useApiErrorMessage'
@@ -58,8 +57,6 @@ const editCategoryText = ref('')
 const editManufacturer = ref('')
 const editModelName = ref('')
 const savedEdit = ref<string | null>(null)
-
-const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
 
 const materialTypesQueryKey = useInventoryQueryKey('materialTypes', () => props.inventoryId)
 
