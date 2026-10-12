@@ -13,6 +13,7 @@ function writeBody(payload: InventoryWritePayload) {
   const parsed = inventoryWriteSchema.parse(payload)
   return {
     name: parsed.name,
+    visibility: parsed.visibility,
     address: parsed.address ?? null,
     latitude: parsed.latitude ?? null,
     longitude: parsed.longitude ?? null,

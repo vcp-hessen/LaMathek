@@ -11,6 +11,7 @@ const props = defineProps<{
   expanded: boolean
   impersonating?: boolean
   activeInventoryId: number | null
+  activeInventoryCanManage: boolean
   showInventoryPicker: boolean
   inventories: Inventory[]
   inventoriesLoading?: boolean
@@ -45,13 +46,17 @@ const workspaceLinks = computed(() => {
       label: t('nav.sets'),
       glyph: 'gather' as WlzGlyphId,
     },
-    {
-      key: 'loans',
-      to: `${base}/loans`,
-      routeName: 'inventory-loans',
-      label: t('nav.loans'),
-      glyph: 'exchange' as WlzGlyphId,
-    },
+    ...(props.activeInventoryCanManage
+      ? [
+          {
+            key: 'loans',
+            to: `${base}/loans`,
+            routeName: 'inventory-loans',
+            label: t('nav.loans'),
+            glyph: 'exchange' as WlzGlyphId,
+          },
+        ]
+      : []),
   ]
 })
 

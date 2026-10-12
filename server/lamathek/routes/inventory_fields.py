@@ -25,3 +25,14 @@ def inventory_location_from_body(body: dict) -> dict:
         "longitude": longitude,
         "notes": optional_text(body.get("notes")),
     }
+
+
+def optional_visibility(body: dict) -> str | None:
+    if "visibility" not in body:
+        return None
+    value = body.get("visibility")
+    if not isinstance(value, str):
+        raise ValueError("invalid_visibility")
+    if value not in ("internal", "active", "archived"):
+        raise ValueError("invalid_visibility")
+    return value

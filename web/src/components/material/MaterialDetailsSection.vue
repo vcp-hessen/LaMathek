@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
-defineProps<{
-  formError: string | null
-  saving: boolean
-  dirty: boolean
-}>()
+withDefaults(
+  defineProps<{
+    formError: string | null
+    saving: boolean
+    dirty: boolean
+    readonly?: boolean
+  }>(),
+  { readonly: false },
+)
 
 const emit = defineEmits<{ save: [] }>()
 
@@ -21,6 +25,7 @@ const { t } = useI18n()
       <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
         <slot name="delete" />
         <button
+          v-if="!readonly"
           type="submit"
           class="btn btn-primary btn-sm ms-auto"
           :disabled="saving || !dirty"

@@ -4,10 +4,10 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { fetchMaterialTypes, fetchPieces } from '../api/material'
-import { fetchMe } from '../api/me'
 import SuperuserDestructiveDelete from '../components/SuperuserDestructiveDelete.vue'
 import PhotoGallery from '../components/PhotoGallery.vue'
 import { useApiErrorMessage } from '../composables/useApiErrorMessage'
+import { useInventoryCanManage } from '../composables/useInventoryCanManage'
 import { useInventoryQueryKey } from '../composables/useInventoryQueryKey'
 import {
   deleteSet,
@@ -26,8 +26,7 @@ const formError = ref<string | null>(null)
 
 const inventoryId = computed(() => Number(route.params.id))
 const setId = computed(() => Number(route.params.setId))
-
-const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
+const { canManage } = useInventoryCanManage(inventoryId)
 
 const { data: setDetail, isLoading } = useQuery({
   queryKey: ['set', setId],
@@ -156,7 +155,11 @@ function addPiece() {
     <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
     <template v-else-if="setDetail">
       <p v-if="formError" class="text-sm text-error">{{ formError }}</p>
-      <form class="flex flex-wrap gap-2" @submit.prevent="renameMutation.mutate()">
+      <form
+        v-if="canManage"
+        class="flex flex-wrap gap-2"
+        @submit.prevent="renameMutation.mutate()"
+      >
         <input v-model="name" type="text" class="input input-bordered min-w-0 flex-1" required />
         <input
           v-model="shortName"
@@ -168,6 +171,7 @@ function addPiece() {
           {{ t('sets.rename') }}
         </button>
       </form>
+      <h1 v-else class="app-page-title">{{ setDetail.name }}</h1>
 
       <section class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
         
@@ -175,6 +179,7 @@ function addPiece() {
           <PhotoGallery
             :owner="{ kind: 'set', setId: setDetail.id }"
             :photos="setDetail.photos ?? []"
+            :readonly="!canManage"
             @change="() => queryClient.invalidateQueries({ queryKey: ['set', setId] })"
           />
       </section>
@@ -186,7 +191,12 @@ function addPiece() {
             <ul class="space-y-1 text-sm">
               <li v-for="p in setDetail.assignmentPieces" :key="p.id" class="flex justify-between gap-2">
                 <span>{{ p.name }} <span class="opacity-60">· {{ p.materialTypeName }}</span></span>
-                <button type="button" class="btn btn-ghost btn-xs" @click="removePiece(p.id)">
+                <button
+                  v-if="canManage"
+                  type="button"
+                  class="btn btn-ghost btn-xs"
+                  @click="removePiece(p.id)"
+                >
                   {{ t('sets.remove') }}
                 </button>
               </li>
@@ -205,7 +215,12 @@ function addPiece() {
             <ul class="space-y-1 text-sm">
               <li v-for="p in setDetail.optionalPieces" :key="p.id" class="flex justify-between gap-2">
                 <span>{{ p.name }}</span>
-                <button type="button" class="btn btn-ghost btn-xs" @click="removePiece(p.id)">
+                <button
+                  v-if="canManage"
+                  type="button"
+                  class="btn btn-ghost btn-xs"
+                  @click="removePiece(p.id)"
+                >
                   {{ t('sets.remove') }}
                 </button>
               </li>
@@ -219,8 +234,10 @@ function addPiece() {
         </section>
       </div>
 
-      <div class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
-        
+      <div
+        v-if="canManage"
+        class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0"
+      >
           <h2 class="app-page-title text-base">{{ t('sets.addPiece') }}</h2>
           <div class="flex flex-wrap gap-2">
             <select v-model="addPieceId" class="select select-bordered min-w-48 flex-1">
@@ -245,7 +262,10 @@ function addPiece() {
           </div>
       </div>
 
-      <div v-if="stockTypes.length" class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
+      <div
+        v-if="canManage && stockTypes.length"
+        class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0"
+      >
         
           <h2 class="app-page-title text-base">{{ t('sets.addStock') }}</h2>
           <div class="flex flex-wrap gap-2">
@@ -277,7 +297,7 @@ function addPiece() {
       </div>
 
       <SuperuserDestructiveDelete
-        v-if="me?.isSuperuser"
+        v-if="canManage"
         :label="t('sets.delete')"
         :warning="t('destructive.setWarning')"
         :disabled="deleteMutation.isPending.value"

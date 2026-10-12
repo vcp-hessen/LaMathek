@@ -25,6 +25,12 @@ const props = defineProps<{
 
 const inventoryStore = useInventoryStore()
 
+const activeInventoryCanManage = computed(() => {
+  const id = inventoryStore.activeInventoryId
+  if (id === null) return false
+  return props.inventories.find((inv) => inv.id === id)?.canManage === true
+})
+
 const emit = defineEmits<{ signOut: [] }>()
 
 const { t } = useI18n()
@@ -120,6 +126,7 @@ const signOutLabel = computed(() =>
         :inventories="inventories"
         :inventories-loading="inventoriesLoading"
         :active-inventory-id="inventoryStore.activeInventoryId"
+        :active-inventory-can-manage="activeInventoryCanManage"
       />
     </nav>
 

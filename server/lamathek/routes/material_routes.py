@@ -3,7 +3,11 @@ from flask import Blueprint, jsonify, request
 from lamathek.routes.http_errors import error_response
 from lamathek.routes.parsing import parse_date
 
-from lamathek.access import require_inventory_manager, require_login, require_superuser
+from lamathek.access import (
+    require_inventory_manager,
+    require_inventory_viewer,
+    require_login,
+)
 from lamathek.db import get_session
 from lamathek.serializers import (
     category_to_json,
@@ -16,8 +20,8 @@ from lamathek.serializers import (
 from lamathek.services.categories import list_categories
 from lamathek.services.damages import create_damage, create_repair, damage_by_id
 from lamathek.services.inventories import (
-    user_can_manage_any_inventory,
     user_can_manage_inventory,
+    user_can_view_inventory,
 )
 from lamathek.services.photos import (
     cover_photo_ids_for_material_types,
@@ -37,6 +41,7 @@ from lamathek.services.material import (
     delete_stock_lot,
     list_stocks,
     material_type_by_id,
+    material_type_usage_counts,
     piece_by_id,
     stock_lot_by_id,
     update_material_type,
@@ -68,7 +73,7 @@ def _material_type_status(code: str) -> int:
         status = 409
     if code in ("piece_on_loan", "below_loaned"):
         status = 409
-    if code in ("short_name_taken", "name_taken"):
+    if code in ("short_name_taken", "name_taken", "material_type_not_empty"):
         status = 409
     if code in ("set_conflict", "invalid_count", "invalid_name_pattern"):
         status = 400
@@ -119,26 +124,26 @@ def _category_args_from_body(body: dict) -> dict:
 
 @material_bp.get("/categories")
 @require_login
-def get_categories(user):
+def get_categories(_user):
     session = get_session()
-    if not user_can_manage_any_inventory(session, user):
-        return jsonify({"error": "forbidden"}), 403
     categories = list_categories(session)
     return jsonify([category_to_json(c) for c in categories])
 
 
 @material_bp.get("/inventories/<int:inventory_id>/material-types")
-@require_inventory_manager()
+@require_inventory_viewer()
 def get_material_types(_user, inventory):
     session = get_session()
     types = list_material_types(session, inventory.id)
     covers = cover_photo_ids_for_material_types(session, [t.id for t in types])
+    usage = material_type_usage_counts(session, [t.id for t in types])
     return jsonify(
         [
             material_type_to_json(
                 t,
                 cover_photo_id=covers.get(t.id),
                 include_photos=True,
+                usage_count=usage.get(t.id, 0),
             )
             for t in types
         ]
@@ -184,13 +189,18 @@ def post_material_type(_user, inventory):
 
 
 @material_bp.delete("/material-types/<int:material_type_id>")
-@require_superuser
-def remove_material_type(_user, material_type_id: int):
+@require_login
+def remove_material_type(user, material_type_id: int):
     session = get_session()
     material_type = material_type_by_id(session, material_type_id)
     if material_type is None:
         return jsonify({"error": "not_found"}), 404
-    delete_material_type(session, material_type)
+    if not user_can_manage_inventory(session, user, material_type.inventory):
+        return jsonify({"error": "forbidden"}), 403
+    try:
+        delete_material_type(session, material_type)
+    except ValueError as exc:
+        return _material_type_error(exc)
     return ("", 204)
 
 
@@ -245,7 +255,7 @@ def patch_material_type(user, material_type_id: int):
 
 
 @material_bp.get("/inventories/<int:inventory_id>/pieces")
-@require_inventory_manager()
+@require_inventory_viewer()
 def get_pieces(_user, inventory):
     session = get_session()
     pieces = list_pieces(session, inventory.id)
@@ -333,7 +343,7 @@ def get_piece(user, piece_id: int):
     piece = piece_by_id(session, piece_id)
     if piece is None:
         return jsonify({"error": "not_found"}), 404
-    if not user_can_manage_inventory(session, user, piece.material_type.inventory):
+    if not user_can_view_inventory(session, user, piece.material_type.inventory):
         return jsonify({"error": "forbidden"}), 403
     covers = cover_photo_ids_for_pieces(session, [piece])
     return jsonify(piece_detail_to_json(piece, cover_photo_id=covers.get(piece.id)))
@@ -437,12 +447,14 @@ def patch_piece(user, piece_id: int):
 
 
 @material_bp.delete("/pieces/<int:piece_id>")
-@require_superuser
-def remove_piece(_user, piece_id: int):
+@require_login
+def remove_piece(user, piece_id: int):
     session = get_session()
     piece = piece_by_id(session, piece_id)
     if piece is None:
         return jsonify({"error": "not_found"}), 404
+    if not user_can_manage_inventory(session, user, piece.material_type.inventory):
+        return jsonify({"error": "forbidden"}), 403
     try:
         delete_piece(session, piece)
     except ValueError as exc:
@@ -460,7 +472,7 @@ def _optional_lot_text(body: dict, key: str) -> str | None:
 
 
 @material_bp.get("/inventories/<int:inventory_id>/stocks")
-@require_inventory_manager()
+@require_inventory_viewer()
 def get_stocks(_user, inventory):
     session = get_session()
     rows = list_stocks(session, inventory.id)

@@ -2,7 +2,10 @@ from flask import Blueprint, jsonify, request, send_file
 
 from lamathek.access import require_login
 from lamathek.db import get_session
-from lamathek.services.inventories import user_can_manage_inventory
+from lamathek.services.inventories import (
+    user_can_manage_inventory,
+    user_can_view_inventory,
+)
 from lamathek.services.material import piece_by_id, stock_lot_by_id, material_type_by_id
 from lamathek.services.damages import damage_by_id
 from lamathek.services.inventories import inventory_by_id
@@ -35,7 +38,17 @@ def _photo_json_error(exc: ValueError):
     return error_response(exc, _photo_status)
 
 
-def _require_photo_access(user, photo):
+def _require_photo_view(user, photo):
+    session = get_session()
+    inventory = inventory_for_photo(session, photo)
+    if inventory is None:
+        return None, (jsonify({"error": "not_found"}), 404)
+    if not user_can_view_inventory(session, user, inventory):
+        return None, (jsonify({"error": "forbidden"}), 403)
+    return inventory, None
+
+
+def _require_photo_manage(user, photo):
     session = get_session()
     inventory = inventory_for_photo(session, photo)
     if inventory is None:
@@ -69,7 +82,7 @@ def get_photo_file(user, photo_id: int):
     photo = photo_by_id(session, photo_id)
     if photo is None:
         return jsonify({"error": "not_found"}), 404
-    _, err = _require_photo_access(user, photo)
+    _, err = _require_photo_view(user, photo)
     if err:
         return err
 
@@ -89,7 +102,7 @@ def remove_photo(user, photo_id: int):
     photo = photo_by_id(session, photo_id)
     if photo is None:
         return jsonify({"error": "not_found"}), 404
-    _, err = _require_photo_access(user, photo)
+    _, err = _require_photo_manage(user, photo)
     if err:
         return err
     delete_photo(session, photo)
@@ -103,7 +116,7 @@ def make_cover(user, photo_id: int):
     photo = photo_by_id(session, photo_id)
     if photo is None:
         return jsonify({"error": "not_found"}), 404
-    _, err = _require_photo_access(user, photo)
+    _, err = _require_photo_manage(user, photo)
     if err:
         return err
     try:

@@ -1,13 +1,19 @@
 from flask import Blueprint, jsonify, request
 
-from lamathek.access import require_inventory_manager, require_login, require_superuser
+from lamathek.access import (
+    require_inventory_manager,
+    require_inventory_viewer,
+    require_login,
+    require_superuser,
+)
 from lamathek.db import get_session
-from lamathek.routes.inventory_fields import inventory_location_from_body
+from lamathek.routes.inventory_fields import inventory_location_from_body, optional_visibility
 from lamathek.serializers import inventory_to_json, user_to_json
 from lamathek.services.photos import (
     cover_photo_id_for_inventory,
     cover_photo_ids_for_inventories,
 )
+from lamathek.models.inventory import INVENTORY_VISIBILITY_INTERNAL
 from lamathek.services.inventories import (
     create_inventory,
     delete_inventory,
@@ -16,6 +22,7 @@ from lamathek.services.inventories import (
     permission_users,
     replace_permissions,
     update_inventory,
+    user_can_manage_inventory,
 )
 
 inventories_bp = Blueprint("inventories", __name__, url_prefix="/api")
@@ -29,7 +36,11 @@ def list_inventories(user):
     covers = cover_photo_ids_for_inventories(session, [i.id for i in inventories])
     return jsonify(
         [
-            inventory_to_json(i, cover_photo_id=covers.get(i.id))
+            inventory_to_json(
+                i,
+                cover_photo_id=covers.get(i.id),
+                can_manage=user_can_manage_inventory(session, user, i),
+            )
             for i in inventories
         ]
     )
@@ -44,20 +55,28 @@ def post_inventory(_user):
         return jsonify({"error": "invalid_name"}), 400
     try:
         location = inventory_location_from_body(body)
+        visibility = optional_visibility(body)
     except ValueError as exc:
-        if str(exc) in ("invalid_field", "invalid_coordinates"):
+        if str(exc) in ("invalid_field", "invalid_coordinates", "invalid_visibility"):
             return jsonify({"error": str(exc)}), 400
         raise
     session = get_session()
     try:
-        inventory = create_inventory(session, name, **location)
+        inventory = create_inventory(
+            session,
+            name,
+            **location,
+            visibility=visibility or INVENTORY_VISIBILITY_INTERNAL,
+        )
     except ValueError as exc:
         if str(exc) == "name_taken":
             return jsonify({"error": "name_taken"}), 409
-        if str(exc) == "invalid_coordinates":
-            return jsonify({"error": "invalid_coordinates"}), 400
+        if str(exc) in ("invalid_coordinates", "invalid_visibility"):
+            return jsonify({"error": str(exc)}), 400
         raise
-    return jsonify(inventory_to_json(inventory)), 201
+    return jsonify(
+        inventory_to_json(inventory, can_manage=True)
+    ), 201
 
 
 @inventories_bp.patch("/inventories/<int:inventory_id>")
@@ -69,32 +88,45 @@ def patch_inventory(user, inventory):
         return jsonify({"error": "invalid_name"}), 400
     try:
         location = inventory_location_from_body(body)
+        visibility = optional_visibility(body)
     except ValueError as exc:
-        if str(exc) in ("invalid_field", "invalid_coordinates"):
+        if str(exc) in ("invalid_field", "invalid_coordinates", "invalid_visibility"):
             return jsonify({"error": str(exc)}), 400
         raise
     session = get_session()
     try:
-        inventory = update_inventory(session, inventory, name, **location)
+        inventory = update_inventory(
+            session, inventory, name, **location, visibility=visibility
+        )
     except ValueError as exc:
         if str(exc) == "name_taken":
             return jsonify({"error": "name_taken"}), 409
-        if str(exc) == "invalid_coordinates":
-            return jsonify({"error": "invalid_coordinates"}), 400
+        if str(exc) in ("invalid_coordinates", "invalid_visibility"):
+            return jsonify({"error": str(exc)}), 400
         raise
     cover = cover_photo_id_for_inventory(session, inventory.id)
     return jsonify(
-        inventory_to_json(inventory, cover_photo_id=cover, include_photos=True)
+        inventory_to_json(
+            inventory,
+            cover_photo_id=cover,
+            include_photos=True,
+            can_manage=user_can_manage_inventory(session, user, inventory),
+        )
     )
 
 
 @inventories_bp.get("/inventories/<int:inventory_id>")
-@require_inventory_manager()
-def get_inventory(_user, inventory):
+@require_inventory_viewer()
+def get_inventory(user, inventory):
     session = get_session()
     cover = cover_photo_id_for_inventory(session, inventory.id)
     return jsonify(
-        inventory_to_json(inventory, cover_photo_id=cover, include_photos=True)
+        inventory_to_json(
+            inventory,
+            cover_photo_id=cover,
+            include_photos=True,
+            can_manage=user_can_manage_inventory(session, user, inventory),
+        )
     )
 
 

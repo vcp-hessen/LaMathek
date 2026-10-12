@@ -12,8 +12,8 @@ import {
   updatePiece,
 } from '../api/material'
 import type { Damage, PieceDetail } from '../schemas/material'
-import { fetchMe } from '../api/me'
 import { useApiErrorMessage } from '../composables/useApiErrorMessage'
+import { useInventoryCanManage } from '../composables/useInventoryCanManage'
 import MaterialDetailsSection from '../components/material/MaterialDetailsSection.vue'
 import MaterialItemMetadataFields from '../components/material/MaterialItemMetadataFields.vue'
 import {
@@ -35,8 +35,7 @@ const queryClient = useQueryClient()
 
 const pieceId = computed(() => Number(route.params.pieceId))
 const inventoryId = computed(() => Number(route.params.id))
-
-const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
+const { canManage } = useInventoryCanManage(inventoryId)
 
 const { data: materialTypes } = useQuery({
   queryKey: ['materialTypes', inventoryId],
@@ -191,8 +190,10 @@ function damageStatusLabel(damage: Damage): string {
         :form-error="stammdatenError"
         :saving="updateMutation.isPending.value"
         :dirty="editDirty"
+        :readonly="!canManage"
         @save="updateMutation.mutate()"
       >
+        <fieldset :disabled="!canManage" class="space-y-3 border-0 p-0">
         <label class="flex min-w-0 flex-col gap-1">
           <span class="text-xs opacity-80">{{ t('material.pieceName') }}</span>
           <input
@@ -226,9 +227,10 @@ function damageStatusLabel(damage: Damage): string {
           v-model:status="editMeta.status"
           show-status
         />
+        </fieldset>
         <template #delete>
           <SuperuserDestructiveDelete
-            v-if="me?.isSuperuser"
+            v-if="canManage"
             :label="t('material.pieceDelete')"
             :warning="t('destructive.pieceWarning')"
             :disabled="deleteMutation.isPending.value"
@@ -243,6 +245,7 @@ function damageStatusLabel(damage: Damage): string {
           <PhotoGallery
             :owner="{ kind: 'piece', pieceId: piece.id }"
             :photos="piece.photos ?? []"
+            :readonly="!canManage"
             @change="invalidate"
           />
       </section>
@@ -265,6 +268,7 @@ function damageStatusLabel(damage: Damage): string {
                 <PhotoGallery
                   :owner="{ kind: 'damage', damageId: damage.id }"
                   :photos="damage.photos ?? []"
+                  readonly
                   @change="invalidate"
                 />
               </div>
@@ -273,7 +277,7 @@ function damageStatusLabel(damage: Damage): string {
                 <template v-if="damage.repair.note"> · {{ damage.repair.note }}</template>
               </p>
               <form
-                v-if="damage.open"
+                v-if="canManage && damage.open"
                 class="mt-4 space-y-3 border-t border-base-200 pt-4"
                 @submit.prevent="repairMutation.mutate(damage)"
               >
@@ -311,8 +315,10 @@ function damageStatusLabel(damage: Damage): string {
           <p v-else class="text-sm opacity-70">{{ t('damage.historyEmpty') }}</p>
       </section>
 
-      <section class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
-        
+      <section
+        v-if="canManage"
+        class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0"
+      >
           <h2 class="app-page-title text-base">{{ t('damage.newHeading') }}</h2>
           <form class="space-y-3" @submit.prevent="damageMutation.mutate()">
             <label class="flex min-w-0 flex-col gap-1 sm:max-w-xs">

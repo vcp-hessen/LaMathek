@@ -35,7 +35,7 @@ _English_: category
 _Avoid_: Gruppe, Sorte, Bereich
 
 **Inventar**:
-A collection of material kept at one place. The Landesmaterial on Donnerskopf is one Inventar; the Landesbüro is another. An Inventar may have an optional address, map coordinates, and a note (for access, keys, and on-site hints).
+A collection of material kept at one place. The Landesmaterial on Donnerskopf is one Inventar; the Landesbüro is another. An Inventar may have an optional address, map coordinates, and a note (for access, keys, and on-site hints). Each Inventar has a **Freigabe**: **intern** (only users with a Berechtigung on that Inventar), **aktiv** (any signed-in user may read material, Sets, photos, and notes; only Materialwart*innen manage Verleih and data), or **archiviert** (like intern; kept for history, not offered in the active catalogue). Material requests and anonymous access are not part of the app yet.
 _English_: inventory
 _Avoid_: Standort, Lager, location
 

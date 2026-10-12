@@ -42,7 +42,7 @@ const BATCH_ROW = 'batch' as const
 const NEW_LOT = 'newLot' as const
 type ExpandedKey = typeof NEW_ROW | typeof BATCH_ROW | typeof NEW_LOT | null
 
-const props = defineProps<{ inventoryId: number }>()
+const props = defineProps<{ inventoryId: number; canManage?: boolean }>()
 
 const { t } = useI18n()
 const { messageFor } = useApiErrorMessage()
@@ -405,7 +405,7 @@ const createLotMutation = useMutation({
       <div class="app-section-header flex flex-wrap items-center justify-between gap-2 gap-y-1">
         <h2 class="app-page-title shrink-0">{{ t('material.materialHeading') }}</h2>
         <div
-          v-if="!isLoading && (canAddPieces || canAddLots)"
+          v-if="canManage && !isLoading && (canAddPieces || canAddLots)"
           class="dropdown dropdown-end"
         >
           <button

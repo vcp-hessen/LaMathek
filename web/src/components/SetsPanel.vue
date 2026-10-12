@@ -15,7 +15,7 @@ import { useClientTable } from './data-table/useClientTable'
 import PhotoThumbnail from './PhotoThumbnail.vue'
 import type { SetSummary } from '../schemas/set'
 
-const props = defineProps<{ inventoryId: number }>()
+const props = defineProps<{ inventoryId: number; canManage?: boolean }>()
 
 const { t } = useI18n()
 const router = useRouter()
@@ -187,6 +187,7 @@ function onRowKeydown(event: KeyboardEvent, setId: number) {
         />
       </div>
       <form
+        v-if="canManage"
         class="flex flex-col gap-2 border-t border-base-200 pt-4 sm:flex-row sm:flex-wrap"
         @submit.prevent="createMutation.mutate()"
       >

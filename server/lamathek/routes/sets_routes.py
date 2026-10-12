@@ -2,10 +2,17 @@ from flask import Blueprint, jsonify, request
 
 from lamathek.routes.http_errors import error_response
 
-from lamathek.access import require_inventory_manager, require_login, require_superuser
+from lamathek.access import (
+    require_inventory_manager,
+    require_inventory_viewer,
+    require_login,
+)
 from lamathek.db import get_session
 from lamathek.serializers import set_detail_to_json, set_to_json
-from lamathek.services.inventories import user_can_manage_inventory
+from lamathek.services.inventories import (
+    user_can_manage_inventory,
+    user_can_view_inventory,
+)
 from lamathek.services.photos import cover_photo_ids_for_sets
 from lamathek.services.sets import (
     create_set,
@@ -45,7 +52,7 @@ def _set_error(exc: ValueError):
 
 
 @sets_bp.get("/inventories/<int:inventory_id>/sets")
-@require_inventory_manager()
+@require_inventory_viewer()
 def get_sets(_user, inventory):
     session = get_session()
     sets = list_sets(session, inventory.id)
@@ -76,7 +83,7 @@ def get_set(user, set_id: int):
     material_set = set_by_id(session, set_id)
     if material_set is None:
         return jsonify({"error": "not_found"}), 404
-    if not user_can_manage_inventory(session, user, material_set.inventory):
+    if not user_can_view_inventory(session, user, material_set.inventory):
         return jsonify({"error": "forbidden"}), 403
     covers = cover_photo_ids_for_sets(session, [material_set.id])
     return jsonify(
@@ -114,12 +121,14 @@ def patch_set(user, set_id: int):
 
 
 @sets_bp.delete("/sets/<int:set_id>")
-@require_superuser
-def remove_set(_user, set_id: int):
+@require_login
+def remove_set(user, set_id: int):
     session = get_session()
     material_set = set_by_id(session, set_id)
     if material_set is None:
         return jsonify({"error": "not_found"}), 404
+    if not user_can_manage_inventory(session, user, material_set.inventory):
+        return jsonify({"error": "forbidden"}), 403
     delete_set(session, material_set)
     return ("", 204)
 

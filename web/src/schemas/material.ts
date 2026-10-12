@@ -46,6 +46,7 @@ export const materialTypeSchema = z.object({
   modelName: z.string().nullable(),
   variants: z.array(variantAxisSchema),
   coverPhotoId: z.number().nullish(),
+  usageCount: z.number().optional(),
   photos: z.array(photoMetaSchema).optional(),
 })
 

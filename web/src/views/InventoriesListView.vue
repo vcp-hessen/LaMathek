@@ -26,7 +26,7 @@ import InventoryPermissionEditor from '../components/InventoryPermissionEditor.v
 import PhotoGallery from '../components/PhotoGallery.vue'
 import PhotoThumbnail from '../components/PhotoThumbnail.vue'
 import { useApiErrorMessage } from '../composables/useApiErrorMessage'
-import type { Inventory } from '../schemas/inventory'
+import type { Inventory, InventoryVisibility } from '../schemas/inventory'
 import { useInventoryStore } from '../stores/inventory'
 
 const { t } = useI18n()
@@ -43,8 +43,10 @@ const newAddress = ref('')
 const newNotes = ref('')
 const newLatitude = ref<number | null>(null)
 const newLongitude = ref<number | null>(null)
+const newVisibility = ref<InventoryVisibility>('internal')
 
 const editName = ref('')
+const editVisibility = ref<InventoryVisibility>('internal')
 const editAddress = ref('')
 const editNotes = ref('')
 const editLatitude = ref<number | null>(null)
@@ -74,7 +76,11 @@ const editingId = computed(() => expandedId.value)
 const { data: permittedUsers } = useQuery({
   queryKey: computed(() => ['inventoryPermissionUsers', editingId.value]),
   queryFn: () => fetchInventoryPermissions(editingId.value!),
-  enabled: () => editingId.value !== null,
+  enabled: () => {
+    if (editingId.value === null) return false
+    const inv = inventories.value?.find((row) => row.id === editingId.value)
+    return inv?.canManage === true
+  },
 })
 
 const { data: editingInventory } = useQuery({
@@ -101,9 +107,16 @@ function currentInventoryEdit() {
       notes: editNotes.value,
       latitude: editLatitude.value,
       longitude: editLongitude.value,
+      visibility: editVisibility.value,
     }),
     userIds: sortedIds(editUserIds.value),
   }
+}
+
+function visibilityLabelKey(visibility: InventoryVisibility) {
+  if (visibility === 'active') return 'inventories.visibilityActive'
+  if (visibility === 'archived') return 'inventories.visibilityArchived'
+  return 'inventories.visibilityInternal'
 }
 
 const editDirty = computed(
@@ -130,6 +143,11 @@ const columns = computed<ColumnDef<Inventory>[]>(() => [
   {
     id: 'address',
     accessorFn: (inv) => inv.address?.split('\n')[0] ?? '',
+    sortingFn: localeSortRow,
+  },
+  {
+    id: 'visibility',
+    accessorFn: (inv) => t(visibilityLabelKey(inv.visibility)),
     sortingFn: localeSortRow,
   },
   {
@@ -184,6 +202,7 @@ function resetCreateDraft() {
   newNotes.value = ''
   newLatitude.value = null
   newLongitude.value = null
+  newVisibility.value = 'internal'
 }
 
 function loadEditDraft(inv: Inventory) {
@@ -192,6 +211,7 @@ function loadEditDraft(inv: Inventory) {
   editNotes.value = inv.notes ?? ''
   editLatitude.value = inv.latitude
   editLongitude.value = inv.longitude
+  editVisibility.value = inv.visibility
   savedEdit.value = {
     payload: buildPayload({
       name: inv.name,
@@ -199,6 +219,7 @@ function loadEditDraft(inv: Inventory) {
       notes: inv.notes ?? '',
       latitude: inv.latitude,
       longitude: inv.longitude,
+      visibility: inv.visibility,
     }),
     userIds: [],
   }
@@ -210,9 +231,11 @@ function buildPayload(fields: {
   notes: string
   latitude: number | null
   longitude: number | null
+  visibility: InventoryVisibility
 }): InventoryWritePayload {
   return {
     name: fields.name,
+    visibility: fields.visibility,
     address: fields.address.trim() || null,
     notes: fields.notes.trim() || null,
     latitude: fields.latitude,
@@ -274,6 +297,7 @@ const createMutation = useMutation({
         notes: newNotes.value,
         latitude: newLatitude.value,
         longitude: newLongitude.value,
+        visibility: newVisibility.value,
       }),
     ),
   onSuccess: async (created) => {
@@ -298,6 +322,7 @@ const updateMutation = useMutation({
         notes: editNotes.value,
         latitude: editLatitude.value,
         longitude: editLongitude.value,
+        visibility: editVisibility.value,
       }),
     ).then(async (inventory) => {
       await replaceInventoryPermissions(id, editUserIds.value)
@@ -363,6 +388,14 @@ const deleteMutation = useMutation({
               <span class="text-xs opacity-80">{{ t('inventories.nameLabel') }}</span>
               <input v-model="newName" type="text" class="input input-bordered" required />
             </label>
+            <label class="flex min-w-0 max-w-xs flex-col gap-1">
+              <span class="text-xs opacity-80">{{ t('inventories.visibilityLabel') }}</span>
+              <select v-model="newVisibility" class="select select-bordered select-sm w-full">
+                <option value="internal">{{ t('inventories.visibilityInternal') }}</option>
+                <option value="active">{{ t('inventories.visibilityActive') }}</option>
+                <option value="archived">{{ t('inventories.visibilityArchived') }}</option>
+              </select>
+            </label>
             <InventoryLocationFields
               v-model:address="newAddress"
               v-model:notes="newNotes"
@@ -423,6 +456,13 @@ const deleteMutation = useMutation({
                         @toggle="table.getColumn('address')?.toggleSorting()"
                       />
                     </th>
+                    <th class="hidden lg:table-cell">
+                      <SortHeaderButton
+                        :label="t('inventories.columnVisibility')"
+                        :sorted="sortedState('visibility')"
+                        @toggle="table.getColumn('visibility')?.toggleSorting()"
+                      />
+                    </th>
                     <th class="hidden sm:table-cell">
                       <SortHeaderButton
                         :label="t('inventories.columnStatus')"
@@ -434,7 +474,7 @@ const deleteMutation = useMutation({
                 </thead>
                 <tbody v-if="tableRows.length === 0">
                   <tr>
-                    <td colspan="4" class="py-8 text-center text-sm opacity-70">
+                    <td colspan="5" class="py-8 text-center text-sm opacity-70">
                       {{ t('dataTable.noResults') }}
                     </td>
                   </tr>
@@ -480,6 +520,11 @@ const deleteMutation = useMutation({
                     <td class="hidden max-w-[16rem] truncate md:table-cell">
                       {{ addressLine(row.original) || '—' }}
                     </td>
+                    <td class="hidden lg:table-cell">
+                      <span class="badge badge-ghost badge-sm">
+                        {{ t(visibilityLabelKey(row.original.visibility)) }}
+                      </span>
+                    </td>
                     <td class="hidden sm:table-cell">
                       <span v-if="inventoryStore.activeInventoryId === row.original.id">
                         {{ t('inventories.activeTag') }}
@@ -488,14 +533,23 @@ const deleteMutation = useMutation({
                     </td>
                   </tr>
                   <tr v-if="expandedId === row.original.id" class="data-table-editor">
-                    <td colspan="4" class="pb-4 pt-3">
+                    <td colspan="5" class="pb-4 pt-3">
                       <form
+                        v-if="row.original.canManage"
                         class="inventory-form space-y-4 pl-5"
                         @submit.prevent="updateMutation.mutate(row.original.id)"
                       >
                         <label class="flex min-w-0 flex-col gap-1">
                           <span class="text-xs opacity-80">{{ t('inventories.nameLabel') }}</span>
                           <input v-model="editName" type="text" class="input input-bordered" required />
+                        </label>
+                        <label class="flex min-w-0 max-w-xs flex-col gap-1">
+                          <span class="text-xs opacity-80">{{ t('inventories.visibilityLabel') }}</span>
+                          <select v-model="editVisibility" class="select select-bordered select-sm w-full">
+                            <option value="internal">{{ t('inventories.visibilityInternal') }}</option>
+                            <option value="active">{{ t('inventories.visibilityActive') }}</option>
+                            <option value="archived">{{ t('inventories.visibilityArchived') }}</option>
+                          </select>
                         </label>
                         <InventoryLocationFields
                           v-model:address="editAddress"
@@ -515,6 +569,7 @@ const deleteMutation = useMutation({
                           <PhotoGallery
                             :owner="{ kind: 'inventory', inventoryId: row.original.id }"
                             :photos="editingInventory.photos ?? []"
+                            :readonly="!row.original.canManage"
                             @change="refreshInventoryPhotos"
                           />
                         </div>
@@ -537,6 +592,28 @@ const deleteMutation = useMutation({
                           </button>
                         </div>
                       </form>
+                      <div v-else class="space-y-3 pl-5 text-sm">
+                        <p>
+                          <span class="font-medium">{{ t('inventories.visibilityLabel') }}:</span>
+                          {{ t(visibilityLabelKey(row.original.visibility)) }}
+                        </p>
+                        <p v-if="row.original.address" class="whitespace-pre-wrap">
+                          <span class="font-medium">{{ t('inventories.addressLabel') }}:</span>
+                          {{ row.original.address }}
+                        </p>
+                        <p v-if="row.original.notes" class="whitespace-pre-wrap">
+                          <span class="font-medium">{{ t('inventories.notesLabel') }}:</span>
+                          {{ row.original.notes }}
+                        </p>
+                        <div v-if="editingInventory?.photos?.length">
+                          <h3 class="mb-2 font-semibold">{{ t('photos.heading') }}</h3>
+                          <PhotoGallery
+                            :owner="{ kind: 'inventory', inventoryId: row.original.id }"
+                            :photos="editingInventory.photos ?? []"
+                            readonly
+                          />
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 </tbody>

@@ -2,17 +2,29 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from lamathek.models.inventory import Inventory, InventoryPermission
+from lamathek.models.inventory import (
+    INVENTORY_VISIBILITY_ACTIVE,
+    INVENTORY_VISIBILITY_INTERNAL,
+    Inventory,
+    InventoryPermission,
+    VALID_INVENTORY_VISIBILITIES,
+)
 from lamathek.models.user import User
+
 
 def list_inventories_for_user(session: Session, user: User) -> list[Inventory]:
     if user.is_superuser:
         return list(session.scalars(select(Inventory).order_by(Inventory.name)).all())
+    permitted_ids = select(InventoryPermission.inventory_id).where(
+        InventoryPermission.user_id == user.id
+    )
     return list(
         session.scalars(
             select(Inventory)
-            .join(InventoryPermission)
-            .where(InventoryPermission.user_id == user.id)
+            .where(
+                (Inventory.id.in_(permitted_ids))
+                | (Inventory.visibility == INVENTORY_VISIBILITY_ACTIVE)
+            )
             .order_by(Inventory.name)
         ).all()
     )
@@ -72,6 +84,18 @@ def user_can_manage_inventory(session: Session, user: User, inventory: Inventory
     return permission is not None
 
 
+def user_can_view_inventory(session: Session, user: User, inventory: Inventory) -> bool:
+    if user_can_manage_inventory(session, user, inventory):
+        return True
+    return inventory.visibility == INVENTORY_VISIBILITY_ACTIVE
+
+
+def _validate_visibility(visibility: str) -> str:
+    if visibility not in VALID_INVENTORY_VISIBILITIES:
+        raise ValueError("invalid_visibility")
+    return visibility
+
+
 def _apply_location_fields(
     inventory: Inventory,
     *,
@@ -96,8 +120,9 @@ def create_inventory(
     latitude: float | None = None,
     longitude: float | None = None,
     notes: str | None = None,
+    visibility: str = INVENTORY_VISIBILITY_INTERNAL,
 ) -> Inventory:
-    inventory = Inventory(name=name.strip())
+    inventory = Inventory(name=name.strip(), visibility=_validate_visibility(visibility))
     _apply_location_fields(
         inventory,
         address=address,
@@ -124,8 +149,11 @@ def update_inventory(
     latitude: float | None,
     longitude: float | None,
     notes: str | None,
+    visibility: str | None = None,
 ) -> Inventory:
     inventory.name = name.strip()
+    if visibility is not None:
+        inventory.visibility = _validate_visibility(visibility)
     _apply_location_fields(
         inventory,
         address=address,

@@ -13,10 +13,20 @@ SessionLocal = None
 
 def init_db(app: Flask) -> None:
     global engine, SessionLocal
+    def _sqlite_connect(dbapi_connection, _connection_record):
+        if dbapi_connection.__class__.__module__.startswith("sqlite3"):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
+
     engine = create_engine(
         app.config["SQLALCHEMY_DATABASE_URI"],
         connect_args={"check_same_thread": False},
     )
+    if engine.dialect.name == "sqlite":
+        from sqlalchemy import event
+
+        event.listen(engine, "connect", _sqlite_connect)
     SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
     @app.teardown_appcontext

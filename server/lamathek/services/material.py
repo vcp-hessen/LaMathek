@@ -3,6 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from lamathek.models.inventory import Inventory
+from lamathek.models.set import SetStockLine
 from lamathek.services.categories import resolve_category_id
 from lamathek.models.damage import Damage
 from lamathek.models.material import (
@@ -74,6 +75,48 @@ def _material_type_has_usage(material_type: MaterialType) -> bool:
     if material_type.stock_lots:
         return True
     return False
+
+
+def material_type_usage_counts(
+    session: Session, material_type_ids: list[int]
+) -> dict[int, int]:
+    if not material_type_ids:
+        return {}
+    counts: dict[int, int] = {tid: 0 for tid in material_type_ids}
+    for material_type_id, total in session.execute(
+        select(Piece.material_type_id, func.count())
+        .where(Piece.material_type_id.in_(material_type_ids))
+        .group_by(Piece.material_type_id)
+    ).all():
+        counts[material_type_id] = counts.get(material_type_id, 0) + int(total)
+    for material_type_id, total in session.execute(
+        select(StockLot.material_type_id, func.count())
+        .where(StockLot.material_type_id.in_(material_type_ids))
+        .group_by(StockLot.material_type_id)
+    ).all():
+        counts[material_type_id] = counts.get(material_type_id, 0) + int(total)
+    for material_type_id, total in session.execute(
+        select(SetStockLine.material_type_id, func.count())
+        .where(SetStockLine.material_type_id.in_(material_type_ids))
+        .group_by(SetStockLine.material_type_id)
+    ).all():
+        counts[material_type_id] = counts.get(material_type_id, 0) + int(total)
+    return counts
+
+
+def assert_material_type_empty(session: Session, material_type: MaterialType) -> None:
+    material_type = _load_material_type(session, material_type.id)
+    if material_type is None:
+        raise ValueError("not_found")
+    if _material_type_has_usage(material_type):
+        raise ValueError("material_type_not_empty")
+    set_lines = session.scalar(
+        select(func.count())
+        .select_from(SetStockLine)
+        .where(SetStockLine.material_type_id == material_type.id)
+    )
+    if (set_lines or 0) > 0:
+        raise ValueError("material_type_not_empty")
 
 
 def _normalize_short_name(value: str | None) -> str | None:
@@ -467,6 +510,7 @@ def update_piece(
 
 
 def delete_material_type(session: Session, material_type: MaterialType) -> None:
+    assert_material_type_empty(session, material_type)
     session.delete(material_type)
     session.commit()
 

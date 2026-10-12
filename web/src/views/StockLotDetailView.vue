@@ -18,6 +18,7 @@ import PhotoGallery from '../components/PhotoGallery.vue'
 import SuperuserDestructiveDelete from '../components/SuperuserDestructiveDelete.vue'
 import VariantAxisSelects from '../components/VariantAxisSelects.vue'
 import { useApiErrorMessage } from '../composables/useApiErrorMessage'
+import { useInventoryCanManage } from '../composables/useInventoryCanManage'
 import { useInventoryQueryKey } from '../composables/useInventoryQueryKey'
 import { syncVariantMapKeys } from '../utils/variantDisplay'
 
@@ -29,6 +30,7 @@ const queryClient = useQueryClient()
 
 const inventoryId = computed(() => Number(route.params.id))
 const lotId = computed(() => Number(route.params.lotId))
+const { canManage } = useInventoryCanManage(inventoryId)
 
 const stocksQueryKey = useInventoryQueryKey('stocks', inventoryId)
 
@@ -127,8 +129,10 @@ const deleteMutation = useMutation({
         :form-error="formError"
         :saving="updateMutation.isPending.value"
         :dirty="dirty"
+        :readonly="!canManage"
         @save="updateMutation.mutate()"
       >
+        <fieldset :disabled="!canManage" class="space-y-3 border-0 p-0">
         <label class="flex min-w-0 flex-col gap-1">
           <span class="text-xs opacity-80">{{ t('material.stockLotLabel') }}</span>
           <input
@@ -167,8 +171,10 @@ const deleteMutation = useMutation({
           v-model:status="editMeta.status"
           show-status
         />
+        </fieldset>
         <template #delete>
           <SuperuserDestructiveDelete
+            v-if="canManage"
             :label="t('material.stockLotRemove')"
             :warning="t('destructive.stockLotWarning')"
             :disabled="deleteMutation.isPending.value"
@@ -186,6 +192,7 @@ const deleteMutation = useMutation({
             lotId: lot.id,
           }"
           :photos="lot.photos ?? []"
+          :readonly="!canManage"
           @change="refreshStocks"
         />
       </section>

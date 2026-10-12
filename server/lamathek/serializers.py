@@ -58,16 +58,20 @@ def inventory_to_json(
     *,
     cover_photo_id: int | None = None,
     include_photos: bool = False,
+    can_manage: bool | None = None,
 ) -> dict:
     data = {
         "id": inventory.id,
         "name": inventory.name,
+        "visibility": inventory.visibility,
         "address": inventory.address,
         "latitude": inventory.latitude,
         "longitude": inventory.longitude,
         "notes": inventory.notes,
         "coverPhotoId": cover_photo_id,
     }
+    if can_manage is not None:
+        data["canManage"] = can_manage
     if include_photos:
         data["photos"] = photos_to_json(list(inventory.photos))
     return data
@@ -118,6 +122,7 @@ def material_type_to_json(
     *,
     cover_photo_id: int | None = None,
     include_photos: bool = False,
+    usage_count: int | None = None,
 ) -> dict:
     category = material_type.category
     data = {
@@ -136,6 +141,8 @@ def material_type_to_json(
         "variants": variants_to_json(material_type),
         "coverPhotoId": cover_photo_id,
     }
+    if usage_count is not None:
+        data["usageCount"] = usage_count
     if include_photos:
         data["photos"] = photos_to_json(list(material_type.photos))
     return data
@@ -199,6 +206,8 @@ def set_detail_to_json(material_set: MaterialSet, *, cover_photo_id: int | None 
     assignment_pieces = []
     optional_pieces = []
     for piece in material_set.pieces:
+        if piece.material_type is None:
+            continue
         data = piece_to_json(piece)
         if piece.set_role == SET_ROLE_ASSIGNMENT:
             assignment_pieces.append(data)
@@ -208,10 +217,13 @@ def set_detail_to_json(material_set: MaterialSet, *, cover_photo_id: int | None 
     assignment_stock = []
     optional_stock = []
     for line in material_set.stock_lines:
+        material_type = line.material_type
+        if material_type is None:
+            continue
         row = {
             "id": line.id,
             "materialTypeId": line.material_type_id,
-            "materialTypeName": line.material_type.name,
+            "materialTypeName": material_type.name,
             "role": line.role,
             "quantity": line.quantity,
         }

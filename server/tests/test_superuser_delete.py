@@ -17,7 +17,7 @@ def _seed_users(app):
         return mw.id
 
 
-def test_superuser_deletes_inventory_and_material_type_materialwart_forbidden():
+def test_inventory_delete_superuser_only_materialwart_deletes_content():
     app, tmp = _app_with_db()
     try:
         mw_id = _seed_users(app)
@@ -28,29 +28,45 @@ def test_superuser_deletes_inventory_and_material_type_materialwart_forbidden():
         inv_id = inv.get_json()["id"]
         client.put(f"/api/inventories/{inv_id}/permissions", json={"userIds": [mw_id]})
 
-        mt = client.post(
+        mt_used = client.post(
             f"/api/inventories/{inv_id}/material-types",
             json={"name": "Plane", "tracking": "piece"},
         )
-        assert mt.status_code == 201
-        mt_id = mt.get_json()["id"]
+        assert mt_used.status_code == 201
+        mt_used_id = mt_used.get_json()["id"]
+        mt_empty = client.post(
+            f"/api/inventories/{inv_id}/material-types",
+            json={"name": "Leer", "tracking": "piece"},
+        )
+        assert mt_empty.status_code == 201
+        mt_empty_id = mt_empty.get_json()["id"]
+
         piece = client.post(
             f"/api/inventories/{inv_id}/pieces",
-            json={"materialTypeId": mt_id, "name": "P1"},
+            json={"materialTypeId": mt_used_id, "name": "P1"},
         )
         assert piece.status_code == 201
+        piece_id = piece.get_json()["id"]
+
+        material_set = client.post(
+            f"/api/inventories/{inv_id}/sets", json={"name": "Jurte"}
+        )
+        assert material_set.status_code == 201
+        set_id = material_set.get_json()["id"]
 
         _login(client, "mw")
         assert client.delete(f"/api/inventories/{inv_id}").status_code == 403
-        assert client.delete(f"/api/material-types/{mt_id}").status_code == 403
-        assert client.delete(f"/api/pieces/{piece.get_json()['id']}").status_code == 403
+
+        blocked_type = client.delete(f"/api/material-types/{mt_used_id}")
+        assert blocked_type.status_code == 409
+        assert blocked_type.get_json()["error"] == "material_type_not_empty"
+
+        assert client.delete(f"/api/pieces/{piece_id}").status_code == 204
+        assert client.delete(f"/api/material-types/{mt_used_id}").status_code == 204
+        assert client.delete(f"/api/material-types/{mt_empty_id}").status_code == 204
+        assert client.delete(f"/api/sets/{set_id}").status_code == 204
 
         _login(client, "su")
-        assert client.delete(f"/api/material-types/{mt_id}").status_code == 204
-        listed = client.get(f"/api/inventories/{inv_id}/material-types")
-        assert listed.status_code == 200
-        assert listed.get_json() == []
-
         assert client.delete(f"/api/inventories/{inv_id}").status_code == 204
         assert client.get("/api/inventories").get_json() == []
     finally:

@@ -12,10 +12,14 @@ import type { PhotoMeta } from '../schemas/photo'
 import { preparePhotoUpload } from '../utils/preparePhotoUpload'
 import { useApiErrorMessage } from '../composables/useApiErrorMessage'
 
-const props = defineProps<{
-  owner: PhotoOwner
-  photos: PhotoMeta[]
-}>()
+const props = withDefaults(
+  defineProps<{
+    owner: PhotoOwner
+    photos: PhotoMeta[]
+    readonly?: boolean
+  }>(),
+  { readonly: false },
+)
 
 const emit = defineEmits<{
   change: []
@@ -89,7 +93,7 @@ async function setCover(photoId: number) {
 
 <template>
   <div class="space-y-3">
-    <div class="flex flex-wrap items-center gap-2">
+    <div v-if="!readonly" class="flex flex-wrap items-center gap-2">
       <label class="btn btn-outline btn-sm">
         <input
           type="file"
@@ -120,7 +124,7 @@ async function setCover(photoId: number) {
             loading="lazy"
           />
         </button>
-        <div class="flex flex-wrap gap-1">
+        <div v-if="!readonly" class="flex flex-wrap gap-1">
           <button
             v-if="index > 0"
             type="button"

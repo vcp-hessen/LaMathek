@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
+import { useInventoryCanManage } from '../composables/useInventoryCanManage'
 import { useI18n } from 'vue-i18n'
 import { createLoan, fetchEvents, fetchGroups, fetchLoans, fetchVerantwortliche } from '../api/loans'
 import { useApiErrorMessage } from '../composables/useApiErrorMessage'
@@ -12,6 +13,17 @@ const props = defineProps<{ inventoryId: number }>()
 
 const { t } = useI18n()
 const router = useRouter()
+const { canManage } = useInventoryCanManage(() => props.inventoryId)
+
+watch(
+  canManage,
+  (allowed) => {
+    if (allowed === false && Number.isFinite(props.inventoryId)) {
+      void router.replace(`/inventories/${props.inventoryId}/material`)
+    }
+  },
+  { immediate: true },
+)
 const queryClient = useQueryClient()
 const { messageFor } = useApiErrorMessage()
 const formError = ref<string | null>(null)

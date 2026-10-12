@@ -26,7 +26,7 @@ import SuperuserDestructiveDelete from './SuperuserDestructiveDelete.vue'
 import PhotoGallery from './PhotoGallery.vue'
 import PhotoThumbnail from './PhotoThumbnail.vue'
 
-const props = defineProps<{ inventoryId: number }>()
+const props = defineProps<{ inventoryId: number; canManage?: boolean }>()
 
 const { t } = useI18n()
 const { messageFor } = useApiErrorMessage()
@@ -420,7 +420,7 @@ watch(expandedId, (id) => {
       <div class="app-section-header flex flex-wrap items-center justify-between gap-2">
         <h2 class="app-page-title">{{ t('material.typesHeading') }}</h2>
         <button
-          v-if="!isLoading"
+          v-if="canManage && !isLoading"
           type="button"
           class="btn btn-ghost btn-sm"
           :aria-expanded="creating"
@@ -599,6 +599,7 @@ watch(expandedId, (id) => {
                 <tr v-if="expandedId === row.original.id" class="data-table-editor">
                   <td colspan="5" class="pb-4 pt-3">
                     <form
+                      v-if="canManage"
                       class="space-y-3 pl-5"
                       @submit.prevent="updateMutation.mutate(row.original.id)"
                     >
@@ -620,6 +621,7 @@ watch(expandedId, (id) => {
                         <PhotoGallery
                           :owner="{ kind: 'materialType', materialTypeId: row.original.id }"
                           :photos="row.original.photos ?? []"
+                          :readonly="!canManage"
                           @change="
                             () => queryClient.invalidateQueries({ queryKey: materialTypesQueryKey })
                           "
@@ -630,7 +632,7 @@ watch(expandedId, (id) => {
                       </p>
                       <div class="flex flex-wrap items-center justify-end gap-2">
                         <SuperuserDestructiveDelete
-                          v-if="me?.isSuperuser"
+                          v-if="canManage && (row.original.usageCount ?? 0) === 0"
                           :warning="t('destructive.materialTypeWarning')"
                           :disabled="deleteMutation.isPending.value"
                           @confirmed="deleteMutation.mutate(row.original.id)"
@@ -644,6 +646,17 @@ watch(expandedId, (id) => {
                         </button>
                       </div>
                     </form>
+                    <div v-else class="space-y-3 pl-5 text-sm">
+                      <p class="font-medium">{{ displayName(row.original) }}</p>
+                      <p v-if="row.original.description" class="whitespace-pre-wrap opacity-80">
+                        {{ row.original.description }}
+                      </p>
+                      <PhotoGallery
+                        :owner="{ kind: 'materialType', materialTypeId: row.original.id }"
+                        :photos="row.original.photos ?? []"
+                        readonly
+                      />
+                    </div>
                   </td>
                 </tr>
               </tbody>
