@@ -120,7 +120,7 @@ _English_: damage
 _Avoid_: Defekt, Zustand, condition
 
 **Foto**:
-An image file stored beside the database, linked to an Einzelteil, Mengenposten, Set, Materialart, Schaden, Inventar, or Verleih. The first Foto in sort order is the cover image; Einzelteil and Mengenposten lists may show the Materialart reference Foto when they have none of their own.
+An image file stored beside the database, linked to an Einzelteil, Mengenposten, Set, Materialart, Schaden, Inventar, Verleih, Abholinformation, or Rückgabeinformation. The first Foto in sort order is the cover image; Einzelteil and Mengenposten lists may show the Materialart reference Foto when they have none of their own.
 _English_: photo
 _Avoid_: Bild, Anhang, attachment
 
@@ -130,14 +130,14 @@ _English_: repair
 _Avoid_: fix, Instandsetzung
 
 **Gruppe**:
-A scouting group on whose behalf material is handed to a Verantwortliche*r. A Gruppe does not use LaMathek.
+A scouting group on whose behalf material is handed to an Ausleihende*r. A Gruppe does not use LaMathek.
 _English_: group
 _Avoid_: Stamm, team, borrower
 
-**Verantwortliche**:
-The person material is handed to, and who is in charge of it, on behalf of a Gruppe. Verantwortliche is also a user role (`verantwortliche` in code). In the German UI: **Verantwortliche*r**.
-_English_: person in charge
-_Avoid_: Empfänger, borrower, contact
+**Ausleihende**:
+The person a Verleih is for, on behalf of a Gruppe. Any signed-in user may be that person. In the German UI: **Ausleihende*r**.
+_English_: borrower
+_Avoid_: Verantwortliche*r, Empfänger, contact
 
 **Veranstaltung**:
 An occasion a Verleih usually belongs to. A Verleih can exist without one.
@@ -145,22 +145,57 @@ _English_: event
 _Avoid_: Lager, camp, Fahrt
 
 **Verleih**:
-Material for a Verantwortliche*r on behalf of a Gruppe for a short time, usually about two weeks. It can be recorded before handout, usually belongs to a Veranstaltung, and ends with a Rückgabe.
+Material from one Inventar for an Ausleihende*r on behalf of a Gruppe. It usually belongs to a Veranstaltung.
 _English_: loan
 _Avoid_: Ausleihe, rental, booking, reservation
 
+**Position** (am Verleih):
+One Einzelteil, or an Anzahl of a Menge, on a Verleih.
+_English_: loan line
+_Avoid_: Mengenposten, Zeile
+
+**Ansprechperson**:
+The Materialwart*in named on a Verleih for the Ausleihende*r to reach.
+_English_: loan contact
+_Avoid_: Ausleihende*r, Verantwortliche*r
+
+**Abholinformation**:
+Where and how the material of a Verleih can be picked up. Free text, and it may include Fotos.
+_English_: pickup note
+_Avoid_: Abholort
+
+**Rückgabeinformation**:
+Where and how the material of a Verleih comes back. Free text, and it may include Fotos.
+_English_: return note
+_Avoid_: Abstellort
+
 **Rückgabe**:
-Material from a Verleih or a Dauerleihgabe coming back. It can be partial.
+Material of a Verleih coming back. It can be partial.
 _English_: return
 _Avoid_: Rücknahme, check-in
+
+**Übernahme**:
+A Materialwart*in's acceptance of returned material back into the Inventar.
+_English_: restock
+_Avoid_: Rückgabe
 
 **Verlust**:
 Material that was handed out and is recorded as not brought back.
 _English_: loss
 _Avoid_: Schwund, Fehlmenge, open loan
 
+**Grund** (am Verleih):
+The explanation required when a Position ends short of handover or return, or when its Anzahl shrinks.
+_English_: reason
+_Avoid_: Notiz
+
+**Notiz** (an der Position):
+Free text on a Position. Separate from the Grund, and from the Notiz on a Stück or Posten.
+_English_: line note
+_Avoid_: Grund
+
 **Dauerleihgabe**:
-Material handed to a Verantwortliche*r on behalf of a Gruppe for a long time. It stays held by VCP Hessen.
+A Verleih explicitly marked as having no return date. The material stays held by VCP Hessen.
 _English_: permanent loan
 _Avoid_: Starterset, starter set, Grundausstattung
 
@@ -170,6 +205,6 @@ _English_: quartermaster
 _Avoid_: Beauftragte für Landesmaterial, Materialteam, admin, staff
 
 **Berechtigung**:
-A user's right to manage one Inventar (a user–Inventar pair). Superusers and Materialwarte who already have a Berechtigung on that Inventar may grant or revoke Berechtigungen there. A job such as Jugendbildungsreferent, Geschäftsführerin, or FSJler is not a role; that person gets a Berechtigung on the Landesbüro Inventar. **Verantwortliche*r** at a Verleih is the person responsible for the borrowed material, not a user role in the database.
+A user's right to manage one Inventar (a user–Inventar pair). Superusers and Materialwarte who already have a Berechtigung on that Inventar may grant or revoke Berechtigungen there. A job such as Jugendbildungsreferent, Geschäftsführerin, or FSJler is not a role; that person gets a Berechtigung on the Landesbüro Inventar. **Ausleihende*r** on a Verleih is the person the material is for, not a user role in the database.
 _English_: permission
 _Avoid_: Rolle, job title
