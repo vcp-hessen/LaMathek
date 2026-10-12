@@ -15,10 +15,18 @@ import { useApiErrorMessage } from '../composables/useApiErrorMessage'
 import { useInventoryQueryKey } from '../composables/useInventoryQueryKey'
 import VariantAxisSelects from './VariantAxisSelects.vue'
 import MaterialDataTable from './material/MaterialDataTable.vue'
+import MaterialItemMetadataFields from './material/MaterialItemMetadataFields.vue'
+import StockQuantityInput from './material/StockQuantityInput.vue'
 import {
   materialRowsFromPiecesAndLots,
+  matchesMaterialStatusFilter,
+  type MaterialStatusFilter,
   type StockLotListItem,
 } from './material/materialTableSetup'
+import {
+  emptyItemMetadataDraft,
+  itemMetadataToWritePayload,
+} from '../utils/materialItemValue'
 import {
   batchPlaceholderKindFromPattern,
   batchPlaceholderToken,
@@ -42,6 +50,10 @@ const queryClient = useQueryClient()
 
 const expandedKey = ref<ExpandedKey>(null)
 const formError = ref<string | null>(null)
+const statusFilter = ref<MaterialStatusFilter>('active')
+const newPieceMeta = ref(emptyItemMetadataDraft())
+const batchMeta = ref(emptyItemMetadataDraft())
+const newLotMeta = ref(emptyItemMetadataDraft())
 
 const materialTypeId = ref<string>('')
 const pieceName = ref('')
@@ -113,9 +125,15 @@ const stockLots = computed((): StockLotListItem[] =>
   ),
 )
 
-const materialRows = computed(() =>
-  materialRowsFromPiecesAndLots(pieces.value ?? [], stockLots.value),
-)
+const materialRows = computed(() => {
+  const filteredPieces = (pieces.value ?? []).filter((piece) =>
+    matchesMaterialStatusFilter(piece.status, statusFilter.value),
+  )
+  const filteredLots = stockLots.value.filter((lot) =>
+    matchesMaterialStatusFilter(lot.status, statusFilter.value),
+  )
+  return materialRowsFromPiecesAndLots(filteredPieces, filteredLots)
+})
 
 const hasAnyMaterial = computed(() => materialRows.value.length > 0)
 
@@ -139,6 +157,7 @@ function resetNewLotDraft() {
   newLot.label = ''
   newLot.variant = emptyVariantMap(newTypeAxes.value)
   newLot.quantity = 1
+  newLotMeta.value = emptyItemMetadataDraft()
 }
 
 const selectedType = computed(() =>
@@ -240,6 +259,7 @@ function resetCreateDraft() {
   pieceName.value = ''
   variant.value = emptyVariantMap(selectedTypeAxes.value)
   materialTypeId.value = pieceTypes.value[0] ? String(pieceTypes.value[0].id) : ''
+  newPieceMeta.value = emptyItemMetadataDraft()
 }
 
 function resetBatchDraft() {
@@ -253,6 +273,7 @@ function resetBatchDraft() {
   batchNewSetShortName.value = ''
   namePatternTouched.value = false
   batchPlaceholderKind.value = 'number'
+  batchMeta.value = emptyItemMetadataDraft()
 }
 
 function openNewRow() {
@@ -306,6 +327,7 @@ const createMutation = useMutation({
       materialTypeId: Number(materialTypeId.value),
       name: pieceName.value,
       variant: variantPayload(selectedTypeAxes.value, variant.value),
+      ...itemMetadataToWritePayload(newPieceMeta.value, { create: true }),
     })
   },
   onSuccess: async () => {
@@ -329,6 +351,7 @@ const batchMutation = useMutation({
       count,
       namePattern: batchNamePattern.value,
       variant: variantPayload(batchTypeAxes.value, batchVariant.value),
+      ...itemMetadataToWritePayload(batchMeta.value, { create: true }),
     }
     if (batchSetMode.value === 'existing' && batchSetId.value) {
       return createPiecesBatch(props.inventoryId, {
@@ -363,6 +386,7 @@ const createLotMutation = useMutation({
       label: newLot.label.trim() || null,
       variant: lotVariantPayload(newLot.variant),
       quantity: newLot.quantity,
+      ...itemMetadataToWritePayload(newLotMeta.value, { create: true }),
     }),
   onSuccess: async () => {
     expandedKey.value = null
@@ -424,23 +448,6 @@ const createLotMutation = useMutation({
       >
         <h3 class="mb-3 text-sm font-semibold">{{ t('material.pieceNew') }}</h3>
         <form class="space-y-3" @submit.prevent="createMutation.mutate()">
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <label class="flex min-w-0 flex-col gap-1">
-              <span class="text-xs opacity-80">{{ t('material.pieceType') }}</span>
-              <select v-model="materialTypeId" class="select select-bordered select-sm w-full" required>
-                <option v-for="mt in pieceTypes" :key="mt.id" :value="String(mt.id)">
-                  {{ mt.name }}
-                </option>
-              </select>
-            </label>
-            <VariantAxisSelects
-              v-if="selectedTypeAxes.length"
-              v-model="variant"
-              :axes="selectedTypeAxes"
-              compact
-              inline
-            />
-          </div>
           <label class="flex min-w-0 flex-col gap-1">
             <span class="text-xs opacity-80">{{ t('material.pieceName') }}</span>
             <input
@@ -450,6 +457,27 @@ const createLotMutation = useMutation({
               required
             />
           </label>
+          <label class="flex min-w-0 max-w-md flex-col gap-1">
+            <span class="text-xs opacity-80">{{ t('material.pieceType') }}</span>
+            <select v-model="materialTypeId" class="select select-bordered select-sm w-full" required>
+              <option v-for="mt in pieceTypes" :key="mt.id" :value="String(mt.id)">
+                {{ mt.name }}
+              </option>
+            </select>
+          </label>
+          <VariantAxisSelects
+            v-if="selectedTypeAxes.length"
+            v-model="variant"
+            :axes="selectedTypeAxes"
+            compact
+          />
+          <MaterialItemMetadataFields
+            v-model:acquired-year="newPieceMeta.acquiredYear"
+            v-model:note="newPieceMeta.note"
+            v-model:source="newPieceMeta.source"
+            v-model:serial-number="newPieceMeta.serialNumber"
+            v-model:new-value-euro="newPieceMeta.newValueEuro"
+          />
           <p v-if="formError" class="text-sm text-error">{{ formError }}</p>
           <div class="flex justify-end gap-2">
             <button type="button" class="btn btn-ghost btn-sm" @click="closeExpandedRow">
@@ -472,27 +500,24 @@ const createLotMutation = useMutation({
       >
         <h3 class="mb-3 text-sm font-semibold">{{ t('material.pieceBatchHeading') }}</h3>
         <form class="space-y-3" @submit.prevent="batchMutation.mutate()">
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <label class="flex min-w-0 flex-col gap-1">
-              <span class="text-xs opacity-80">{{ t('material.pieceType') }}</span>
-              <select
-                v-model="batchMaterialTypeId"
-                class="select select-bordered select-sm w-full"
-                required
-              >
-                <option v-for="mt in pieceTypes" :key="mt.id" :value="String(mt.id)">
-                  {{ mt.name }}
-                </option>
-              </select>
-            </label>
-            <VariantAxisSelects
-              v-if="batchTypeAxes.length"
-              v-model="batchVariant"
-              :axes="batchTypeAxes"
-              compact
-              inline
-            />
-          </div>
+          <label class="flex min-w-0 max-w-md flex-col gap-1">
+            <span class="text-xs opacity-80">{{ t('material.pieceType') }}</span>
+            <select
+              v-model="batchMaterialTypeId"
+              class="select select-bordered select-sm w-full"
+              required
+            >
+              <option v-for="mt in pieceTypes" :key="mt.id" :value="String(mt.id)">
+                {{ mt.name }}
+              </option>
+            </select>
+          </label>
+          <VariantAxisSelects
+            v-if="batchTypeAxes.length"
+            v-model="batchVariant"
+            :axes="batchTypeAxes"
+            compact
+          />
           <fieldset class="rounded-lg border border-base-200 px-2.5 py-2">
             <legend class="px-1 text-xs font-medium opacity-80">
               {{ t('material.pieceBatchSetLegend') }}
@@ -619,6 +644,13 @@ const createLotMutation = useMutation({
               {{ t('material.pieceBatchUseExample') }}
             </button>
           </div>
+          <MaterialItemMetadataFields
+            v-model:acquired-year="batchMeta.acquiredYear"
+            v-model:note="batchMeta.note"
+            v-model:source="batchMeta.source"
+            v-model:serial-number="batchMeta.serialNumber"
+            v-model:new-value-euro="batchMeta.newValueEuro"
+          />
           <p v-if="formError" class="text-sm text-error">{{ formError }}</p>
           <div class="flex justify-end gap-2">
             <button type="button" class="btn btn-ghost btn-sm" @click="closeExpandedRow">
@@ -642,43 +674,55 @@ const createLotMutation = useMutation({
         <h3 class="mb-3 text-sm font-semibold">{{ t('material.stockLotAdd') }}</h3>
         <form class="space-y-3" @submit.prevent="createLotMutation.mutate()">
           <label class="flex min-w-0 flex-col gap-1">
-            <span class="text-xs opacity-80">{{ t('material.filterMaterialType') }}</span>
-            <select v-model="newLot.materialTypeId" class="select select-bordered w-full" required>
-              <option
-                v-for="row in stockTypes"
-                :key="row.materialTypeId"
-                :value="String(row.materialTypeId)"
-              >
-                {{ row.materialTypeName }}
-              </option>
-            </select>
-          </label>
-          <label class="flex min-w-0 flex-col gap-1">
             <span class="text-xs opacity-80">{{ t('material.stockLotLabel') }}</span>
             <input
               v-model="newLot.label"
               type="text"
-              class="input input-bordered w-full"
+              class="input input-bordered input-sm w-full"
               :placeholder="t('material.stockLotLabelPlaceholder')"
             />
           </label>
-          <VariantAxisSelects
-            v-if="newTypeAxes.length"
-            v-model="newLot.variant"
-            :axes="newTypeAxes"
-            optional
-          />
-          <label class="flex min-w-0 flex-col gap-1">
-            <span class="text-xs opacity-80">{{ t('material.stockQuantity') }}</span>
-            <input
-              v-model.number="newLot.quantity"
-              type="number"
-              min="0"
-              step="1"
-              class="input input-bordered w-full"
-              required
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <label class="flex min-w-0 flex-col gap-1">
+              <span class="text-xs opacity-80">{{ t('material.filterMaterialType') }}</span>
+              <select
+                v-model="newLot.materialTypeId"
+                class="select select-bordered select-sm w-full"
+                required
+              >
+                <option
+                  v-for="row in stockTypes"
+                  :key="row.materialTypeId"
+                  :value="String(row.materialTypeId)"
+                >
+                  {{ row.materialTypeName }}
+                </option>
+              </select>
+            </label>
+            <label class="flex min-w-0 flex-col gap-1">
+              <span class="text-xs opacity-80">{{ t('material.stockQuantity') }}</span>
+              <StockQuantityInput
+                v-model="newLot.quantity"
+                :unit="selectedNewStockType?.unit"
+                compact
+              />
+            </label>
+            <VariantAxisSelects
+              v-if="newTypeAxes.length"
+              v-model="newLot.variant"
+              :axes="newTypeAxes"
+              optional
+              compact
+              inline
             />
-          </label>
+          </div>
+          <MaterialItemMetadataFields
+            v-model:acquired-year="newLotMeta.acquiredYear"
+            v-model:note="newLotMeta.note"
+            v-model:source="newLotMeta.source"
+            v-model:serial-number="newLotMeta.serialNumber"
+            v-model:new-value-euro="newLotMeta.newValueEuro"
+          />
           <p v-if="formError" class="text-sm text-error">{{ formError }}</p>
           <div class="flex justify-end gap-2">
             <button type="button" class="btn btn-ghost btn-sm" @click="closeExpandedRow">
@@ -706,6 +750,8 @@ const createLotMutation = useMutation({
           :inventory-id="inventoryId"
           :rows="materialRows"
           :material-types="types ?? []"
+          :status-filter="statusFilter"
+          @update:status-filter="statusFilter = $event"
         />
       </template>
   </div>

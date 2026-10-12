@@ -1,5 +1,12 @@
 import type { FilterFn } from '@tanstack/vue-table'
-import type { MaterialType, Piece, StockLot, StockRow, VariantAxis } from '../../schemas/material'
+import type {
+  MaterialItemStatus,
+  MaterialType,
+  Piece,
+  StockLot,
+  StockRow,
+  VariantAxis,
+} from '../../schemas/material'
 import { pieceMatchesVariantFilters } from '../../utils/pieceVariantFilters'
 import { variantMapSummary } from '../../utils/variantDisplay'
 
@@ -15,6 +22,25 @@ export type StockLotListItem = StockLot & {
 export type MaterialRow =
   | { kind: 'piece'; id: string; piece: Piece }
   | { kind: 'stockLot'; id: string; lot: StockLotListItem }
+
+export type MaterialStatusFilter = 'active' | 'retired' | 'all'
+
+export function rowItemStatus(row: MaterialRow): MaterialItemStatus {
+  return row.kind === 'piece' ? row.piece.status : row.lot.status
+}
+
+export function rowAcquiredYear(row: MaterialRow): number | null {
+  return row.kind === 'piece' ? row.piece.acquiredYear : row.lot.acquiredYear
+}
+
+export function matchesMaterialStatusFilter(
+  status: MaterialItemStatus,
+  filter: MaterialStatusFilter,
+): boolean {
+  if (filter === 'all') return true
+  if (filter === 'active') return status === 'active'
+  return status === 'retired'
+}
 
 export function stockLotListItemFromStocks(
   stocks: StockRow[],
@@ -103,16 +129,41 @@ export function createMaterialGlobalFilterFn(
       const piece = original.piece
       const mt = typeById.get(piece.materialTypeId)
       const variantText = mt ? variantMapSummary(mt.variants, piece.variant) : ''
-      const haystack = [piece.name, piece.materialTypeName, variantText, piece.setName ?? '']
+      const haystack = [
+        piece.name,
+        piece.materialTypeName,
+        variantText,
+        piece.setName ?? '',
+        piece.note ?? '',
+        piece.source ?? '',
+        piece.serialNumber ?? '',
+        mt?.manufacturer ?? '',
+        mt?.modelName ?? '',
+        piece.acquiredYear != null ? String(piece.acquiredYear) : '',
+      ]
         .join(' ')
         .toLowerCase()
       return haystack.includes(query)
     }
     const lot = original.lot
+    const mt = typeById.get(lot.materialTypeId)
     const variantText = variantMapSummary(lot.variants, lot.variant)
     const displayName = rowDisplayName(original, unlabeledLotLabel)
     const qty = `${lot.quantity}${lot.unit ? ` ${lot.unit}` : ''}`
-    const haystack = [displayName, lot.materialTypeName, variantText, qty].join(' ').toLowerCase()
+    const haystack = [
+      displayName,
+      lot.materialTypeName,
+      variantText,
+      qty,
+      lot.note ?? '',
+      lot.source ?? '',
+      lot.serialNumber ?? '',
+      mt?.manufacturer ?? '',
+      mt?.modelName ?? '',
+      lot.acquiredYear != null ? String(lot.acquiredYear) : '',
+    ]
+      .join(' ')
+      .toLowerCase()
     return haystack.includes(query)
   }
 }

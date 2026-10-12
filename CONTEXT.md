@@ -15,9 +15,19 @@ _English_: material
 _Avoid_: equipment, stuff, item, asset
 
 **Materialart**:
-A configurable kind of material, tracked either as individual Einzelteile or as a Menge in each Inventar. Einzelteile of one Materialart fit together, so a normal Kohte and a Wanderkohte are two Materialarten. A Materialart may have a short name, description, unit (for Menge), consumable flag, and an optional Kategorie.
+A configurable kind of material, tracked either as individual Einzelteile or as a Menge in each Inventar. Einzelteile of one Materialart fit together, so a normal Kohte and a Wanderkohte are two Materialarten. A Materialart may have a short name, description, unit (for Menge), consumable flag, an optional Kategorie, and optional Hersteller and Modell that apply to all Stücke and Mengenposten of that art.
 _English_: material type
 _Avoid_: Artikel, Sorte
+
+**Hersteller** (an der Materialart):
+The maker name shared by every Einzelteil and Mengenposten of that Materialart, when recorded.
+_English_: manufacturer
+_Avoid_: brand (unless that is what is meant), supplier
+
+**Modell** (an der Materialart):
+The model designation shared by every Einzelteil and Mengenposten of that Materialart, when recorded.
+_English_: model name
+_Avoid_: model (SQLAlchemy class name in code), SKU
 
 **Kategorie**:
 An optional label for grouping Materialarten across the whole installation (for example Zelt, Küche, Spiel). It is not the Verleih Gruppe.
@@ -30,9 +40,39 @@ _English_: inventory
 _Avoid_: Standort, Lager, location
 
 **Einzelteil**:
-One identified item of a Materialart, kept in one Inventar. It sits in at most one Set, and can be moved to another Set or sit in none.
+One identified item of a Materialart, kept in one Inventar. It sits in at most one Set, and can be moved to another Set or sit in none. It may carry optional Anschaffungsjahr, Notiz, Herkunft, Neuwert, Seriennummer, and a Status (im Bestand or aussortiert). Aussortiertes stays in the record, drops out of the normal list, and cannot be newly handed out on a Verleih.
 _English_: piece
 _Avoid_: Einzelstück, Exemplar, Stück (as the named item; Stück remains valid as a unit of measure)
+
+**Anschaffungsjahr**:
+The calendar year the Einzelteil or Mengenposten was acquired, when known.
+_English_: acquired year
+_Avoid_: purchase date, Baujahr (unless that is what is meant)
+
+**Notiz** (am Stück bzw. Posten):
+Free text about the Einzelteil or Mengenposten itself. Not the same as the Notiz on a Schaden.
+_English_: note
+_Avoid_: comment on damage
+
+**Herkunft**:
+How the Einzelteil or Mengenposten was obtained (donor, dealer, built in-house), as free text when recorded.
+_English_: source
+_Avoid_: owner, supplier enum
+
+**Status** (im Bestand / aussortiert):
+Whether the Einzelteil or Mengenposten is active in the Inventar or retired from use. Retired is not deletion; Verleih and Schaden states stay separate.
+_English_: item status (active or retired)
+_Avoid_: deleted, lost
+
+**Neuwert**:
+The new replacement value of the Einzelteil or Mengenposten in euro with two decimal places, stored in cents when recorded.
+_English_: new value
+_Avoid_: Zeitwert, replacement value (field name in code)
+
+**Seriennummer**:
+The manufacturer's serial number on the Einzelteil or Mengenposten, when recorded.
+_English_: serial number
+_Avoid_: inventory number (internal name is separate)
 
 **Menge**:
 A Materialart tracked by count in one Inventar, without naming individual items. Its Anzahl is the sum of its Mengenposten. A Set reserves an Anzahl from that sum.
@@ -40,7 +80,7 @@ _English_: stock
 _Avoid_: Bestand, Vorrat
 
 **Mengenposten**:
-One counted portion of a Menge: an Anzahl, an optional Variante, and an optional Bezeichnung (for example a box name). Several Posten of the same Variante may exist. A box is not an Einzelteil.
+One counted portion of a Menge: an Anzahl, an optional Variante, and an optional Bezeichnung (for example a box name). Several Posten of the same Variante may exist. A box is not an Einzelteil. It may carry the same optional Angaben and Status as an Einzelteil; a retired Posten's Anzahl does not count toward available stock.
 _English_: stock lot
 _Avoid_: Kiste, Behälter, Einzelteil (for the container)
 

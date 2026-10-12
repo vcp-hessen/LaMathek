@@ -4,11 +4,13 @@ import type { MaterialType } from '../../schemas/material'
 import type { VariantAxisCatalogEntry } from '../../utils/pieceVariantFilters'
 import DataTableSearch from '../data-table/DataTableSearch.vue'
 import PiecesVariantFilter from './PiecesVariantFilter.vue'
+import type { MaterialStatusFilter } from '../material/materialTableSetup'
 import type { VariantColumnFilterValue } from './piecesTableSetup'
 
 defineProps<{
   searchQuery: string
   materialTypeId: string
+  statusFilter: MaterialStatusFilter
   pieceTypes: MaterialType[]
   variantCatalog: VariantAxisCatalogEntry[]
   variantFilter: VariantColumnFilterValue
@@ -18,6 +20,7 @@ defineProps<{
 const emit = defineEmits<{
   'update:searchQuery': [value: string]
   'update:materialTypeId': [value: string]
+  'update:statusFilter': [value: MaterialStatusFilter]
   'update:variantFilter': [value: VariantColumnFilterValue]
   reset: []
 }>()
@@ -36,6 +39,23 @@ const { t } = useI18n()
       :placeholder="t('material.piecesSearchPlaceholder')"
       @update:model-value="emit('update:searchQuery', $event)"
     />
+    <label class="flex min-w-0 flex-col gap-1 sm:w-44">
+      <span class="text-xs font-medium opacity-80">{{ t('material.filterItemStatus') }}</span>
+      <select
+        :value="statusFilter"
+        class="select select-bordered select-sm w-full"
+        @change="
+          emit(
+            'update:statusFilter',
+            ($event.target as HTMLSelectElement).value as MaterialStatusFilter,
+          )
+        "
+      >
+        <option value="active">{{ t('material.filterStatusActive') }}</option>
+        <option value="retired">{{ t('material.filterStatusRetired') }}</option>
+        <option value="all">{{ t('material.filterStatusAll') }}</option>
+      </select>
+    </label>
     <label class="flex min-w-0 flex-col gap-1 sm:w-48">
       <span class="text-xs font-medium opacity-80">{{ t('material.filterMaterialType') }}</span>
       <select

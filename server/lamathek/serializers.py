@@ -14,7 +14,7 @@ from lamathek.models.loan import (
 )
 from lamathek.models.damage import Damage, Repair
 from lamathek.models.category import Category
-from lamathek.models.material import MaterialType, Piece
+from lamathek.models.material import MaterialType, Piece, StockLot
 from lamathek.services.variants import (
     piece_variant_to_json,
     stock_lot_variant_to_json,
@@ -85,6 +85,17 @@ def category_to_json(category: Category) -> dict:
     return {"id": category.id, "name": category.name}
 
 
+def material_item_fields_to_json(item: Piece | StockLot) -> dict:
+    return {
+        "acquiredYear": item.acquired_year,
+        "note": item.note,
+        "source": item.source,
+        "status": item.status,
+        "serialNumber": item.serial_number,
+        "newValueCents": item.new_value_cents,
+    }
+
+
 def material_type_to_json(
     material_type: MaterialType,
     *,
@@ -103,6 +114,8 @@ def material_type_to_json(
         "consumable": material_type.consumable,
         "categoryId": material_type.category_id,
         "categoryName": category.name if category is not None else None,
+        "manufacturer": material_type.manufacturer,
+        "modelName": material_type.model_name,
         "variants": variants_to_json(material_type),
         "coverPhotoId": cover_photo_id,
     }
@@ -142,6 +155,7 @@ def piece_to_json(piece: Piece, *, cover_photo_id: int | None = None) -> dict:
         "setRole": piece.set_role,
         "setName": piece.material_set.name if piece.material_set else None,
         "coverPhotoId": cover_photo_id,
+        **material_item_fields_to_json(piece),
     }
 
 
@@ -320,6 +334,8 @@ def stock_to_json(
     cover_photo_id: int | None = None,
     lot_cover_photo_ids: dict[int, int | None] | None = None,
 ) -> dict:
+    from lamathek.models.material import ITEM_STATUS_ACTIVE
+
     lots = list(material_type.stock_lots)
     lot_covers = lot_cover_photo_ids or {}
     return {
@@ -327,7 +343,9 @@ def stock_to_json(
         "materialTypeName": material_type.name,
         "unit": material_type.unit,
         "variants": variants_to_json(material_type),
-        "quantity": sum(lot.quantity for lot in lots),
+        "quantity": sum(
+            lot.quantity for lot in lots if lot.status == ITEM_STATUS_ACTIVE
+        ),
         "coverPhotoId": cover_photo_id,
         "lots": [
             {
@@ -337,6 +355,7 @@ def stock_to_json(
                 "quantity": lot.quantity,
                 "coverPhotoId": lot_covers.get(lot.id),
                 "photos": photos_to_json(list(lot.photos)),
+                **material_item_fields_to_json(lot),
             }
             for lot in lots
         ],

@@ -92,6 +92,10 @@ const stockTypes = computed(() =>
   (materialTypes.value ?? []).filter((mt) => mt.tracking === 'stock'),
 )
 
+const loanablePieces = computed(() =>
+  (pieces.value ?? []).filter((p) => p.status === 'active'),
+)
+
 const outstandingLines = computed(() =>
   (loan.value?.lines ?? []).filter((line) => !line.settled),
 )
@@ -521,7 +525,7 @@ const returnMutation = useMutation({
           <form class="flex flex-wrap gap-2" @submit.prevent="addPieceMutation.mutate()">
             <select v-model="addPieceId" class="select select-bordered min-w-0 flex-1" required>
               <option disabled value="">{{ t('loans.pickPiece') }}</option>
-              <option v-for="p in pieces" :key="p.id" :value="p.id">
+              <option v-for="p in loanablePieces" :key="p.id" :value="p.id">
                 {{ p.name }} · {{ p.materialTypeName }}
               </option>
             </select>

@@ -6,12 +6,18 @@ from lamathek.models.inventory import Inventory
 from lamathek.services.categories import resolve_category_id
 from lamathek.models.damage import Damage
 from lamathek.models.material import (
+    ITEM_STATUS_ACTIVE,
+    ITEM_STATUS_RETIRED,
     TRACKING_PIECE,
     TRACKING_STOCK,
     MaterialType,
     Piece,
     StockLot,
     VALID_TRACKING,
+)
+from lamathek.services.material_item_fields import (
+    apply_item_field_updates,
+    apply_item_fields_on_create,
 )
 from lamathek.services.variants import (
     assert_variants_compatible_with_lots,
@@ -103,6 +109,8 @@ def create_material_type(
     consumable: bool = False,
     category_id: int | None = None,
     category_name: str | None = None,
+    manufacturer: str | None = None,
+    model_name: str | None = None,
 ) -> MaterialType:
     if tracking not in VALID_TRACKING:
         raise ValueError("invalid_tracking")
@@ -120,6 +128,8 @@ def create_material_type(
         unit=_unit_for_tracking(tracking, unit),
         consumable=bool(consumable),
         category_id=resolved_category_id,
+        manufacturer=_normalize_optional_text(manufacturer),
+        model_name=_normalize_optional_text(model_name),
     )
     session.add(material_type)
     session.flush()
@@ -152,6 +162,10 @@ def update_material_type(
     short_name_sent: bool = False,
     description_sent: bool = False,
     unit_sent: bool = False,
+    manufacturer_sent: bool = False,
+    manufacturer: str | None = None,
+    model_name_sent: bool = False,
+    model_name: str | None = None,
 ) -> MaterialType:
     material_type = _load_material_type(session, material_type.id)
     if material_type is None:
@@ -184,6 +198,11 @@ def update_material_type(
             category_name=category_name,
             clear=clear_category,
         )
+
+    if manufacturer_sent:
+        material_type.manufacturer = _normalize_optional_text(manufacturer)
+    if model_name_sent:
+        material_type.model_name = _normalize_optional_text(model_name)
 
     if variants_payload is not None:
         axes = parse_variants_payload(variants_payload)
@@ -290,6 +309,8 @@ def _new_piece_row(
     material_type: MaterialType,
     name: str,
     variant,
+    *,
+    item_fields: dict | None = None,
 ) -> Piece:
     if not isinstance(name, str) or not name.strip():
         raise ValueError("invalid_name")
@@ -301,6 +322,8 @@ def _new_piece_row(
     session.add(piece)
     session.flush()
     set_piece_variant_map(session, piece, variant_map)
+    if item_fields:
+        apply_item_fields_on_create(piece, **item_fields)
     return piece
 
 
@@ -310,13 +333,16 @@ def create_piece(
     material_type_id: int,
     name: str,
     variant,
+    *,
+    item_fields: dict | None = None,
 ) -> Piece:
     material_type = _load_material_type(session, material_type_id)
     if material_type is None or material_type.inventory_id != inventory.id:
         raise ValueError("invalid_material_type")
     if material_type.tracking != TRACKING_PIECE:
         raise ValueError("not_piece_tracking")
-    piece = _new_piece_row(session, material_type, name, variant)
+    fields = item_fields or {}
+    piece = _new_piece_row(session, material_type, name, variant, item_fields=fields)
     session.commit()
     session.refresh(piece)
     return piece_by_id(session, piece.id)  # type: ignore[return-value]
@@ -333,6 +359,7 @@ def create_pieces_batch(
     set_id: int | None,
     set_name: str | None,
     set_short_name: str | None,
+    item_fields: dict | None = None,
 ) -> tuple[list[Piece], int | None]:
     from sqlalchemy.exc import IntegrityError
 
@@ -371,11 +398,14 @@ def create_pieces_batch(
 
     created: list[Piece] = []
     try:
+        fields = item_fields or {}
         for piece_name in names:
             piece = Piece(material_type_id=material_type.id, name=piece_name.strip())
             session.add(piece)
             session.flush()
             set_piece_variant_map(session, piece, variant_map)
+            if fields:
+                apply_item_fields_on_create(piece, **fields)
             created.append(piece)
         session.flush()
 
@@ -409,6 +439,7 @@ def update_piece(
     name: str | None = None,
     material_type_id: int | None = None,
     variant=None,
+    metadata_body: dict | None = None,
 ) -> Piece:
     piece = piece_by_id(session, piece.id)
     if piece is None:
@@ -425,6 +456,11 @@ def update_piece(
     if variant is not None:
         variant_map = validate_piece_variant_map(material_type, variant)
         set_piece_variant_map(session, piece, variant_map)
+
+    if metadata_body:
+        new_status = apply_item_field_updates(piece, metadata_body)
+        if new_status is not None:
+            piece.status = new_status
 
     session.commit()
     return piece_by_id(session, piece.id)  # type: ignore[return-value]
@@ -447,10 +483,24 @@ def delete_piece(session: Session, piece: Piece) -> None:
 def total_stock_quantity(session: Session, material_type_id: int) -> int:
     total = session.scalar(
         select(func.coalesce(func.sum(StockLot.quantity), 0)).where(
-            StockLot.material_type_id == material_type_id
+            StockLot.material_type_id == material_type_id,
+            StockLot.status == ITEM_STATUS_ACTIVE,
         )
     )
     return int(total or 0)
+
+
+def assert_can_retire_stock_lot(
+    session: Session, lot: StockLot, inventory_id: int
+) -> None:
+    if lot.status != ITEM_STATUS_ACTIVE:
+        return
+    from lamathek.services.loans import minimum_stock_quantity
+
+    floor = minimum_stock_quantity(session, inventory_id, lot.material_type_id)
+    active_total = total_stock_quantity(session, lot.material_type_id)
+    if active_total - lot.quantity < floor:
+        raise ValueError("below_loaned")
 
 
 def _stock_material_type(
@@ -509,6 +559,7 @@ def create_stock_lot(
     label: str | None,
     variant,
     quantity: int,
+    item_fields: dict | None = None,
 ) -> MaterialType:
     if not isinstance(quantity, int) or quantity < 0:
         raise ValueError("invalid_quantity")
@@ -523,6 +574,8 @@ def create_stock_lot(
         session.add(lot)
         session.flush()
         set_lot_variant_map(session, lot, variant_map)
+        if item_fields:
+            apply_item_fields_on_create(lot, **item_fields)
         session.flush()
     _assert_stock_floor(session, inventory.id, material_type.id)
     session.commit()
@@ -539,6 +592,7 @@ def update_stock_lot(
     quantity: int,
     label_sent: bool,
     variant_sent: bool,
+    metadata_body: dict | None = None,
 ) -> MaterialType:
     if not isinstance(quantity, int) or quantity < 0:
         raise ValueError("invalid_quantity")
@@ -550,6 +604,16 @@ def update_stock_lot(
     if variant_sent:
         variant_map = validate_lot_variant_map(material_type, variant)
         set_lot_variant_map(session, lot, variant_map)
+    if metadata_body:
+        new_status = apply_item_field_updates(lot, metadata_body)
+        if new_status is not None:
+            if (
+                new_status == ITEM_STATUS_RETIRED
+                and lot.status == ITEM_STATUS_ACTIVE
+            ):
+                assert_can_retire_stock_lot(session, lot, inventory.id)
+            lot.status = new_status
+
     lot.quantity = quantity
     session.flush()
     if lot.quantity == 0:
@@ -583,6 +647,8 @@ def apply_stock_loss(session: Session, material_type_id: int, quantity: int) -> 
     for lot in lots:
         if remaining <= 0:
             break
+        if lot.status != ITEM_STATUS_ACTIVE:
+            continue
         take = min(lot.quantity, remaining)
         lot.quantity -= take
         remaining -= take

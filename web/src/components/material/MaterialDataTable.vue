@@ -23,8 +23,11 @@ import {
   createMaterialTypeFilterFn,
   createMaterialVariantColumnFilterFn,
   rowCoverPhotoId,
+  rowAcquiredYear,
   rowDisplayName,
+  rowItemStatus,
   rowMaterialTypeName,
+  type MaterialStatusFilter,
   type VariantColumnFilterValue,
 } from './materialTableSetup'
 
@@ -32,6 +35,11 @@ const props = defineProps<{
   inventoryId: number
   rows: MaterialRow[]
   materialTypes: MaterialType[]
+  statusFilter: MaterialStatusFilter
+}>()
+
+const emit = defineEmits<{
+  'update:statusFilter': [value: MaterialStatusFilter]
 }>()
 
 const { t } = useI18n()
@@ -113,6 +121,16 @@ const columns = computed<ColumnDef<MaterialRow>[]>(() => [
     enableColumnFilter: false,
     sortingFn: localeSortRow,
   },
+  {
+    id: 'acquiredYear',
+    accessorFn: (row) => rowAcquiredYear(row) ?? -1,
+    enableSorting: true,
+    sortingFn: (rowA, rowB) => {
+      const a = rowAcquiredYear(rowA.original) ?? -1
+      const b = rowAcquiredYear(rowB.original) ?? -1
+      return a - b
+    },
+  },
 ])
 
 const {
@@ -163,9 +181,21 @@ const variantFilterValue = computed({
 const hasActiveFilter = computed(
   () =>
     !!globalFilter.value.trim() ||
+    props.statusFilter !== 'active' ||
     !!materialTypeFilter.value ||
     variantFiltersAreActive(variantFilterValue.value),
 )
+
+function showRetiredBadge(row: MaterialRow): boolean {
+  return (
+    props.statusFilter !== 'active' && rowItemStatus(row) === 'retired'
+  )
+}
+
+function yearLabel(row: MaterialRow): string {
+  const year = rowAcquiredYear(row)
+  return year != null ? String(year) : '—'
+}
 
 watch(materialTypeFilter, () => {
   const pruned = pruneVariantFilterToCatalog(variantFilterValue.value, variantAxisCatalog.value)
@@ -203,6 +233,7 @@ function setMaterialTypeFilter(value: string) {
 
 function resetAllFilters() {
   globalFilter.value = ''
+  emit('update:statusFilter', 'active')
   table.getColumn('materialTypeName')?.setFilterValue(undefined)
   table.getColumn('variant')?.setFilterValue({})
 }
@@ -241,11 +272,13 @@ function onRowKeydown(event: KeyboardEvent, row: MaterialRow) {
     <PiecesTableToolbar
       :search-query="globalFilter"
       :material-type-id="materialTypeFilter"
+      :status-filter="statusFilter"
       :piece-types="materialTypes"
       :variant-catalog="variantAxisCatalog"
       :variant-filter="variantFilterValue"
       :has-active-filter="hasActiveFilter"
       @update:search-query="globalFilter = $event"
+      @update:status-filter="emit('update:statusFilter', $event)"
       @update:material-type-id="setMaterialTypeFilter"
       @update:variant-filter="variantFilterValue = $event"
       @reset="resetAllFilters"
@@ -301,12 +334,19 @@ function onRowKeydown(event: KeyboardEvent, row: MaterialRow) {
                 @toggle="table.getColumn('set')?.toggleSorting()"
               />
             </th>
+            <th class="hidden lg:table-cell">
+              <SortHeaderButton
+                :label="t('material.acquiredYear')"
+                :sorted="sortedState('acquiredYear')"
+                @toggle="table.getColumn('acquiredYear')?.toggleSorting()"
+              />
+            </th>
           </tr>
         </thead>
         <tbody>
           <template v-if="tableRows.length === 0">
             <tr>
-              <td colspan="6" class="py-8 text-center text-sm opacity-70">
+              <td colspan="7" class="py-8 text-center text-sm opacity-70">
                 {{ t('material.piecesNoSearchResults') }}
               </td>
             </tr>
@@ -326,9 +366,17 @@ function onRowKeydown(event: KeyboardEvent, row: MaterialRow) {
               <PhotoThumbnail :photo-id="rowCoverPhotoId(row.original)" />
             </td>
             <td class="data-table-col-lead min-w-0">
-              <span class="font-medium">
-                {{ rowDisplayName(row.original, unlabeledLotLabel) }}
-              </span>
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="font-medium">
+                  {{ rowDisplayName(row.original, unlabeledLotLabel) }}
+                </span>
+                <span
+                  v-if="showRetiredBadge(row.original)"
+                  class="badge badge-ghost badge-sm"
+                >
+                  {{ t('material.itemStatusRetired') }}
+                </span>
+              </div>
               <div class="mt-0.5 space-y-0.5 text-xs opacity-70">
                 <span class="block md:hidden">{{ rowMaterialTypeName(row.original) }}</span>
                 <span v-if="variantSortKey(row.original)" class="block lg:hidden">
@@ -343,6 +391,9 @@ function onRowKeydown(event: KeyboardEvent, row: MaterialRow) {
                 <span v-if="row.original.kind === 'stockLot'" class="block sm:hidden">
                   {{ quantityLabel(row.original) }}
                 </span>
+                <span v-if="rowAcquiredYear(row.original) != null" class="block lg:hidden">
+                  {{ t('material.acquiredYear') }}: {{ yearLabel(row.original) }}
+                </span>
               </div>
             </td>
             <td class="hidden md:table-cell">{{ rowMaterialTypeName(row.original) }}</td>
@@ -353,6 +404,7 @@ function onRowKeydown(event: KeyboardEvent, row: MaterialRow) {
             <td class="hidden max-w-[10rem] truncate xl:table-cell">
               {{ setLabel(row.original) }}
             </td>
+            <td class="hidden lg:table-cell">{{ yearLabel(row.original) }}</td>
           </tr>
         </tbody>
       </table>

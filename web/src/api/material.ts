@@ -6,11 +6,21 @@ import {
   pieceSchema,
   stockRowSchema,
   type Category,
+  type MaterialItemStatus,
   type MaterialType,
   type Piece,
   type PieceDetail,
   type StockRow,
 } from '../schemas/material'
+
+export type MaterialItemWriteFields = {
+  acquiredYear?: number | null
+  note?: string | null
+  source?: string | null
+  status?: MaterialItemStatus
+  serialNumber?: string | null
+  newValueCents?: number | null
+}
 
 export type MaterialTypeWritePayload = {
   name: string
@@ -22,6 +32,8 @@ export type MaterialTypeWritePayload = {
   consumable?: boolean
   categoryId?: number | null
   categoryName?: string | null
+  manufacturer?: string | null
+  modelName?: string | null
 }
 
 export async function fetchCategories(): Promise<Category[]> {
@@ -81,7 +93,11 @@ export async function createDamageRepair(
 
 export async function createPiece(
   inventoryId: number,
-  payload: { materialTypeId: number; name: string; variant?: Record<string, string> },
+  payload: {
+    materialTypeId: number
+    name: string
+    variant?: Record<string, string>
+  } & MaterialItemWriteFields,
 ): Promise<Piece> {
   const response = await api.post(`/api/inventories/${inventoryId}/pieces`, payload)
   return pieceSchema.parse(response.data)
@@ -95,7 +111,7 @@ export type CreatePiecesBatchPayload = {
   setId?: number
   setName?: string
   setShortName?: string | null
-}
+} & MaterialItemWriteFields
 
 export async function createPiecesBatch(
   inventoryId: number,
@@ -115,7 +131,7 @@ export async function updatePiece(
     name?: string
     materialTypeId?: number
     variant?: Record<string, string>
-  },
+  } & MaterialItemWriteFields,
 ): Promise<Piece> {
   const response = await api.patch(`/api/pieces/${id}`, payload)
   return pieceSchema.parse(response.data)
@@ -133,7 +149,11 @@ export async function fetchStocks(inventoryId: number): Promise<StockRow[]> {
 export async function createStockLot(
   inventoryId: number,
   materialTypeId: number,
-  payload: { label?: string | null; variant?: Record<string, string>; quantity: number },
+  payload: {
+    label?: string | null
+    variant?: Record<string, string>
+    quantity: number
+  } & MaterialItemWriteFields,
 ): Promise<StockRow> {
   const response = await api.post(
     `/api/inventories/${inventoryId}/stocks/${materialTypeId}/lots`,
@@ -145,7 +165,11 @@ export async function createStockLot(
 export async function updateStockLot(
   inventoryId: number,
   lotId: number,
-  payload: { label?: string | null; variant?: Record<string, string>; quantity: number },
+  payload: {
+    label?: string | null
+    variant?: Record<string, string>
+    quantity: number
+  } & MaterialItemWriteFields,
 ): Promise<StockRow> {
   const response = await api.patch(
     `/api/inventories/${inventoryId}/stock-lots/${lotId}`,

@@ -16,6 +16,8 @@ const unit = defineModel<string>('unit', { required: true })
 const consumable = defineModel<boolean>('consumable', { required: true })
 const variants = defineModel<VariantAxis[]>('variants', { required: true })
 const categoryText = defineModel<string>('categoryText', { required: true })
+const manufacturer = defineModel<string>('manufacturer', { required: true })
+const modelName = defineModel<string>('modelName', { required: true })
 
 const { t } = useI18n()
 
@@ -59,6 +61,27 @@ function setTrackingFromToggle(isStock: boolean) {
       rows="2"
     />
   </label>
+
+  <div class="flex flex-wrap items-end gap-x-3 gap-y-2">
+    <label class="flex min-w-0 w-full max-w-[14rem] flex-col gap-0.5 sm:w-auto">
+      <span class="text-xs opacity-80">{{ t('material.manufacturer') }}</span>
+      <input
+        v-model="manufacturer"
+        type="text"
+        class="input input-bordered input-sm min-h-8 w-full"
+        :placeholder="t('material.optionalEmpty')"
+      />
+    </label>
+    <label class="flex min-w-0 w-full max-w-[14rem] flex-col gap-0.5 sm:w-auto">
+      <span class="text-xs opacity-80">{{ t('material.modelName') }}</span>
+      <input
+        v-model="modelName"
+        type="text"
+        class="input input-bordered input-sm min-h-8 w-full"
+        :placeholder="t('material.optionalEmpty')"
+      />
+    </label>
+  </div>
 
   <div
     class="rounded-lg border border-base-200 bg-base-200/30 px-3 py-3"

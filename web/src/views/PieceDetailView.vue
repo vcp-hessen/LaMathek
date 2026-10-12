@@ -15,6 +15,13 @@ import type { Damage, PieceDetail } from '../schemas/material'
 import { fetchMe } from '../api/me'
 import { useApiErrorMessage } from '../composables/useApiErrorMessage'
 import MaterialDetailsSection from '../components/material/MaterialDetailsSection.vue'
+import MaterialItemMetadataFields from '../components/material/MaterialItemMetadataFields.vue'
+import {
+  emptyItemMetadataDraft,
+  itemMetadataFromRecord,
+  itemMetadataToWritePayload,
+  type ItemMetadataDraft,
+} from '../utils/materialItemValue'
 import PhotoGallery from '../components/PhotoGallery.vue'
 import SuperuserDestructiveDelete from '../components/SuperuserDestructiveDelete.vue'
 import VariantAxisSelects from '../components/VariantAxisSelects.vue'
@@ -45,6 +52,7 @@ const { data: piece, isLoading } = useQuery({
 
 const editPieceName = ref('')
 const editVariant = ref<Record<string, string>>({})
+const editMeta = ref<ItemMetadataDraft>(emptyItemMetadataDraft())
 const savedEdit = ref<string | null>(null)
 const stammdatenError = ref<string | null>(null)
 
@@ -68,6 +76,7 @@ function stammdatenSnapshot() {
   return JSON.stringify({
     name: editPieceName.value,
     variant: variantPayload(editTypeAxes.value, editVariant.value) ?? null,
+    meta: editMeta.value,
   })
 }
 
@@ -79,6 +88,7 @@ function loadStammdatenFromPiece(p: PieceDetail) {
   editPieceName.value = p.name
   const mt = (materialTypes.value ?? []).find((row) => row.id === p.materialTypeId)
   editVariant.value = mt ? syncVariantMapKeys(p.variant, mt.variants) : { ...p.variant }
+  editMeta.value = itemMetadataFromRecord(p)
   savedEdit.value = stammdatenSnapshot()
   stammdatenError.value = null
 }
@@ -111,6 +121,7 @@ const updateMutation = useMutation({
     updatePiece(pieceId.value, {
       name: editPieceName.value,
       variant: variantPayload(editTypeAxes.value, editVariant.value),
+      ...itemMetadataToWritePayload(editMeta.value, { includeStatus: true }),
     }),
   onSuccess: async () => {
     stammdatenError.value = null
@@ -182,21 +193,6 @@ function damageStatusLabel(damage: Damage): string {
         :dirty="editDirty"
         @save="updateMutation.mutate()"
       >
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <label class="flex min-w-0 flex-col gap-1">
-            <span class="text-xs opacity-80">{{ t('material.pieceType') }}</span>
-            <select class="select select-bordered select-sm w-full" disabled>
-              <option>{{ piece.materialTypeName }}</option>
-            </select>
-          </label>
-          <VariantAxisSelects
-            v-if="editTypeAxes.length"
-            v-model="editVariant"
-            :axes="editTypeAxes"
-            compact
-            inline
-          />
-        </div>
         <label class="flex min-w-0 flex-col gap-1">
           <span class="text-xs opacity-80">{{ t('material.pieceName') }}</span>
           <input
@@ -206,9 +202,30 @@ function damageStatusLabel(damage: Damage): string {
             required
           />
         </label>
+        <label class="flex min-w-0 max-w-md flex-col gap-1">
+          <span class="text-xs opacity-80">{{ t('material.pieceType') }}</span>
+          <select class="select select-bordered select-sm w-full" disabled>
+            <option>{{ piece.materialTypeName }}</option>
+          </select>
+        </label>
+        <VariantAxisSelects
+          v-if="editTypeAxes.length"
+          v-model="editVariant"
+          :axes="editTypeAxes"
+          compact
+        />
         <p v-if="piece.setName" class="text-sm text-base-content/70">
           {{ t('sets.onSet', { name: piece.setName }) }}
         </p>
+        <MaterialItemMetadataFields
+          v-model:acquired-year="editMeta.acquiredYear"
+          v-model:note="editMeta.note"
+          v-model:source="editMeta.source"
+          v-model:serial-number="editMeta.serialNumber"
+          v-model:new-value-euro="editMeta.newValueEuro"
+          v-model:status="editMeta.status"
+          show-status
+        />
         <template #delete>
           <SuperuserDestructiveDelete
             v-if="me?.isSuperuser"

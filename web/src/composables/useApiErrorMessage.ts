@@ -20,6 +20,9 @@ const KNOWN_CODES = new Set([
   'invalid_name_pattern',
   'invalid_set',
   'set_conflict',
+  'invalid_acquired_year',
+  'invalid_new_value',
+  'invalid_status',
 ])
 
 export function useApiErrorMessage() {

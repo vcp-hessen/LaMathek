@@ -64,7 +64,10 @@ watch(
 )
 
 const freePieces = computed(() =>
-  (pieces.value ?? []).filter((p) => p.setId === null || p.setId === setId.value),
+  (pieces.value ?? []).filter(
+    (p) =>
+      p.status === 'active' && (p.setId === null || p.setId === setId.value),
+  ),
 )
 
 const stockTypes = computed(() =>

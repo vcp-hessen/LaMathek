@@ -1,30 +1,35 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { VariantAxis } from '../utils/variantDisplay'
 
-defineProps<{
-  axes: VariantAxis[]
-  optional?: boolean
-  compact?: boolean
-  /** Participate in a parent grid (up to 3 fields per row) instead of starting a new block. */
-  inline?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    axes: VariantAxis[]
+    optional?: boolean
+    compact?: boolean
+    /** Participate in a parent grid instead of starting a new block. */
+    inline?: boolean
+    /** Column count from the `lg` breakpoint upward (standalone grid only). */
+    columns?: 3 | 4
+  }>(),
+  { columns: 4 },
+)
 
 const selection = defineModel<Record<string, string>>({ required: true })
 
 const { t } = useI18n()
+
+const gridClass = computed(() => {
+  if (props.inline) return 'contents'
+  const lgCols = props.columns === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'
+  return `grid grid-cols-1 gap-3 sm:grid-cols-2 ${lgCols}`
+})
 </script>
 
 <template>
-  <div
-    v-if="axes.length"
-    :class="
-      inline
-        ? 'contents'
-        : 'grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3'
-    "
-  >
-    <label v-for="axis in axes" :key="axis.label" class="flex min-w-0 flex-col gap-1">
+  <div v-if="axes.length" :class="gridClass">
+    <label v-for="axis in axes" :key="axis.label" class="flex min-w-0 flex-col gap-0.5">
       <span class="text-xs opacity-80">{{ axis.label }}</span>
       <select
         v-model="selection[axis.label]"

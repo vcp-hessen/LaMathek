@@ -7,6 +7,10 @@ TRACKING_PIECE = "piece"
 TRACKING_STOCK = "stock"
 VALID_TRACKING = frozenset({TRACKING_PIECE, TRACKING_STOCK})
 
+ITEM_STATUS_ACTIVE = "active"
+ITEM_STATUS_RETIRED = "retired"
+VALID_ITEM_STATUSES = frozenset({ITEM_STATUS_ACTIVE, ITEM_STATUS_RETIRED})
+
 
 class MaterialType(Base):
     __tablename__ = "material_types"
@@ -32,6 +36,8 @@ class MaterialType(Base):
     category_id: Mapped[int | None] = mapped_column(
         ForeignKey("categories.id", ondelete="SET NULL"), nullable=True
     )
+    manufacturer: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    model_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     inventory: Mapped["Inventory"] = relationship(back_populates="material_types")
     category: Mapped["Category | None"] = relationship(back_populates="material_types")
@@ -109,6 +115,10 @@ class Piece(Base):
             "(set_id IS NOT NULL AND set_role IS NOT NULL)",
             name="ck_piece_set_membership",
         ),
+        CheckConstraint(
+            f"status IN ('{ITEM_STATUS_ACTIVE}', '{ITEM_STATUS_RETIRED}')",
+            name="ck_pieces_status",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -116,6 +126,14 @@ class Piece(Base):
         ForeignKey("material_types.id", ondelete="CASCADE")
     )
     name: Mapped[str] = mapped_column(String(255))
+    acquired_year: Mapped[int | None] = mapped_column(Integer(), nullable=True)
+    note: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    source: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(16), default=ITEM_STATUS_ACTIVE, server_default=ITEM_STATUS_ACTIVE
+    )
+    serial_number: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    new_value_cents: Mapped[int | None] = mapped_column(Integer(), nullable=True)
     set_id: Mapped[int | None] = mapped_column(
         ForeignKey("sets.id", ondelete="SET NULL"), nullable=True
     )
@@ -160,6 +178,10 @@ class StockLot(Base):
     __tablename__ = "stock_lots"
     __table_args__ = (
         CheckConstraint("quantity >= 0", name="ck_stock_lot_quantity_non_negative"),
+        CheckConstraint(
+            f"status IN ('{ITEM_STATUS_ACTIVE}', '{ITEM_STATUS_RETIRED}')",
+            name="ck_stock_lots_status",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -167,6 +189,14 @@ class StockLot(Base):
         ForeignKey("material_types.id", ondelete="CASCADE")
     )
     label: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    acquired_year: Mapped[int | None] = mapped_column(Integer(), nullable=True)
+    note: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    source: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(16), default=ITEM_STATUS_ACTIVE, server_default=ITEM_STATUS_ACTIVE
+    )
+    serial_number: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    new_value_cents: Mapped[int | None] = mapped_column(Integer(), nullable=True)
     quantity: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
     material_type: Mapped["MaterialType"] = relationship(back_populates="stock_lots")

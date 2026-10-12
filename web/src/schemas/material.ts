@@ -17,6 +17,20 @@ export type VariantAxis = z.infer<typeof variantAxisSchema>
 
 export const variantMapSchema = z.record(z.string(), z.string())
 
+export const materialItemStatusSchema = z.enum(['active', 'retired'])
+export type MaterialItemStatus = z.infer<typeof materialItemStatusSchema>
+
+export const materialItemFieldsSchema = z.object({
+  acquiredYear: z.number().nullable(),
+  note: z.string().nullable(),
+  source: z.string().nullable(),
+  status: materialItemStatusSchema,
+  serialNumber: z.string().nullable(),
+  newValueCents: z.number().nullable(),
+})
+
+export type MaterialItemFields = z.infer<typeof materialItemFieldsSchema>
+
 export const materialTypeSchema = z.object({
   id: z.number(),
   inventoryId: z.number(),
@@ -28,6 +42,8 @@ export const materialTypeSchema = z.object({
   consumable: z.boolean(),
   categoryId: z.number().nullable(),
   categoryName: z.string().nullable(),
+  manufacturer: z.string().nullable(),
+  modelName: z.string().nullable(),
   variants: z.array(variantAxisSchema),
   coverPhotoId: z.number().nullish(),
   photos: z.array(photoMetaSchema).optional(),
@@ -45,6 +61,7 @@ export const pieceSchema = z.object({
   setRole: z.enum(['assignment', 'optional']).nullable(),
   setName: z.string().nullable(),
   coverPhotoId: z.number().nullish(),
+  ...materialItemFieldsSchema.shape,
 })
 
 export type Piece = z.infer<typeof pieceSchema>
@@ -81,6 +98,7 @@ export const stockLotSchema = z.object({
   quantity: z.number(),
   coverPhotoId: z.number().nullish(),
   photos: z.array(photoMetaSchema).optional(),
+  ...materialItemFieldsSchema.shape,
 })
 
 export const stockRowSchema = z.object({

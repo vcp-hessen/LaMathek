@@ -24,7 +24,7 @@ from lamathek.models.loan import (
     LoanReturn,
     LoanReturnLine,
 )
-from lamathek.models.material import Piece
+from lamathek.models.material import ITEM_STATUS_RETIRED, Piece
 from lamathek.models.set import (
     SET_ROLE_ASSIGNMENT,
     SET_ROLE_OPTIONAL,
@@ -426,6 +426,9 @@ def _validate_stock_available(
 def _validate_piece_available(
     session: Session, piece_id: int, *, exclude_loan_id: int | None = None
 ) -> None:
+    piece = session.get(Piece, piece_id)
+    if piece is not None and piece.status == ITEM_STATUS_RETIRED:
+        raise ValueError("piece_unavailable")
     if piece_has_open_severe_damage(session, piece_id):
         raise ValueError("piece_unavailable")
     if _piece_lost(session, piece_id):

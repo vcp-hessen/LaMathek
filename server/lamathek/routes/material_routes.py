@@ -24,6 +24,7 @@ from lamathek.services.photos import (
     cover_photo_ids_for_pieces,
     cover_photo_ids_for_stock_lots,
 )
+from lamathek.services.material_item_fields import parse_item_fields_for_create
 from lamathek.services.material import (
     create_material_type,
     create_piece,
@@ -74,6 +75,13 @@ def _material_type_status(code: str) -> int:
     if code == "invalid_set":
         status = 404
     if code in ("unit_not_for_piece", "invalid_category"):
+        status = 400
+    if code in (
+        "invalid_acquired_year",
+        "invalid_new_value",
+        "invalid_status",
+        "invalid_field",
+    ):
         status = 400
     return status
 
@@ -166,6 +174,8 @@ def post_material_type(_user, inventory):
             description=_optional_str(body.get("description")),
             unit=_optional_str(body.get("unit")),
             consumable=bool(consumable) if consumable is not None else False,
+            manufacturer=_optional_str(body.get("manufacturer")),
+            model_name=_optional_str(body.get("modelName")),
             **category_args,
         )
     except ValueError as exc:
@@ -219,6 +229,12 @@ def patch_material_type(user, material_type_id: int):
         update_kwargs["unit"] = _optional_str(body.get("unit"))
     if consumable is not None:
         update_kwargs["consumable"] = consumable
+    if "manufacturer" in body:
+        update_kwargs["manufacturer_sent"] = True
+        update_kwargs["manufacturer"] = _optional_str(body.get("manufacturer"))
+    if "modelName" in body:
+        update_kwargs["model_name_sent"] = True
+        update_kwargs["model_name"] = _optional_str(body.get("modelName"))
 
     try:
         update_kwargs.update(_category_args_from_body(body))
@@ -250,7 +266,15 @@ def post_piece(_user, inventory):
         return jsonify({"error": "invalid_material_type"}), 400
     session = get_session()
     try:
-        piece = create_piece(session, inventory, material_type_id, name, variant)
+        item_fields = parse_item_fields_for_create(body)
+        piece = create_piece(
+            session,
+            inventory,
+            material_type_id,
+            name,
+            variant,
+            item_fields=item_fields,
+        )
     except ValueError as exc:
         return _material_type_error(exc)
     piece = piece_by_id(session, piece.id)
@@ -280,6 +304,7 @@ def post_pieces_batch(_user, inventory):
 
     session = get_session()
     try:
+        item_fields = parse_item_fields_for_create(body)
         pieces, result_set_id = create_pieces_batch(
             session,
             inventory,
@@ -290,6 +315,7 @@ def post_pieces_batch(_user, inventory):
             set_id=set_id,
             set_name=set_name,
             set_short_name=set_short_name if isinstance(set_short_name, str) else None,
+            item_fields=item_fields,
         )
     except ValueError as exc:
         return _material_type_error(exc)
@@ -403,6 +429,7 @@ def patch_piece(user, piece_id: int):
             if isinstance(body.get("materialTypeId"), int)
             else None,
             variant=body.get("variant") if "variant" in body else None,
+            metadata_body=body,
         )
     except ValueError as exc:
         return _material_type_error(exc)
@@ -463,6 +490,7 @@ def post_stock_lot(_user, inventory, material_type_id: int):
         return jsonify({"error": "invalid_quantity"}), 400
     session = get_session()
     try:
+        item_fields = parse_item_fields_for_create(body)
         material_type = create_stock_lot(
             session,
             inventory,
@@ -470,6 +498,7 @@ def post_stock_lot(_user, inventory, material_type_id: int):
             label=_optional_lot_text(body, "label"),
             variant=body.get("variant") if "variant" in body else None,
             quantity=quantity,
+            item_fields=item_fields,
         )
     except ValueError as exc:
         return _material_type_error(exc)
@@ -497,6 +526,7 @@ def patch_stock_lot(_user, inventory, lot_id: int):
             quantity=quantity,
             label_sent="label" in body,
             variant_sent="variant" in body,
+            metadata_body=body,
         )
     except ValueError as exc:
         return _material_type_error(exc)

@@ -44,6 +44,8 @@ const unit = ref('')
 const consumable = ref(false)
 const variants = ref<VariantAxis[]>([])
 const categoryText = ref('')
+const manufacturer = ref('')
+const modelName = ref('')
 
 const editName = ref('')
 const editTracking = ref<'piece' | 'stock'>('piece')
@@ -53,6 +55,8 @@ const editUnit = ref('')
 const editConsumable = ref(false)
 const editVariants = ref<VariantAxis[]>([])
 const editCategoryText = ref('')
+const editManufacturer = ref('')
+const editModelName = ref('')
 const savedEdit = ref<string | null>(null)
 
 const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
@@ -94,6 +98,8 @@ function buildPayload(
     consumable: boolean
     variants: VariantAxis[]
     categoryText: string
+    manufacturer: string
+    modelName: string
   },
 ): MaterialTypeWritePayload {
   const normalizedVariants = fields.variants
@@ -110,6 +116,8 @@ function buildPayload(
     unit: fields.tracking === 'stock' ? fields.unit.trim() || null : null,
     consumable: fields.consumable,
     variants: normalizedVariants,
+    manufacturer: fields.manufacturer.trim() || null,
+    modelName: fields.modelName.trim() || null,
     ...categoryPart(fields.categoryText, categoryList.value),
   }
 }
@@ -123,6 +131,8 @@ function resetCreateDraft() {
   consumable.value = false
   variants.value = []
   categoryText.value = ''
+  manufacturer.value = ''
+  modelName.value = ''
 }
 
 function materialEditSnapshot() {
@@ -141,6 +151,8 @@ function materialEditSnapshot() {
     consumable: editConsumable.value,
     variants,
     categoryText: editCategoryText.value.trim(),
+    manufacturer: editManufacturer.value.trim(),
+    modelName: editModelName.value.trim(),
   })
 }
 
@@ -160,6 +172,8 @@ function loadEditDraft(mt: MaterialType) {
     values: [...axis.values],
   }))
   editCategoryText.value = mt.categoryName ?? ''
+  editManufacturer.value = mt.manufacturer ?? ''
+  editModelName.value = mt.modelName ?? ''
   savedEdit.value = materialEditSnapshot()
   formError.value = null
 }
@@ -209,6 +223,8 @@ const createMutation = useMutation({
         consumable: consumable.value,
         variants: variants.value,
         categoryText: categoryText.value,
+        manufacturer: manufacturer.value,
+        modelName: modelName.value,
       }),
     ),
   onSuccess: async () => {
@@ -237,6 +253,8 @@ const updateMutation = useMutation({
         consumable: editConsumable.value,
         variants: editVariants.value,
         categoryText: editCategoryText.value,
+        manufacturer: editManufacturer.value,
+        modelName: editModelName.value,
       }),
     ),
   onSuccess: async () => {
@@ -428,6 +446,8 @@ watch(expandedId, (id) => {
             v-model:consumable="consumable"
             v-model:variants="variants"
             v-model:category-text="categoryText"
+            v-model:manufacturer="manufacturer"
+            v-model:model-name="modelName"
             :categories="categoryList"
           />
           <p v-if="formError && expandedId === null" class="text-sm text-error">{{ formError }}</p>
@@ -591,6 +611,8 @@ watch(expandedId, (id) => {
                         v-model:consumable="editConsumable"
                         v-model:variants="editVariants"
                         v-model:category-text="editCategoryText"
+                        v-model:manufacturer="editManufacturer"
+                        v-model:model-name="editModelName"
                         :categories="categoryList"
                       />
                       <div>

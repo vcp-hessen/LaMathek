@@ -5,6 +5,14 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { deleteStockLot, fetchStocks, updateStockLot } from '../api/material'
 import MaterialDetailsSection from '../components/material/MaterialDetailsSection.vue'
+import MaterialItemMetadataFields from '../components/material/MaterialItemMetadataFields.vue'
+import StockQuantityInput from '../components/material/StockQuantityInput.vue'
+import {
+  emptyItemMetadataDraft,
+  itemMetadataFromRecord,
+  itemMetadataToWritePayload,
+  type ItemMetadataDraft,
+} from '../utils/materialItemValue'
 import { stockLotListItemFromStocks } from '../components/material/materialTableSetup'
 import PhotoGallery from '../components/PhotoGallery.vue'
 import SuperuserDestructiveDelete from '../components/SuperuserDestructiveDelete.vue'
@@ -36,6 +44,7 @@ const lot = computed(() => {
 })
 
 const draft = reactive({ label: '', variant: {} as Record<string, string>, quantity: 0 })
+const editMeta = ref<ItemMetadataDraft>(emptyItemMetadataDraft())
 const savedEdit = ref<string | null>(null)
 const formError = ref<string | null>(null)
 
@@ -57,6 +66,7 @@ function editSnapshot() {
     label: draft.label.trim(),
     variant: variantEntries,
     quantity: draft.quantity,
+    meta: editMeta.value,
   })
 }
 
@@ -68,6 +78,7 @@ function loadDraftFromLot() {
   draft.label = item.label ?? ''
   draft.variant = syncVariantMapKeys(item.variant, item.variants)
   draft.quantity = item.quantity
+  editMeta.value = itemMetadataFromRecord(item)
   savedEdit.value = editSnapshot()
   formError.value = null
 }
@@ -84,6 +95,7 @@ const updateMutation = useMutation({
       label: draft.label.trim() || null,
       variant: lotVariantPayload(draft.variant),
       quantity: draft.quantity,
+      ...itemMetadataToWritePayload(editMeta.value, { includeStatus: true }),
     }),
   onSuccess: async () => {
     formError.value = null
@@ -117,12 +129,25 @@ const deleteMutation = useMutation({
         :dirty="dirty"
         @save="updateMutation.mutate()"
       >
+        <label class="flex min-w-0 flex-col gap-1">
+          <span class="text-xs opacity-80">{{ t('material.stockLotLabel') }}</span>
+          <input
+            v-model="draft.label"
+            type="text"
+            class="input input-bordered input-sm w-full"
+            :placeholder="t('material.stockLotLabelPlaceholder')"
+          />
+        </label>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <label class="flex min-w-0 flex-col gap-1">
             <span class="text-xs opacity-80">{{ t('material.pieceType') }}</span>
             <select class="select select-bordered select-sm w-full" disabled>
               <option>{{ lot.materialTypeName }}</option>
             </select>
+          </label>
+          <label class="flex min-w-0 flex-col gap-1">
+            <span class="text-xs opacity-80">{{ t('material.stockQuantity') }}</span>
+            <StockQuantityInput v-model="draft.quantity" :unit="lot.unit" compact />
           </label>
           <VariantAxisSelects
             v-if="lot.variants.length"
@@ -133,28 +158,15 @@ const deleteMutation = useMutation({
             inline
           />
         </div>
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <label class="flex min-w-0 flex-col gap-1 sm:col-span-2">
-            <span class="text-xs opacity-80">{{ t('material.stockLotLabel') }}</span>
-            <input
-              v-model="draft.label"
-              type="text"
-              class="input input-bordered input-sm w-full"
-              :placeholder="t('material.stockLotLabelPlaceholder')"
-            />
-          </label>
-          <label class="flex min-w-0 flex-col gap-1">
-            <span class="text-xs opacity-80">{{ t('material.stockQuantity') }}</span>
-            <input
-              v-model.number="draft.quantity"
-              type="number"
-              min="0"
-              step="1"
-              class="input input-bordered input-sm w-full"
-              required
-            />
-          </label>
-        </div>
+        <MaterialItemMetadataFields
+          v-model:acquired-year="editMeta.acquiredYear"
+          v-model:note="editMeta.note"
+          v-model:source="editMeta.source"
+          v-model:serial-number="editMeta.serialNumber"
+          v-model:new-value-euro="editMeta.newValueEuro"
+          v-model:status="editMeta.status"
+          show-status
+        />
         <template #delete>
           <SuperuserDestructiveDelete
             :label="t('material.stockLotRemove')"
