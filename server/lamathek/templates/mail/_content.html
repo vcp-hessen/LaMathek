@@ -1,0 +1,34 @@
+<h1
+  style="
+    margin: 0 0 16px;
+    padding-left: 12px;
+    border-left: 4px solid #fecf16;
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1.35;
+    color: #004287;
+  "
+>
+  {{ heading }}
+</h1>
+{% for paragraph in paragraphs %}
+<p style="margin: 0 0 12px; color: #1a1a1a;">{{ paragraph }}</p>
+{% endfor %}
+{% if action_url and action_label %}
+<p style="margin: 20px 0 0;">
+  <a
+    href="{{ action_url }}"
+    style="
+      display: inline-block;
+      background-color: #004287;
+      color: #ffffff;
+      text-decoration: none;
+      padding: 11px 20px;
+      border-radius: 8px;
+      font-weight: 500;
+      border-bottom: 3px solid #fecf16;
+    "
+    >{{ action_label }}</a
+  >
+</p>
+{% endif %}

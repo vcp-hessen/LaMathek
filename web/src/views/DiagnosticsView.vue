@@ -1,0 +1,27 @@
+<script setup lang="ts">
+import { useQuery } from '@tanstack/vue-query'
+import { useI18n } from 'vue-i18n'
+import { fetchMe } from '../api/me'
+import MailTestPanel from '../components/MailTestPanel.vue'
+
+const { t } = useI18n()
+
+const { data: me, isLoading: meLoading } = useQuery({
+  queryKey: ['me'],
+  queryFn: fetchMe,
+})
+</script>
+
+<template>
+  <div class="app-page space-y-4">
+    <h1 class="text-2xl font-bold">{{ t('diagnostics.heading') }}</h1>
+    <p v-if="meLoading" class="text-sm">{{ t('auth.loading') }}</p>
+    <p v-else-if="!me?.isSuperuser" class="text-sm text-base-content/70">
+      {{ t('diagnostics.superuserOnly') }}
+    </p>
+    <template v-else>
+      <p class="text-sm text-base-content/70">{{ t('diagnostics.intro') }}</p>
+      <MailTestPanel :default-recipient="me?.email ?? ''" />
+    </template>
+  </div>
+</template>

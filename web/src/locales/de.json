@@ -88,6 +88,26 @@
     "saveFailed": "Speichern fehlgeschlagen.",
     "superuserOnly": "Nur Superuser*innen können die Einstellungen bearbeiten."
   },
+  "diagnostics": {
+    "nav": "Diagnose",
+    "heading": "Diagnose",
+    "intro": "Technische Prüfungen für diese Installation. Weitere Diagnosen können hier ergänzt werden.",
+    "superuserOnly": "Nur Superuser*innen können die Diagnose nutzen.",
+    "mailHeading": "E-Mail-Versand",
+    "mailNotConfigured": "SMTP ist nicht konfiguriert (Umgebungsvariablen auf dem Server).",
+    "mailStatusHost": "Server",
+    "mailStatusFrom": "Absender",
+    "mailModeSsl": "TLS",
+    "mailModeStarttls": "STARTTLS",
+    "mailModePlain": "ohne Verschlüsselung",
+    "mailTestRecipient": "Test-Empfänger",
+    "mailTestSend": "Testmail senden",
+    "mailTestSending": "Wird gesendet …",
+    "mailTestSuccess": "Testmail wurde gesendet.",
+    "mailTestFailed": "Testmail konnte nicht gesendet werden.",
+    "mailTestFailedDetail": "Testmail konnte nicht gesendet werden: {detail}",
+    "mailTestInvalidRecipient": "Bitte eine gültige E-Mail-Adresse eingeben."
+  },
   "impressum": {
     "nav": "Impressum",
     "heading": "Impressum",

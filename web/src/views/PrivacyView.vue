@@ -77,7 +77,9 @@ const showAuthSameHostNote = computed(
         <div v-if="hostName" class="space-y-1">
           <p>
             Auftragsverarbeiter ist {{ hostName }} (Art. 28 DSGVO). Die Daten werden nur nach
-            Weisung des Betreibers verarbeitet.
+            Weisung des Betreibers verarbeitet. Dazu gehört der Versand transaktionaler E-Mails
+            über den dort betriebenen SMTP-Server: Empfängeradresse, Betreff und Inhalt werden
+            nur zum Zustellen verarbeitet.
           </p>
           <p v-if="hostAddress" class="whitespace-pre-wrap">{{ hostAddress }}</p>
           <p v-if="hostPrivacyUrl">
@@ -92,6 +94,11 @@ const showAuthSameHostNote = computed(
           </p>
         </div>
         <p v-else class="opacity-70">{{ t('privacy.hostNotConfigured') }}</p>
+        <p>
+          Soweit der SMTP-Server nicht beim Betreiber selbst liegt, verarbeitet auch dieser
+          Dienst Empfängeradresse, Betreff und Inhalt nur zum Versand und ist
+          Auftragsverarbeiter nach Art. 28 DSGVO.
+        </p>
       </template>
       <p>
         Rechtsgrundlage für den Betrieb ist Art. 6 Abs. 1 lit. f DSGVO. Das berechtigte
@@ -210,7 +217,26 @@ const showAuthSameHostNote = computed(
     </section>
 
     <section class="space-y-3">
-      <h2 class="text-lg font-medium">7. Ihre Rechte</h2>
+      <h2 class="text-lg font-medium">7. E-Mail</h2>
+      <p>
+        Die Anwendung versendet nur Nachrichten, die eine Nutzung auslöst, etwa zum Konto, zu
+        einem Verleih oder einer Reservierung, oder eine Testmail aus der Diagnose. Es gibt
+        keine Werbung und keinen Newsletter.
+      </p>
+      <p>
+        Verarbeitet werden die E-Mail-Adresse, der Name soweit vorhanden, und der Inhalt der
+        Nachricht. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO, soweit die Nachricht zur
+        Nutzung gehört, sonst Art. 6 Abs. 1 lit. f DSGVO für den Betrieb der Anwendung.
+      </p>
+      <p>
+        Die Anwendung speichert die Nachricht nicht. Der Versanddienst kann technische
+        Protokolle führen, solange das für Betrieb und Zustellung nötig ist. Ihre Rechte dazu
+        stehen im folgenden Abschnitt.
+      </p>
+    </section>
+
+    <section class="space-y-3">
+      <h2 class="text-lg font-medium">8. Ihre Rechte</h2>
       <p>
         Sie können Auskunft über die zu Ihrer Person gespeicherten Daten verlangen, außerdem
         Berichtigung, Löschung und Einschränkung der Verarbeitung sowie, soweit die

@@ -94,3 +94,12 @@ class Config:
     AUTH_DEV_NAME = os.environ.get("AUTH_DEV_NAME", "")
     AUTH_DEV_EMAIL = os.environ.get("AUTH_DEV_EMAIL", "")
     AUTH_DEV_SUPERUSER = _env_optional_bool("AUTH_DEV_SUPERUSER")
+
+    SMTP_HOST = os.environ.get("SMTP_HOST", "").strip()
+    SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+    SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "").strip()
+    SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+    SMTP_FROM = os.environ.get("SMTP_FROM", "").strip()
+    SMTP_STARTTLS = _env_bool("SMTP_STARTTLS", default=True)
+    SMTP_SSL = _env_bool("SMTP_SSL", default=False)
+    SMTP_TIMEOUT = float(os.environ.get("SMTP_TIMEOUT", "15"))

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ installation_title }}</title>
+  </head>
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      background-color: #f0f1ef;
+      font-family: Roboto, Arial, Helvetica, sans-serif;
+      color: #1a1a1a;
+      -webkit-text-size-adjust: 100%;
+    "
+  >
+    <table
+      role="presentation"
+      cellpadding="0"
+      cellspacing="0"
+      border="0"
+      width="100%"
+      style="background-color: #f0f1ef; padding: 32px 16px;"
+    >
+      <tr>
+        <td align="center">
+          <table
+            role="presentation"
+            cellpadding="0"
+            cellspacing="0"
+            border="0"
+            width="100%"
+            style="
+              max-width: 560px;
+              background-color: #ffffff;
+              border-radius: 12px;
+              overflow: hidden;
+              border: 1px solid #c3d1e0;
+            "
+          >
+            <tr>
+              <td style="background-color: #004287; padding: 20px 24px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                  <tr>
+                    {% if logo_src %}
+                    <td width="56" valign="middle" style="padding-right: 16px;">
+                      <img
+                        src="{{ logo_src }}"
+                        width="56"
+                        height="56"
+                        alt=""
+                        style="
+                          display: block;
+                          width: 56px;
+                          height: 56px;
+                          border-radius: 12px;
+                          border: 0;
+                        "
+                      />
+                    </td>
+                    {% endif %}
+                    <td valign="middle" style="color: #ffffff;">
+                      <p
+                        style="
+                          margin: 0;
+                          font-size: 22px;
+                          font-weight: 500;
+                          line-height: 1.25;
+                          color: #ffffff;
+                        "
+                      >
+                        {{ installation_title }}
+                      </p>
+                      {% if installation_subtitle %}
+                      <p
+                        style="
+                          margin: 6px 0 0;
+                          font-size: 14px;
+                          line-height: 1.35;
+                          color: #c3d1e0;
+                        "
+                      >
+                        {{ installation_subtitle }}
+                      </p>
+                      {% endif %}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td
+                style="
+                  background-color: #fecf16;
+                  height: 4px;
+                  line-height: 4px;
+                  font-size: 0;
+                "
+              >
+                &nbsp;
+              </td>
+            </tr>
+            <tr>
+              <td
+                style="
+                  background-color: #ffffff;
+                  padding: 28px 24px 24px;
+                  font-size: 15px;
+                  line-height: 1.55;
+                  color: #1a1a1a;
+                "
+              >
+                {% block mail_content %}{% endblock %}
+              </td>
+            </tr>
+            {% if website_href or provider_label or impressum_url %}
+            <tr>
+              <td
+                style="
+                  background-color: #ffffff;
+                  padding: 12px 24px 16px;
+                  font-size: 11px;
+                  line-height: 1.45;
+                  color: #1a1a1a;
+                  text-align: left;
+                  border-top: 1px solid #c3d1e0;
+                "
+              >
+                {% if footer_identity %}
+                <p style="margin: 0; color: #1a1a1a;">{{ footer_identity }}</p>
+                {% endif %}
+                {% if contact_email or phone or website_raw %}
+                <p style="margin: 2px 0 0; color: #1a1a1a; opacity: 0.8;">
+                  {% if contact_email %}
+                  <a href="mailto:{{ contact_email }}" style="color: #004287; text-decoration: none;">{{ contact_email }}</a>
+                  {% endif %}
+                  {% if phone %}
+                  {% if contact_email %}<span style="color: #a8b8c9;"> · </span>{% endif %}{{ phone }}
+                  {% endif %}
+                  {% if website_raw %}
+                  {% if contact_email or phone %}<span style="color: #a8b8c9;"> · </span>{% endif %}
+                  {% if website_href %}
+                  <a href="{{ website_href }}" style="color: #004287; text-decoration: none;">{{ website_raw }}</a>
+                  {% else %}{{ website_raw }}{% endif %}
+                  {% endif %}
+                </p>
+                {% endif %}
+                {% if footer_meta %}
+                <p style="margin: 2px 0 0; color: #1a1a1a; opacity: 0.8;">{{ footer_meta }}</p>
+                {% endif %}
+                {% if impressum_url %}
+                <p style="margin: 6px 0 0;">
+                  <a href="{{ impressum_url }}" style="color: #004287; text-decoration: none;">Impressum</a>
+                  <span style="color: #a8b8c9;"> · </span>
+                  <a href="{{ privacy_url }}" style="color: #004287; text-decoration: none;">Datenschutz</a>
+                </p>
+                {% endif %}
+              </td>
+            </tr>
+            {% endif %}
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

@@ -1,0 +1,7 @@
+{{ heading }}
+
+{% for paragraph in paragraphs %}{{ paragraph }}
+
+{% endfor %}{% if action_url and action_label %}{{ action_label }}: {{ action_url }}
+
+{% endif %}

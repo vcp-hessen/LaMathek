@@ -79,6 +79,8 @@ Coolify builds the root [Dockerfile](Dockerfile) and serves the built client fro
 
 Set these in Coolify, not in the repo: `SECRET_KEY`, `FRONTEND_URL=https://<domain>`, `OIDC_REDIRECT_URI=https://<domain>/auth/callback` (same URI in the IdP), `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_SERVER_METADATA_URL`. Do not set `AUTH_DEV_BYPASS`.
 
+Optional outbound mail: `SMTP_HOST`, `SMTP_FROM`, and usually `SMTP_PORT` (default 587), `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_STARTTLS`, `SMTP_SSL` (for port 465), `SMTP_TIMEOUT`. Superusers can send a test mail from **Diagnose** when SMTP is configured.
+
 ### Live reload in Docker (optional)
 
 [deploy/docker-compose.dev.yml](deploy/docker-compose.dev.yml) bind-mounts the checkout, reloads Flask when `LAMATHEK_RELOAD=1`, and runs Vite on port 5173. The API stays internal and Vite proxies to it. SQLite is `server/lamathek.sqlite3` inside the mount (gitignored), separate from the staging volume.

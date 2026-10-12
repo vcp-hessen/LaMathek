@@ -1,0 +1,10 @@
+{{ installation_title }}
+{% if installation_subtitle %}{{ installation_subtitle }}{% endif %}
+
+{% block mail_content %}{% endblock %}
+{% if footer_identity %}{{ footer_identity }}
+{% endif %}{% if contact_email or phone or website_raw %}{{ contact_email }}{% if contact_email and (phone or website_raw) %} · {% endif %}{{ phone }}{% if phone and website_raw %} · {% endif %}{{ website_raw }}
+{% endif %}{% if footer_meta %}{{ footer_meta }}
+{% endif %}{% if impressum_url %}Impressum: {{ impressum_url }}
+Datenschutz: {{ privacy_url }}
+{% endif %}

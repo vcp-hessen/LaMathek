@@ -24,5 +24,8 @@ build-backend = "setuptools.build_meta"
 where = ["."]
 include = ["lamathek*"]
 
+[tool.setuptools.package-data]
+lamathek = ["templates/**/*"]
+
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]

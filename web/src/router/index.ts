@@ -4,6 +4,7 @@ import ImpressumView from '../views/ImpressumView.vue'
 import PrivacyView from '../views/PrivacyView.vue'
 import InventoriesListView from '../views/InventoriesListView.vue'
 import InstallationSettingsView from '../views/InstallationSettingsView.vue'
+import DiagnosticsView from '../views/DiagnosticsView.vue'
 import UsersView from '../views/UsersView.vue'
 import InventoryMaterialTypesView from '../views/InventoryMaterialTypesView.vue'
 import InventoryMaterialView from '../views/InventoryMaterialView.vue'
@@ -26,6 +27,11 @@ export const router = createRouter({
       path: '/settings',
       name: 'installation-settings',
       component: InstallationSettingsView,
+    },
+    {
+      path: '/diagnose',
+      name: 'diagnostics',
+      component: DiagnosticsView,
     },
     {
       path: '/users',

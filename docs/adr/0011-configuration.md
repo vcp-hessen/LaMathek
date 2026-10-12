@@ -6,7 +6,7 @@ status: accepted
 
 Each LaMathek installation is deployed once and then run by Materialwarte. Some settings belong to the host and must not be editable in the UI. Others describe this installation and should default sensibly, then be changed in the app by superusers.
 
-**Environment** holds what ties the process to infrastructure and identity: database location, Flask secret, OpenID Connect client credentials and metadata URL, redirect URI, and frontend URL. These values are set when the instance is deployed. Changing them requires a redeploy or a restart, not a screen in LaMathek. For local development only, optional `AUTH_DEV_*` variables can skip OIDC; see [0012-dev-auth-bypass.md](./0012-dev-auth-bypass.md).
+**Environment** holds what ties the process to infrastructure and identity: database location, Flask secret, OpenID Connect client credentials and metadata URL, redirect URI, frontend URL, and SMTP credentials for outbound mail (`SMTP_HOST`, `SMTP_FROM`, and related variables). These values are set when the instance is deployed. Changing them requires a redeploy or a restart, not a screen in LaMathek. For local development only, optional `AUTH_DEV_*` variables can skip OIDC; see [0012-dev-auth-bypass.md](./0012-dev-auth-bypass.md).
 
 **Database** holds installation settings that operators may change without touching the server: display title and subtitle, legal imprint fields for the public Impressum page, and the default map centre used when an Inventar has no coordinates. Rows are created with defaults on first migration or first boot. Superusers edit them in the application.
 

@@ -16,6 +16,7 @@ from lamathek.routes.geocode_routes import geocode_bp
 from lamathek.routes.settings_routes import settings_bp
 from lamathek.routes.users_routes import users_bp
 from lamathek.routes.photo_routes import photos_bp
+from lamathek.routes.mail_routes import mail_bp
 
 
 def client_dist_dir() -> Path:
@@ -50,6 +51,7 @@ def create_app(config: type[Config] = Config) -> Flask:
     app.register_blueprint(users_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(photos_bp)
+    app.register_blueprint(mail_bp)
 
     static_root = client_dist_dir()
 

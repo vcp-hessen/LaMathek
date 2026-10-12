@@ -17,6 +17,7 @@ const props = defineProps<{
   inventoriesLoading?: boolean
   inventoriesListActive: boolean
   settingsActive: boolean
+  diagnosticsActive: boolean
   usersActive: boolean
   mobile?: boolean
 }>()
@@ -167,6 +168,28 @@ function navItemClass(active: boolean, expanded: boolean) {
                   :tooltip="t('settings.heading')"
                 />
                 <span v-show="expanded">{{ t('settings.heading') }}</span>
+              </RouterLink>
+            </div>
+          </li>
+          <li v-if="me?.isSuperuser">
+            <div
+              class="tooltip tooltip-right w-full"
+              :class="{ 'before:hidden': expanded }"
+              :data-tip="expanded ? undefined : t('diagnostics.nav')"
+            >
+              <RouterLink
+                to="/diagnose"
+                :class="navItemClass(diagnosticsActive, expanded)"
+                :aria-label="expanded ? undefined : t('diagnostics.nav')"
+                :aria-current="diagnosticsActive ? 'page' : undefined"
+              >
+                <WlzIcon
+                  glyph="exchange"
+                  :active="diagnosticsActive"
+                  size-class="text-lg"
+                  :tooltip="t('diagnostics.nav')"
+                />
+                <span v-show="expanded">{{ t('diagnostics.nav') }}</span>
               </RouterLink>
             </div>
           </li>
