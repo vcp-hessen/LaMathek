@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import type { ColumnDef } from '@tanstack/vue-table'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
@@ -14,7 +15,11 @@ import {
 import type { InventoryWritePayload } from '../schemas/inventory'
 import { fetchInstallationSettings } from '../api/settings'
 import { fetchMe } from '../api/me'
-import ExpandableRow from '../components/ExpandableRow.vue'
+import DataTableFooter from '../components/data-table/DataTableFooter.vue'
+import DataTableSearch from '../components/data-table/DataTableSearch.vue'
+import { localeSortRow } from '../components/data-table/localeSort'
+import SortHeaderButton from '../components/data-table/SortHeaderButton.vue'
+import { useClientTable } from '../components/data-table/useClientTable'
 import SuperuserDestructiveDelete from '../components/SuperuserDestructiveDelete.vue'
 import InventoryLocationFields from '../components/InventoryLocationFields.vue'
 import InventoryPermissionEditor from '../components/InventoryPermissionEditor.vue'
@@ -24,15 +29,13 @@ import { useApiErrorMessage } from '../composables/useApiErrorMessage'
 import type { Inventory } from '../schemas/inventory'
 import { useInventoryStore } from '../stores/inventory'
 
-const NEW_ROW = 'new' as const
-type ExpandedKey = number | typeof NEW_ROW | null
-
 const { t } = useI18n()
 const { messageFor } = useApiErrorMessage()
 const inventoryStore = useInventoryStore()
 const queryClient = useQueryClient()
 
-const expandedKey = ref<ExpandedKey>(null)
+const creating = ref(false)
+const expandedId = ref<number | null>(null)
 const formError = ref<string | null>(null)
 
 const newName = ref('')
@@ -66,9 +69,7 @@ const mapDefaults = computed(() => ({
   longitude: settings.value?.mapLongitude ?? 9.16,
 }))
 
-const editingId = computed(() =>
-  typeof expandedKey.value === 'number' ? expandedKey.value : null,
-)
+const editingId = computed(() => expandedId.value)
 
 const { data: permittedUsers } = useQuery({
   queryKey: computed(() => ['inventoryPermissionUsers', editingId.value]),
@@ -120,8 +121,57 @@ watch([editingId, permittedUsers], ([id, users]) => {
   }
 })
 
-const sortedInventories = computed(() =>
-  [...(inventories.value ?? [])].sort((a, b) => a.name.localeCompare(b.name, 'de')),
+const columns = computed<ColumnDef<Inventory>[]>(() => [
+  {
+    id: 'name',
+    accessorFn: (inv) => inv.name,
+    sortingFn: localeSortRow,
+  },
+  {
+    id: 'address',
+    accessorFn: (inv) => inv.address?.split('\n')[0] ?? '',
+    sortingFn: localeSortRow,
+  },
+  {
+    id: 'active',
+    accessorFn: (inv) =>
+      inventoryStore.activeInventoryId === inv.id ? t('inventories.activeTag') : '',
+    sortingFn: localeSortRow,
+  },
+])
+
+const {
+  table,
+  globalFilter,
+  sorting,
+  pagination,
+  tableRows,
+  filteredCount,
+  pageCount,
+  currentPage,
+  pageFrom,
+  pageTo,
+  goToPage,
+  setPageSize,
+} = useClientTable<Inventory>({
+  data: () => inventories.value ?? [],
+  columns,
+  getRowId: (inv) => String(inv.id),
+  globalFilterFn: () => (row, _columnId, filterValue) => {
+    const query = String(filterValue ?? '').trim().toLowerCase()
+    if (!query) return true
+    const inv = row.original
+    const haystack = [inv.name, inv.address ?? '', inv.notes ?? ''].join(' ').toLowerCase()
+    return haystack.includes(query)
+  },
+  initialSorting: [{ id: 'name', desc: false }],
+})
+
+watch(
+  [globalFilter, sorting, () => pagination.value.pageIndex, () => pagination.value.pageSize],
+  () => {
+    expandedId.value = null
+  },
 )
 
 const permissionsReady = computed(
@@ -171,34 +221,44 @@ function buildPayload(fields: {
 }
 
 function openNewRow() {
-  expandedKey.value = NEW_ROW
+  creating.value = true
+  expandedId.value = null
   resetCreateDraft()
   formError.value = null
 }
 
 function closeNewRow() {
-  expandedKey.value = null
+  creating.value = false
   formError.value = null
 }
 
 function toggleRow(id: number) {
-  if (expandedKey.value === id) {
-    expandedKey.value = null
+  if (expandedId.value === id) {
+    expandedId.value = null
     formError.value = null
     return
   }
+  creating.value = false
   permissionsSyncedFor.value = null
-  expandedKey.value = id
+  expandedId.value = id
   const inv = inventories.value?.find((row) => row.id === id)
   if (inv) loadEditDraft(inv)
   formError.value = null
 }
 
-function summaryMeta(inv: Inventory): string {
-  const parts: string[] = []
-  if (inv.address) parts.push(inv.address.split('\n')[0])
-  if (inventoryStore.activeInventoryId === inv.id) parts.push(t('inventories.activeTag'))
-  return parts.join(' · ')
+function sortedState(columnId: string): false | 'asc' | 'desc' {
+  return table.getColumn(columnId)?.getIsSorted() ?? false
+}
+
+function onRowKeydown(event: KeyboardEvent, id: number) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    toggleRow(id)
+  }
+}
+
+function addressLine(inv: Inventory): string {
+  return inv.address?.split('\n')[0] ?? ''
 }
 
 async function refreshInventories() {
@@ -217,7 +277,7 @@ const createMutation = useMutation({
       }),
     ),
   onSuccess: async (created) => {
-    expandedKey.value = null
+    creating.value = false
     formError.value = null
     resetCreateDraft()
     inventoryStore.setActiveInventory(created.id)
@@ -258,7 +318,7 @@ const updateMutation = useMutation({
 const deleteMutation = useMutation({
   mutationFn: (id: number) => deleteInventory(id),
   onSuccess: async (_data, id) => {
-    if (expandedKey.value === id) expandedKey.value = null
+    if (expandedId.value === id) expandedId.value = null
     formError.value = null
     if (inventoryStore.activeInventoryId === id) {
       inventoryStore.setActiveInventory(null)
@@ -284,136 +344,215 @@ const deleteMutation = useMutation({
             v-if="me?.isSuperuser && !isLoading"
             type="button"
             class="btn btn-ghost btn-sm"
-            :aria-expanded="expandedKey === NEW_ROW"
-            @click="openNewRow"
+            :aria-expanded="creating"
+            @click="creating ? closeNewRow() : openNewRow()"
           >
             {{ t('inventories.new') }}
           </button>
         </div>
 
         <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
-        <ul v-else class="list-none">
-          <ExpandableRow
-            v-if="expandedKey === NEW_ROW"
-            :expanded="true"
-            @toggle="closeNewRow"
+        <template v-else>
+          <form
+            v-if="creating"
+            class="inventory-form space-y-4 rounded-lg border border-base-200 p-4"
+            @submit.prevent="createMutation.mutate()"
           >
-            <template #summary>
-              <span class="font-medium">{{ t('inventories.new') }}</span>
-            </template>
-            <template #editor>
-              <form class="inventory-form space-y-4" @submit.prevent="createMutation.mutate()">
-                <label class="flex min-w-0 flex-col gap-1">
-                  <span class="text-xs opacity-80">{{ t('inventories.nameLabel') }}</span>
-                  <input
-                    v-model="newName"
-                    type="text"
-                    class="input input-bordered"
-                    required
-                  />
-                </label>
-                <InventoryLocationFields
-                  v-model:address="newAddress"
-                  v-model:notes="newNotes"
-                  v-model:latitude="newLatitude"
-                  v-model:longitude="newLongitude"
-                  :default-latitude="mapDefaults.latitude"
-                  :default-longitude="mapDefaults.longitude"
-                />
-                <p v-if="formError" class="text-sm text-error">{{ formError }}</p>
-                <div class="flex justify-end gap-2">
-                  <button type="button" class="btn btn-ghost btn-sm" @click="closeNewRow">
-                    {{ t('inventories.cancel') }}
-                  </button>
-                  <button
-                    type="submit"
-                    class="btn btn-primary btn-sm"
-                    :disabled="createMutation.isPending.value"
-                  >
-                    {{ t('inventories.create') }}
-                  </button>
-                </div>
-              </form>
-            </template>
-          </ExpandableRow>
-
-          <ExpandableRow
-            v-for="inv in sortedInventories"
-            :key="inv.id"
-            :expanded="expandedKey === inv.id"
-            @toggle="toggleRow(inv.id)"
-          >
-            <template #summary>
-              <div class="flex flex-wrap items-center gap-3">
-                <PhotoThumbnail :photo-id="inv.coverPhotoId" />
-                <div class="flex flex-1 flex-wrap items-baseline justify-between gap-2">
-                <span class="font-medium">{{ inv.name }}</span>
-                <span v-if="summaryMeta(inv)" class="text-sm text-base-content/70">
-                  {{ summaryMeta(inv) }}
-                </span>
-                </div>
-              </div>
-            </template>
-            <template #editor>
-              <form
-                class="inventory-form space-y-4"
-                @submit.prevent="updateMutation.mutate(inv.id)"
+            <p class="text-sm font-medium">{{ t('inventories.new') }}</p>
+            <label class="flex min-w-0 flex-col gap-1">
+              <span class="text-xs opacity-80">{{ t('inventories.nameLabel') }}</span>
+              <input v-model="newName" type="text" class="input input-bordered" required />
+            </label>
+            <InventoryLocationFields
+              v-model:address="newAddress"
+              v-model:notes="newNotes"
+              v-model:latitude="newLatitude"
+              v-model:longitude="newLongitude"
+              :default-latitude="mapDefaults.latitude"
+              :default-longitude="mapDefaults.longitude"
+            />
+            <p v-if="formError && expandedId === null" class="text-sm text-error">{{ formError }}</p>
+            <div class="flex justify-end gap-2">
+              <button type="button" class="btn btn-ghost btn-sm" @click="closeNewRow">
+                {{ t('inventories.cancel') }}
+              </button>
+              <button
+                type="submit"
+                class="btn btn-primary btn-sm"
+                :disabled="createMutation.isPending.value"
               >
-                <label class="flex min-w-0 flex-col gap-1">
-                  <span class="text-xs opacity-80">{{ t('inventories.nameLabel') }}</span>
-                  <input v-model="editName" type="text" class="input input-bordered" required />
-                </label>
-                <InventoryLocationFields
-                  v-model:address="editAddress"
-                  v-model:notes="editNotes"
-                  v-model:latitude="editLatitude"
-                  v-model:longitude="editLongitude"
-                  :default-latitude="mapDefaults.latitude"
-                  :default-longitude="mapDefaults.longitude"
-                />
-                <InventoryPermissionEditor
-                  v-if="editingId === inv.id"
-                  v-model="editUserIds"
-                  :inventory-id="inv.id"
-                />
-                <div v-if="editingId === inv.id && editingInventory">
-                  <h3 class="mb-2 text-sm font-semibold">{{ t('photos.heading') }}</h3>
-                  <PhotoGallery
-                    :owner="{ kind: 'inventory', inventoryId: inv.id }"
-                    :photos="editingInventory.photos ?? []"
-                    @change="refreshInventoryPhotos"
-                  />
-                </div>
-                <p v-if="formError && expandedKey === inv.id" class="text-sm text-error">
-                  {{ formError }}
-                </p>
-                <div class="flex flex-wrap items-center justify-end gap-2">
-                  <SuperuserDestructiveDelete
-                    v-if="me?.isSuperuser"
-                    :warning="t('destructive.inventoryWarning')"
-                    :disabled="deleteMutation.isPending.value"
-                    @confirmed="deleteMutation.mutate(inv.id)"
-                  />
-                  <button
-                    type="submit"
-                    class="btn btn-primary btn-sm"
-                    :disabled="updateMutation.isPending.value || !permissionsReady || !editDirty"
-                  >
-                    {{ t('inventories.rename') }}
-                  </button>
-                </div>
-              </form>
-            </template>
-          </ExpandableRow>
+                {{ t('inventories.create') }}
+              </button>
+            </div>
+          </form>
 
-          <li
-            v-if="!sortedInventories.length && expandedKey !== NEW_ROW"
-            class="py-2 text-sm opacity-70"
-          >
+          <p v-if="!(inventories?.length)" class="text-sm opacity-70">
             {{ t('inventories.empty') }}.
             <template v-if="me?.isSuperuser"> {{ t('inventories.emptyHint') }}</template>
             <template v-else> {{ t('inventories.emptyHintUser') }}</template>
-          </li>
-        </ul>
+          </p>
+          <div v-else class="rounded-lg border border-base-200">
+            <div
+              class="data-table-toolbar flex flex-col gap-3 border-b border-base-200 p-3 sm:flex-row sm:flex-wrap sm:items-end"
+            >
+              <DataTableSearch
+                :model-value="globalFilter"
+                :label="t('inventories.searchLabel')"
+                :placeholder="t('inventories.searchPlaceholder')"
+                @update:model-value="globalFilter = $event"
+              />
+            </div>
+            <div class="overflow-x-auto">
+              <table class="table table-sm data-table">
+                <thead>
+                  <tr>
+                    <th class="data-table-col-photo hidden sm:table-cell">
+                      <span class="sr-only">{{ t('dataTable.photo') }}</span>
+                    </th>
+                    <th class="data-table-col-lead">
+                      <SortHeaderButton
+                        :label="t('inventories.columnName')"
+                        :sorted="sortedState('name')"
+                        @toggle="table.getColumn('name')?.toggleSorting()"
+                      />
+                    </th>
+                    <th class="hidden md:table-cell">
+                      <SortHeaderButton
+                        :label="t('inventories.addressLabel')"
+                        :sorted="sortedState('address')"
+                        @toggle="table.getColumn('address')?.toggleSorting()"
+                      />
+                    </th>
+                    <th class="hidden sm:table-cell">
+                      <SortHeaderButton
+                        :label="t('inventories.columnStatus')"
+                        :sorted="sortedState('active')"
+                        @toggle="table.getColumn('active')?.toggleSorting()"
+                      />
+                    </th>
+                  </tr>
+                </thead>
+                <tbody v-if="tableRows.length === 0">
+                  <tr>
+                    <td colspan="4" class="py-8 text-center text-sm opacity-70">
+                      {{ t('dataTable.noResults') }}
+                    </td>
+                  </tr>
+                </tbody>
+                <tbody v-for="(row, index) in tableRows" v-else :key="row.id">
+                  <tr
+                    tabindex="0"
+                    role="button"
+                    class="data-table-row cursor-pointer"
+                    :class="{ 'data-table-row--stripe': index % 2 === 1 }"
+                    :aria-expanded="expandedId === row.original.id"
+                    @click="toggleRow(row.original.id)"
+                    @keydown="onRowKeydown($event, row.original.id)"
+                  >
+                    <td class="data-table-col-photo hidden sm:table-cell">
+                      <PhotoThumbnail :photo-id="row.original.coverPhotoId" />
+                    </td>
+                    <td class="data-table-col-lead min-w-0">
+                      <div class="flex items-start gap-2">
+                        <span
+                          class="mt-0.5 shrink-0 text-base-content/50 transition-transform duration-200"
+                          :class="{ 'rotate-90': expandedId === row.original.id }"
+                          aria-hidden="true"
+                        >
+                          ›
+                        </span>
+                        <div class="min-w-0">
+                          <span class="font-medium">{{ row.original.name }}</span>
+                          <div class="mt-0.5 space-y-0.5 text-xs opacity-70">
+                            <span v-if="addressLine(row.original)" class="block md:hidden">
+                              {{ addressLine(row.original) }}
+                            </span>
+                            <span
+                              v-if="inventoryStore.activeInventoryId === row.original.id"
+                              class="block sm:hidden"
+                            >
+                              {{ t('inventories.activeTag') }}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="hidden max-w-[16rem] truncate md:table-cell">
+                      {{ addressLine(row.original) || '—' }}
+                    </td>
+                    <td class="hidden sm:table-cell">
+                      <span v-if="inventoryStore.activeInventoryId === row.original.id">
+                        {{ t('inventories.activeTag') }}
+                      </span>
+                      <span v-else>—</span>
+                    </td>
+                  </tr>
+                  <tr v-if="expandedId === row.original.id" class="data-table-editor">
+                    <td colspan="4" class="pb-4 pt-3">
+                      <form
+                        class="inventory-form space-y-4 pl-5"
+                        @submit.prevent="updateMutation.mutate(row.original.id)"
+                      >
+                        <label class="flex min-w-0 flex-col gap-1">
+                          <span class="text-xs opacity-80">{{ t('inventories.nameLabel') }}</span>
+                          <input v-model="editName" type="text" class="input input-bordered" required />
+                        </label>
+                        <InventoryLocationFields
+                          v-model:address="editAddress"
+                          v-model:notes="editNotes"
+                          v-model:latitude="editLatitude"
+                          v-model:longitude="editLongitude"
+                          :default-latitude="mapDefaults.latitude"
+                          :default-longitude="mapDefaults.longitude"
+                        />
+                        <InventoryPermissionEditor
+                          v-if="editingId === row.original.id"
+                          v-model="editUserIds"
+                          :inventory-id="row.original.id"
+                        />
+                        <div v-if="editingId === row.original.id && editingInventory">
+                          <h3 class="mb-2 text-sm font-semibold">{{ t('photos.heading') }}</h3>
+                          <PhotoGallery
+                            :owner="{ kind: 'inventory', inventoryId: row.original.id }"
+                            :photos="editingInventory.photos ?? []"
+                            @change="refreshInventoryPhotos"
+                          />
+                        </div>
+                        <p v-if="formError && expandedId === row.original.id" class="text-sm text-error">
+                          {{ formError }}
+                        </p>
+                        <div class="flex flex-wrap items-center justify-end gap-2">
+                          <SuperuserDestructiveDelete
+                            v-if="me?.isSuperuser"
+                            :warning="t('destructive.inventoryWarning')"
+                            :disabled="deleteMutation.isPending.value"
+                            @confirmed="deleteMutation.mutate(row.original.id)"
+                          />
+                          <button
+                            type="submit"
+                            class="btn btn-primary btn-sm"
+                            :disabled="updateMutation.isPending.value || !permissionsReady || !editDirty"
+                          >
+                            {{ t('inventories.rename') }}
+                          </button>
+                        </div>
+                      </form>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <DataTableFooter
+              :page-from="pageFrom"
+              :page-to="pageTo"
+              :total="filteredCount"
+              :current-page="currentPage"
+              :page-count="pageCount"
+              :page-size="pagination.pageSize"
+              @update:page-size="setPageSize"
+              @go-to-page="goToPage"
+            />
+          </div>
+        </template>
   </div>
 </template>

@@ -46,7 +46,7 @@ const visible = computed(
 <template>
   <div
     v-if="visible"
-    class="pieces-table-chips flex flex-wrap items-center gap-2 border-b border-base-200 px-3 py-2"
+    class="data-table-chips flex flex-wrap items-center gap-2 border-b border-base-200 px-3 py-2"
     :aria-label="t('material.piecesFilterActive')"
   >
     <span v-if="searchQuery.trim()" class="badge badge-outline gap-1 py-2.5 pl-2.5 pr-1">

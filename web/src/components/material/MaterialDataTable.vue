@@ -1,25 +1,13 @@
 <script setup lang="ts">
-import {
-  type ColumnDef,
-  type ColumnFiltersState,
-  type PaginationState,
-  type SortingState,
-  functionalUpdate,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useVueTable,
-} from '@tanstack/vue-table'
-import { computed, ref, watch } from 'vue'
+import { type ColumnDef } from '@tanstack/vue-table'
+import { computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import {
-  ChevronDownIcon,
-  ChevronUpDownIcon,
-  ChevronUpIcon,
-} from '@heroicons/vue/24/outline'
 import type { MaterialType } from '../../schemas/material'
+import DataTableFooter from '../data-table/DataTableFooter.vue'
+import { localeSortRow } from '../data-table/localeSort'
+import SortHeaderButton from '../data-table/SortHeaderButton.vue'
+import { useClientTable } from '../data-table/useClientTable'
 import PhotoThumbnail from '../PhotoThumbnail.vue'
 import {
   buildVariantAxisCatalog,
@@ -30,7 +18,6 @@ import { variantMapSummary } from '../../utils/variantDisplay'
 import PiecesActiveFilterChips from '../pieces/PiecesActiveFilterChips.vue'
 import PiecesTableToolbar from '../pieces/PiecesTableToolbar.vue'
 import {
-  MATERIAL_PAGE_SIZE_OPTIONS,
   type MaterialRow,
   createMaterialGlobalFilterFn,
   createMaterialTypeFilterFn,
@@ -50,14 +37,6 @@ const props = defineProps<{
 const { t } = useI18n()
 const router = useRouter()
 
-const globalFilter = ref('')
-const sorting = ref<SortingState>([{ id: 'name', desc: false }])
-const columnFilters = ref<ColumnFiltersState>([])
-const pagination = ref<PaginationState>({
-  pageIndex: 0,
-  pageSize: MATERIAL_PAGE_SIZE_OPTIONS[0],
-})
-
 const unlabeledLotLabel = computed(() => t('material.stockLotUnlabeled'))
 
 const materialTypeById = computed(() => {
@@ -65,14 +44,6 @@ const materialTypeById = computed(() => {
   for (const mt of props.materialTypes) map.set(mt.id, mt)
   return map
 })
-
-function localeSortRow(
-  rowA: { getValue: (id: string) => unknown },
-  rowB: { getValue: (id: string) => unknown },
-  columnId: string,
-) {
-  return String(rowA.getValue(columnId)).localeCompare(String(rowB.getValue(columnId)), 'de')
-}
 
 function variantSortKey(row: MaterialRow): string {
   if (row.kind === 'piece') {
@@ -144,63 +115,26 @@ const columns = computed<ColumnDef<MaterialRow>[]>(() => [
   },
 ])
 
-const table = useVueTable({
-  get data() {
-    return props.rows
-  },
-  get columns() {
-    return columns.value
-  },
+const {
+  table,
+  globalFilter,
+  pagination,
+  tableRows,
+  filteredCount,
+  pageCount,
+  currentPage,
+  pageFrom,
+  pageTo,
+  goToPage,
+  setPageSize,
+} = useClientTable<MaterialRow>({
+  data: () => props.rows,
+  columns,
   getRowId: (row) => row.id,
-  state: {
-    get sorting() {
-      return sorting.value
-    },
-    get columnFilters() {
-      return columnFilters.value
-    },
-    get globalFilter() {
-      return globalFilter.value
-    },
-    get pagination() {
-      return pagination.value
-    },
-  },
-  onSortingChange: (updater) => {
-    sorting.value = functionalUpdate(updater, sorting.value)
-  },
-  onColumnFiltersChange: (updater) => {
-    columnFilters.value = functionalUpdate(updater, columnFilters.value)
-  },
-  onGlobalFilterChange: (updater) => {
-    globalFilter.value = functionalUpdate(updater, globalFilter.value)
-  },
-  onPaginationChange: (updater) => {
-    pagination.value = functionalUpdate(updater, pagination.value)
-  },
-  globalFilterFn: (row, columnId, filterValue, addMeta) =>
-    createMaterialGlobalFilterFn(props.materialTypes, unlabeledLotLabel.value)(
-      row,
-      columnId,
-      filterValue,
-      addMeta,
-    ),
-  getCoreRowModel: getCoreRowModel(),
-  getSortedRowModel: getSortedRowModel(),
-  getFilteredRowModel: getFilteredRowModel(),
-  getPaginationRowModel: getPaginationRowModel(),
+  globalFilterFn: () => createMaterialGlobalFilterFn(props.materialTypes, unlabeledLotLabel.value),
+  initialSorting: [{ id: 'name', desc: false }],
   autoResetPageIndex: true,
 })
-
-watch(globalFilter, () => table.setPageIndex(0))
-watch(columnFilters, () => table.setPageIndex(0), { deep: true })
-watch(
-  () => pagination.value.pageSize,
-  () => table.setPageIndex(0),
-)
-
-const tableRows = computed(() => table.getRowModel().rows)
-const filteredCount = computed(() => table.getFilteredRowModel().rows.length)
 
 const materialTypeFilter = computed(() => {
   const value = table.getColumn('materialTypeName')?.getFilterValue()
@@ -240,20 +174,8 @@ watch(materialTypeFilter, () => {
   }
 })
 
-const pageCount = computed(() => table.getPageCount())
-const currentPage = computed(() => pagination.value.pageIndex + 1)
-const pageFrom = computed(() =>
-  filteredCount.value === 0 ? 0 : pagination.value.pageIndex * pagination.value.pageSize + 1,
-)
-const pageTo = computed(() =>
-  Math.min((pagination.value.pageIndex + 1) * pagination.value.pageSize, filteredCount.value),
-)
-
-function sortIcon(columnId: 'name' | 'materialTypeName' | 'variant' | 'quantity' | 'set') {
-  const sorted = table.getColumn(columnId)?.getIsSorted()
-  if (sorted === 'asc') return ChevronUpIcon
-  if (sorted === 'desc') return ChevronDownIcon
-  return ChevronUpDownIcon
+function sortedState(columnId: string): false | 'asc' | 'desc' {
+  return table.getColumn(columnId)?.getIsSorted() ?? false
 }
 
 function setLabel(row: MaterialRow): string {
@@ -298,10 +220,6 @@ function removeVariantValue(label: string, value: string) {
   }
 }
 
-function goToPage(next: number) {
-  table.setPageIndex(next - 1)
-}
-
 function onRowClick(row: MaterialRow) {
   if (row.kind === 'piece') {
     goToPiece(row.piece.id)
@@ -342,73 +260,46 @@ function onRowKeydown(event: KeyboardEvent, row: MaterialRow) {
       @remove-variant-value="removeVariantValue"
     />
     <div class="overflow-x-auto">
-      <table class="table table-sm pieces-table">
+      <table class="table table-sm data-table">
         <thead>
           <tr>
-            <th class="pieces-table-col-photo hidden sm:table-cell">
+            <th class="data-table-col-photo hidden sm:table-cell">
               <span class="sr-only">{{ t('material.piecesTablePhoto') }}</span>
             </th>
-            <th class="pieces-table-col-lead">
-              <button
-                type="button"
-                class="flex items-center gap-1 font-semibold hover:text-primary"
-                @click="table.getColumn('name')?.toggleSorting()"
-              >
-                {{ t('material.piecesTableName') }}
-                <component :is="sortIcon('name')" class="size-4 opacity-60" aria-hidden="true" />
-              </button>
+            <th class="data-table-col-lead">
+              <SortHeaderButton
+                :label="t('material.piecesTableName')"
+                :sorted="sortedState('name')"
+                @toggle="table.getColumn('name')?.toggleSorting()"
+              />
             </th>
             <th class="hidden md:table-cell">
-              <button
-                type="button"
-                class="flex items-center gap-1 font-semibold hover:text-primary"
-                @click="table.getColumn('materialTypeName')?.toggleSorting()"
-              >
-                {{ t('material.piecesTableMaterialType') }}
-                <component
-                  :is="sortIcon('materialTypeName')"
-                  class="size-4 opacity-60"
-                  aria-hidden="true"
-                />
-              </button>
+              <SortHeaderButton
+                :label="t('material.piecesTableMaterialType')"
+                :sorted="sortedState('materialTypeName')"
+                @toggle="table.getColumn('materialTypeName')?.toggleSorting()"
+              />
             </th>
             <th class="hidden lg:table-cell">
-              <button
-                type="button"
-                class="flex items-center gap-1 font-semibold hover:text-primary"
-                @click="table.getColumn('variant')?.toggleSorting()"
-              >
-                {{ t('material.piecesTableVariant') }}
-                <component
-                  :is="sortIcon('variant')"
-                  class="size-4 opacity-60"
-                  aria-hidden="true"
-                />
-              </button>
+              <SortHeaderButton
+                :label="t('material.piecesTableVariant')"
+                :sorted="sortedState('variant')"
+                @toggle="table.getColumn('variant')?.toggleSorting()"
+              />
             </th>
             <th class="hidden sm:table-cell">
-              <button
-                type="button"
-                class="flex items-center gap-1 font-semibold hover:text-primary"
-                @click="table.getColumn('quantity')?.toggleSorting()"
-              >
-                {{ t('material.tableQuantity') }}
-                <component
-                  :is="sortIcon('quantity')"
-                  class="size-4 opacity-60"
-                  aria-hidden="true"
-                />
-              </button>
+              <SortHeaderButton
+                :label="t('material.tableQuantity')"
+                :sorted="sortedState('quantity')"
+                @toggle="table.getColumn('quantity')?.toggleSorting()"
+              />
             </th>
             <th class="hidden xl:table-cell">
-              <button
-                type="button"
-                class="flex items-center gap-1 font-semibold hover:text-primary"
-                @click="table.getColumn('set')?.toggleSorting()"
-              >
-                {{ t('material.piecesTableSet') }}
-                <component :is="sortIcon('set')" class="size-4 opacity-60" aria-hidden="true" />
-              </button>
+              <SortHeaderButton
+                :label="t('material.piecesTableSet')"
+                :sorted="sortedState('set')"
+                @toggle="table.getColumn('set')?.toggleSorting()"
+              />
             </th>
           </tr>
         </thead>
@@ -421,19 +312,20 @@ function onRowKeydown(event: KeyboardEvent, row: MaterialRow) {
             </tr>
           </template>
           <tr
-            v-for="row in tableRows"
+            v-for="(row, index) in tableRows"
             v-else
             :key="row.id"
             tabindex="0"
             role="link"
-            class="cursor-pointer hover:bg-base-200/40"
+            class="data-table-row cursor-pointer"
+            :class="{ 'data-table-row--stripe': index % 2 === 1 }"
             @click="onRowClick(row.original)"
             @keydown="onRowKeydown($event, row.original)"
           >
-            <td class="pieces-table-col-photo hidden sm:table-cell">
+            <td class="data-table-col-photo hidden sm:table-cell">
               <PhotoThumbnail :photo-id="rowCoverPhotoId(row.original)" />
             </td>
-            <td class="pieces-table-col-lead min-w-0">
+            <td class="data-table-col-lead min-w-0">
               <span class="font-medium">
                 {{ rowDisplayName(row.original, unlabeledLotLabel) }}
               </span>
@@ -465,61 +357,15 @@ function onRowKeydown(event: KeyboardEvent, row: MaterialRow) {
         </tbody>
       </table>
     </div>
-    <div
-      class="flex flex-wrap items-center justify-between gap-3 border-t border-base-200 px-3 py-2.5"
-    >
-      <p class="text-xs opacity-70">
-        {{
-          t('material.piecesPageRange', {
-            from: pageFrom,
-            to: pageTo,
-            total: filteredCount,
-          })
-        }}
-        <span class="opacity-80">
-          ·
-          {{
-            t('material.piecesPageOf', {
-              current: currentPage,
-              pages: pageCount,
-            })
-          }}
-        </span>
-      </p>
-      <div class="flex flex-wrap items-center gap-2">
-        <label class="flex items-center gap-2">
-          <span class="text-xs opacity-80">{{ t('material.piecesPageSize') }}</span>
-          <select
-            :value="pagination.pageSize"
-            class="select select-bordered select-sm w-20"
-            @change="table.setPageSize(Number(($event.target as HTMLSelectElement).value))"
-          >
-            <option v-for="size in MATERIAL_PAGE_SIZE_OPTIONS" :key="size" :value="size">
-              {{ size }}
-            </option>
-          </select>
-        </label>
-        <div class="join">
-          <button
-            type="button"
-            class="btn btn-sm join-item"
-            :disabled="currentPage <= 1"
-            :aria-label="t('material.piecesPreviousPage')"
-            @click="goToPage(currentPage - 1)"
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            class="btn btn-sm join-item"
-            :disabled="currentPage >= pageCount"
-            :aria-label="t('material.piecesNextPage')"
-            @click="goToPage(currentPage + 1)"
-          >
-            ›
-          </button>
-        </div>
-      </div>
-    </div>
+    <DataTableFooter
+      :page-from="pageFrom"
+      :page-to="pageTo"
+      :total="filteredCount"
+      :current-page="currentPage"
+      :page-count="pageCount"
+      :page-size="pagination.pageSize"
+      @update:page-size="setPageSize"
+      @go-to-page="goToPage"
+    />
   </div>
 </template>

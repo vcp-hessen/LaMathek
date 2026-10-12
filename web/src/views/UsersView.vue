@@ -1,22 +1,23 @@
 <script setup lang="ts">
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import type { ColumnDef } from '@tanstack/vue-table'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { fetchInventories } from '../api/inventories'
 import { apiErrorCode } from '../api/errors'
 import { fetchMe } from '../api/me'
 import { fetchUsers, grantUserInventory, revokeUserInventory, setUserSuperuser } from '../api/users'
-import ExpandableRow from '../components/ExpandableRow.vue'
+import DataTableFooter from '../components/data-table/DataTableFooter.vue'
+import DataTableSearch from '../components/data-table/DataTableSearch.vue'
+import { localeSortRow } from '../components/data-table/localeSort'
+import SortHeaderButton from '../components/data-table/SortHeaderButton.vue'
+import { useClientTable } from '../components/data-table/useClientTable'
 import type { ManagedUser } from '../schemas/user'
-
-const PAGE_SIZE = 20
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
 const actionError = ref<string | null>(null)
 const pendingKey = ref<string | null>(null)
-const search = ref('')
-const page = ref(1)
 const expandedId = ref<number | null>(null)
 
 const { data: me, isLoading: meLoading } = useQuery({
@@ -60,47 +61,76 @@ function addableInventories(user: ManagedUser) {
   return (inventories.value ?? []).filter((inventory) => !assigned.has(inventory.id))
 }
 
-const filteredUsers = computed(() => {
-  const query = search.value.trim().toLowerCase()
-  const list = users.value ?? []
-  if (!query) return list
-  return list.filter((user) => {
+const columns = computed<ColumnDef<ManagedUser>[]>(() => [
+  {
+    id: 'name',
+    accessorFn: (user) => label(user),
+    sortingFn: localeSortRow,
+  },
+  {
+    id: 'email',
+    accessorFn: (user) => user.email ?? '',
+    sortingFn: localeSortRow,
+  },
+  {
+    id: 'superuser',
+    accessorFn: (user) => (user.isSuperuser ? t('users.superuserLabel') : ''),
+    sortingFn: localeSortRow,
+  },
+  {
+    id: 'inventories',
+    accessorFn: (user) => user.inventoryIds.length,
+  },
+])
+
+const {
+  table,
+  globalFilter,
+  sorting,
+  pagination,
+  tableRows,
+  filteredCount,
+  pageCount,
+  currentPage,
+  pageFrom,
+  pageTo,
+  goToPage,
+  setPageSize,
+} = useClientTable<ManagedUser>({
+  data: () => users.value ?? [],
+  columns,
+  getRowId: (user) => String(user.id),
+  globalFilterFn: () => (row, _columnId, filterValue) => {
+    const query = String(filterValue ?? '').trim().toLowerCase()
+    if (!query) return true
+    const user = row.original
     const name = (user.name ?? '').toLowerCase()
     const email = (user.email ?? '').toLowerCase()
     return name.includes(query) || email.includes(query)
-  })
+  },
+  initialSorting: [{ id: 'name', desc: false }],
 })
 
-const pageCount = computed(() =>
-  Math.max(1, Math.ceil(filteredUsers.value.length / PAGE_SIZE)),
+watch(
+  [globalFilter, sorting, () => pagination.value.pageIndex, () => pagination.value.pageSize],
+  () => {
+    expandedId.value = null
+  },
 )
-
-const currentPage = computed(() => Math.min(page.value, pageCount.value))
-
-const pageUsers = computed(() => {
-  const start = (currentPage.value - 1) * PAGE_SIZE
-  return filteredUsers.value.slice(start, start + PAGE_SIZE)
-})
-
-const pageFrom = computed(() =>
-  filteredUsers.value.length === 0 ? 0 : (currentPage.value - 1) * PAGE_SIZE + 1,
-)
-const pageTo = computed(() =>
-  Math.min(currentPage.value * PAGE_SIZE, filteredUsers.value.length),
-)
-
-watch(search, () => {
-  page.value = 1
-  expandedId.value = null
-})
 
 function toggleRow(userId: number) {
   expandedId.value = expandedId.value === userId ? null : userId
 }
 
-function goToPage(next: number) {
-  page.value = Math.min(Math.max(1, next), pageCount.value)
-  expandedId.value = null
+function sortedState(columnId: string): false | 'asc' | 'desc' {
+  return table.getColumn(columnId)?.getIsSorted() ?? false
+}
+
+function onRowKeydown(event: KeyboardEvent, userId: number) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    toggleRow(userId)
+  }
 }
 
 async function refreshAccess() {
@@ -189,127 +219,170 @@ function onRemoveInventory(user: ManagedUser, inventoryId: number) {
       {{ t('users.superuserOnly') }}
     </p>
     <div v-else class="flex flex-col gap-3 text-left">
-        <label class="flex min-w-0 flex-col gap-1 sm:max-w-sm">
-          <span class="sr-only">{{ t('users.searchLabel') }}</span>
-          <input
-            v-model="search"
-            type="search"
-            class="input input-bordered input-sm w-full"
-            :placeholder="t('users.searchPlaceholder')"
-            autocomplete="off"
-          />
-        </label>
-        <p v-if="filteredUsers.length === 0" class="text-sm opacity-70">
-          {{ t('users.noMatches') }}
-        </p>
-        <ul v-else class="list-none">
-          <ExpandableRow
-            v-for="user in pageUsers"
-            :key="user.id"
-            :expanded="expandedId === user.id"
-            @toggle="toggleRow(user.id)"
-          >
-            <template #summary>
-              <div class="flex min-w-0 items-baseline gap-3">
-                <span class="truncate font-medium">{{ label(user) }}</span>
-                <span
-                  v-if="user.name && user.email"
-                  class="hidden min-w-0 truncate text-sm opacity-70 sm:inline"
-                >
-                  {{ user.email }}
-                </span>
-                <span v-if="user.isSuperuser" class="badge badge-ghost badge-sm shrink-0">
-                  {{ t('users.superuserLabel') }}
-                </span>
-                <span class="ml-auto shrink-0 text-sm opacity-70">
-                  {{ t('users.inventoryCount', { count: user.inventoryIds.length }) }}
-                </span>
-              </div>
-            </template>
-            <template #editor>
-              <div class="flex flex-col gap-3">
-                <label class="label cursor-pointer justify-start gap-2 py-0">
-                  <span class="label-text text-sm">{{ t('users.superuserLabel') }}</span>
-                  <input
-                    type="checkbox"
-                    class="toggle toggle-primary toggle-sm"
-                    :checked="user.isSuperuser"
-                    :disabled="pendingKey !== null"
-                    @change="onSuperuserChange(user, $event)"
-                  />
-                </label>
-                <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div class="min-w-0 flex-1">
-                    <p class="text-xs opacity-80">{{ t('users.inventoriesLabel') }}</p>
-                    <ul v-if="inventoriesOf(user).length" class="mt-1 flex flex-wrap gap-1">
-                      <li v-for="inventory in inventoriesOf(user)" :key="inventory.id">
-                        <span class="badge badge-outline gap-1">
-                          {{ inventory.name }}
-                          <button
-                            type="button"
-                            class="btn btn-ghost btn-xs px-1"
-                            :aria-label="t('users.removeInventory', { name: inventory.name })"
-                            :disabled="pendingKey !== null"
-                            @click="onRemoveInventory(user, inventory.id)"
-                          >
-                            ×
-                          </button>
-                        </span>
-                      </li>
-                    </ul>
-                    <p v-else class="mt-1 text-sm opacity-70">{{ t('users.inventoriesEmpty') }}</p>
-                  </div>
-                  <label class="flex min-w-0 flex-col gap-1 sm:w-56">
-                    <span class="sr-only">{{ t('users.addInventoryPlaceholder') }}</span>
-                    <select
-                      class="select select-bordered select-sm w-full"
-                      :disabled="pendingKey !== null || addableInventories(user).length === 0"
-                      @change="onAddInventory(user, $event)"
-                    >
-                      <option value="">{{ t('users.addInventoryPlaceholder') }}</option>
-                      <option
-                        v-for="inventory in addableInventories(user)"
-                        :key="inventory.id"
-                        :value="inventory.id"
-                      >
-                        {{ inventory.name }}
-                      </option>
-                    </select>
-                  </label>
-                </div>
-              </div>
-            </template>
-          </ExpandableRow>
-        </ul>
+      <p v-if="!(users?.length)" class="text-sm opacity-70">{{ t('users.noMatches') }}</p>
+      <div v-else class="rounded-lg border border-base-200">
         <div
-          v-if="filteredUsers.length > 0"
-          class="flex items-center justify-between gap-2"
+          class="data-table-toolbar flex flex-col gap-3 border-b border-base-200 p-3 sm:flex-row sm:flex-wrap sm:items-end"
         >
-          <p class="text-xs opacity-70">
-            {{ t('users.pageRange', { from: pageFrom, to: pageTo, total: filteredUsers.length }) }}
-          </p>
-          <div class="join">
-            <button
-              type="button"
-              class="btn btn-sm join-item"
-              :disabled="currentPage <= 1"
-              :aria-label="t('users.previousPage')"
-              @click="goToPage(currentPage - 1)"
-            >
-              ‹
-            </button>
-            <button
-              type="button"
-              class="btn btn-sm join-item"
-              :disabled="currentPage >= pageCount"
-              :aria-label="t('users.nextPage')"
-              @click="goToPage(currentPage + 1)"
-            >
-              ›
-            </button>
-          </div>
+          <DataTableSearch
+            :model-value="globalFilter"
+            :label="t('users.searchLabel')"
+            :placeholder="t('users.searchPlaceholder')"
+            @update:model-value="globalFilter = $event"
+          />
         </div>
-        <p v-if="actionError" class="text-sm text-error">{{ actionError }}</p>
+        <div class="overflow-x-auto">
+          <table class="table table-sm data-table">
+            <thead>
+              <tr>
+                <th class="data-table-col-lead">
+                  <SortHeaderButton
+                    :label="t('users.columnName')"
+                    :sorted="sortedState('name')"
+                    @toggle="table.getColumn('name')?.toggleSorting()"
+                  />
+                </th>
+                <th class="hidden sm:table-cell">
+                  <SortHeaderButton
+                    :label="t('users.columnEmail')"
+                    :sorted="sortedState('email')"
+                    @toggle="table.getColumn('email')?.toggleSorting()"
+                  />
+                </th>
+                <th class="hidden md:table-cell">
+                  <SortHeaderButton
+                    :label="t('users.superuserLabel')"
+                    :sorted="sortedState('superuser')"
+                    @toggle="table.getColumn('superuser')?.toggleSorting()"
+                  />
+                </th>
+                <th>
+                  <SortHeaderButton
+                    :label="t('users.columnInventories')"
+                    :sorted="sortedState('inventories')"
+                    @toggle="table.getColumn('inventories')?.toggleSorting()"
+                  />
+                </th>
+              </tr>
+            </thead>
+            <tbody v-if="tableRows.length === 0">
+              <tr>
+                <td colspan="4" class="py-8 text-center text-sm opacity-70">
+                  {{ t('dataTable.noResults') }}
+                </td>
+              </tr>
+            </tbody>
+            <tbody v-for="(row, index) in tableRows" v-else :key="row.id">
+              <tr
+                tabindex="0"
+                role="button"
+                class="data-table-row cursor-pointer"
+                :class="{ 'data-table-row--stripe': index % 2 === 1 }"
+                :aria-expanded="expandedId === row.original.id"
+                @click="toggleRow(row.original.id)"
+                @keydown="onRowKeydown($event, row.original.id)"
+              >
+                <td class="data-table-col-lead min-w-0">
+                  <div class="flex items-start gap-2">
+                    <span
+                      class="mt-0.5 shrink-0 text-base-content/50 transition-transform duration-200"
+                      :class="{ 'rotate-90': expandedId === row.original.id }"
+                      aria-hidden="true"
+                    >
+                      ›
+                    </span>
+                    <div class="min-w-0">
+                      <span class="font-medium">{{ label(row.original) }}</span>
+                      <div class="mt-0.5 space-y-0.5 text-xs opacity-70">
+                        <span v-if="row.original.email" class="block sm:hidden">
+                          {{ row.original.email }}
+                        </span>
+                        <span v-if="row.original.isSuperuser" class="block md:hidden">
+                          {{ t('users.superuserLabel') }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td class="hidden sm:table-cell">{{ row.original.email || '—' }}</td>
+                <td class="hidden md:table-cell">
+                  <span v-if="row.original.isSuperuser" class="badge badge-ghost badge-sm">
+                    {{ t('users.superuserLabel') }}
+                  </span>
+                  <span v-else>—</span>
+                </td>
+                <td>{{ t('users.inventoryCount', { count: row.original.inventoryIds.length }) }}</td>
+              </tr>
+              <tr v-if="expandedId === row.original.id" class="data-table-editor">
+                <td colspan="4" class="pb-4 pt-3">
+                  <div class="flex flex-col gap-3 pl-5">
+                    <label class="label cursor-pointer justify-start gap-2 py-0">
+                      <span class="label-text text-sm">{{ t('users.superuserLabel') }}</span>
+                      <input
+                        type="checkbox"
+                        class="toggle toggle-primary toggle-sm"
+                        :checked="row.original.isSuperuser"
+                        :disabled="pendingKey !== null"
+                        @change="onSuperuserChange(row.original, $event)"
+                      />
+                    </label>
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div class="min-w-0 flex-1">
+                        <p class="text-xs opacity-80">{{ t('users.inventoriesLabel') }}</p>
+                        <ul v-if="inventoriesOf(row.original).length" class="mt-1 flex flex-wrap gap-1">
+                          <li v-for="inventory in inventoriesOf(row.original)" :key="inventory.id">
+                            <span class="badge badge-outline gap-1">
+                              {{ inventory.name }}
+                              <button
+                                type="button"
+                                class="btn btn-ghost btn-xs px-1"
+                                :aria-label="t('users.removeInventory', { name: inventory.name })"
+                                :disabled="pendingKey !== null"
+                                @click="onRemoveInventory(row.original, inventory.id)"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          </li>
+                        </ul>
+                        <p v-else class="mt-1 text-sm opacity-70">{{ t('users.inventoriesEmpty') }}</p>
+                      </div>
+                      <label class="flex min-w-0 flex-col gap-1 sm:w-56">
+                        <span class="sr-only">{{ t('users.addInventoryPlaceholder') }}</span>
+                        <select
+                          class="select select-bordered select-sm w-full"
+                          :disabled="pendingKey !== null || addableInventories(row.original).length === 0"
+                          @change="onAddInventory(row.original, $event)"
+                        >
+                          <option value="">{{ t('users.addInventoryPlaceholder') }}</option>
+                          <option
+                            v-for="inventory in addableInventories(row.original)"
+                            :key="inventory.id"
+                            :value="inventory.id"
+                          >
+                            {{ inventory.name }}
+                          </option>
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <DataTableFooter
+          :page-from="pageFrom"
+          :page-to="pageTo"
+          :total="filteredCount"
+          :current-page="currentPage"
+          :page-count="pageCount"
+          :page-size="pagination.pageSize"
+          @update:page-size="setPageSize"
+          @go-to-page="goToPage"
+        />
+      </div>
+      <p v-if="actionError" class="text-sm text-error">{{ actionError }}</p>
     </div>
   </div>
 </template>

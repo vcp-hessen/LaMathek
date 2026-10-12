@@ -2,9 +2,6 @@ import type { FilterFn } from '@tanstack/vue-table'
 import type { MaterialType, Piece, StockLot, StockRow, VariantAxis } from '../../schemas/material'
 import { pieceMatchesVariantFilters } from '../../utils/pieceVariantFilters'
 import { variantMapSummary } from '../../utils/variantDisplay'
-import { PIECES_PAGE_SIZE_OPTIONS } from '../pieces/piecesTableSetup'
-
-export const MATERIAL_PAGE_SIZE_OPTIONS = PIECES_PAGE_SIZE_OPTIONS
 
 export type VariantColumnFilterValue = Record<string, string[]>
 
