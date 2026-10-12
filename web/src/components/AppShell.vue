@@ -5,6 +5,7 @@ import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { fetchInventories } from '../api/inventories'
 import { fetchInstallationSettings } from '../api/settings'
+import { stopImpersonation } from '../api/impersonation'
 import { fetchMe, logout } from '../api/me'
 import AppBreadcrumbs from './AppBreadcrumbs.vue'
 import AppFooter from './AppFooter.vue'
@@ -84,6 +85,31 @@ async function onSignOut() {
   queryClient.clear()
   await router.push('/')
 }
+
+const impersonating = computed(() => !!me.value?.impersonation)
+
+const sidebarShellClass = computed(() =>
+  impersonating.value
+    ? 'border-vcp-blau bg-vcp-feuergelb'
+    : 'border-vcp-blau bg-vcp-blau',
+)
+
+async function onStopImpersonation() {
+  await stopImpersonation()
+  inventoryStore.setActiveInventory(null)
+  await queryClient.invalidateQueries({ queryKey: ['me'] })
+  await queryClient.invalidateQueries({ queryKey: ['inventories'] })
+  await queryClient.invalidateQueries({ queryKey: ['users'] })
+  await queryClient.invalidateQueries({ queryKey: ['audit-events'] })
+}
+
+async function onSidebarSignOut() {
+  if (impersonating.value) {
+    await onStopImpersonation()
+  } else {
+    await onSignOut()
+  }
+}
 </script>
 
 <template>
@@ -102,12 +128,14 @@ async function onSignOut() {
           @click="ui.closeMobileMenu()"
         />
         <aside
-          class="relative flex h-full w-64 max-w-[85vw] flex-col border-r border-vcp-blau bg-vcp-blau shadow-xl"
+          class="relative flex h-full w-64 max-w-[85vw] flex-col border-r shadow-xl"
+          :class="sidebarShellClass"
         >
           <AppSidebarChrome
             :expanded="true"
             :title="title"
             :me="me"
+            :impersonating="impersonating"
             :inventories="inventories ?? []"
             :inventories-loading="inventoriesLoading"
             :inventories-list-active="inventoriesListActive"
@@ -115,27 +143,28 @@ async function onSignOut() {
             :diagnostics-active="diagnosticsActive"
             :users-active="usersActive"
             mobile
-            @sign-out="onSignOut"
+            @sign-out="onSidebarSignOut"
           />
         </aside>
       </div>
     </Teleport>
 
     <aside
-      class="sticky top-0 z-10 hidden h-dvh shrink-0 flex-col border-r border-vcp-blau bg-vcp-blau transition-[width] duration-200 md:flex"
-      :class="ui.sidebarExpanded ? 'w-56' : 'w-14'"
+      class="sticky top-0 z-10 hidden h-dvh shrink-0 flex-col border-r transition-[width] duration-200 md:flex"
+      :class="[ui.sidebarExpanded ? 'w-56' : 'w-14', sidebarShellClass]"
     >
       <AppSidebarChrome
         :expanded="ui.sidebarExpanded"
         :title="title"
         :me="me"
+        :impersonating="impersonating"
         :inventories="inventories ?? []"
         :inventories-loading="inventoriesLoading"
         :inventories-list-active="inventoriesListActive"
         :settings-active="settingsActive"
         :diagnostics-active="diagnosticsActive"
         :users-active="usersActive"
-        @sign-out="onSignOut"
+        @sign-out="onSidebarSignOut"
       />
     </aside>
 

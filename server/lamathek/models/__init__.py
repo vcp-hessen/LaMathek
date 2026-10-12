@@ -13,10 +13,12 @@ from lamathek.models.material import (
 )
 from lamathek.models.set import MaterialSet, SetStockLine
 from lamathek.models.photo import Photo
+from lamathek.models.audit import AuditEvent
 from lamathek.models.settings import InstallationSettings
 from lamathek.models.user import User
 
 __all__ = [
+    "AuditEvent",
     "Event",
     "Group",
     "InstallationSettings",

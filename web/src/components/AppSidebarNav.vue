@@ -9,6 +9,7 @@ import WlzIcon from './WlzIcon.vue'
 
 const props = defineProps<{
   expanded: boolean
+  impersonating?: boolean
   activeInventoryId: number | null
   showInventoryPicker: boolean
   inventories: Inventory[]
@@ -63,6 +64,15 @@ function isWorkspaceLinkActive(linkRouteName: string): boolean {
 }
 
 function itemClass(active: boolean, expanded: boolean) {
+  if (props.impersonating) {
+    return [
+      'flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm no-underline transition-colors',
+      expanded ? '' : 'justify-center',
+      active
+        ? 'bg-vcp-blau font-medium text-vcp-feuergelb'
+        : 'text-vcp-blau/90 hover:bg-vcp-blau/10',
+    ]
+  }
   return [
     'flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm no-underline transition-colors',
     expanded ? '' : 'justify-center',
@@ -71,15 +81,22 @@ function itemClass(active: boolean, expanded: boolean) {
       : 'text-white/85 hover:bg-white/10',
   ]
 }
+
+const sectionLabelClass = computed(() =>
+  props.impersonating
+    ? 'mb-1 px-2 text-xs font-medium uppercase tracking-wide text-vcp-blau/50'
+    : 'mb-1 px-2 text-xs font-medium uppercase tracking-wide text-white/50',
+)
+
+const dividerClass = computed(() =>
+  props.impersonating ? 'border-vcp-blau/20' : 'border-white/15',
+)
 </script>
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col gap-2">
     <div v-if="showInventoryPicker" class="shrink-0">
-      <p
-        v-show="expanded"
-        class="mb-1 px-2 text-xs font-medium uppercase tracking-wide text-white/50"
-      >
+      <p v-show="expanded" :class="sectionLabelClass">
         {{ t('inventories.detail') }}
       </p>
       <div
@@ -90,13 +107,15 @@ function itemClass(active: boolean, expanded: boolean) {
         <AppInventorySwitcher
           sidebar
           :expanded="expanded"
+          :impersonating="impersonating"
           :inventories="inventories"
           :loading="inventoriesLoading"
         />
       </div>
       <div
         v-if="activeInventoryId"
-        class="my-2 border-t border-white/15"
+        class="my-2 border-t"
+        :class="dividerClass"
         aria-hidden="true"
       />
     </div>

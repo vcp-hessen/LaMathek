@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { fetchMe } from '../api/me'
+import AuditEventsSection from '../components/AuditEventsSection.vue'
 import MailTestPanel from '../components/MailTestPanel.vue'
 
 const { t } = useI18n()
@@ -22,6 +23,7 @@ const { data: me, isLoading: meLoading } = useQuery({
     <template v-else>
       <p class="text-sm text-base-content/70">{{ t('diagnostics.intro') }}</p>
       <MailTestPanel :default-recipient="me?.email ?? ''" />
+      <AuditEventsSection />
     </template>
   </div>
 </template>

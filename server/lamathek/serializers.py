@@ -22,6 +22,7 @@ from lamathek.services.variants import (
 )
 from lamathek.models.set import SET_ROLE_ASSIGNMENT, SET_ROLE_OPTIONAL, MaterialSet
 from lamathek.models.settings import InstallationSettings
+from lamathek.models.audit import AuditEvent
 from lamathek.models.user import User
 from lamathek.services.photos import photos_to_json
 
@@ -33,6 +34,22 @@ def user_to_json(user: User) -> dict:
         "name": user.name,
         "email": user.email,
         "isSuperuser": user.is_superuser,
+    }
+
+
+def audit_event_to_json(event: AuditEvent, session: Session) -> dict:
+    actor = session.get(User, event.actor_user_id)
+    target = (
+        session.get(User, event.target_user_id) if event.target_user_id is not None else None
+    )
+    return {
+        "id": event.id,
+        "action": event.action,
+        "reason": event.reason,
+        "detail": event.detail,
+        "createdAt": event.created_at.isoformat() if event.created_at else None,
+        "actor": user_to_json(actor) if actor is not None else None,
+        "targetUser": user_to_json(target) if target is not None else None,
     }
 
 

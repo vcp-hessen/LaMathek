@@ -6,7 +6,9 @@ import { useI18n } from 'vue-i18n'
 import { fetchInventories } from '../api/inventories'
 import { apiErrorCode } from '../api/errors'
 import { fetchMe } from '../api/me'
+import { startImpersonation } from '../api/impersonation'
 import { fetchUsers, grantUserInventory, revokeUserInventory, setUserSuperuser } from '../api/users'
+import { userLabel } from '../utils/userLabel'
 import DataTableFooter from '../components/data-table/DataTableFooter.vue'
 import DataTableSearch from '../components/data-table/DataTableSearch.vue'
 import { localeSortRow } from '../components/data-table/localeSort'
@@ -19,6 +21,7 @@ const queryClient = useQueryClient()
 const actionError = ref<string | null>(null)
 const pendingKey = ref<string | null>(null)
 const expandedId = ref<number | null>(null)
+const impersonateReason = ref('')
 
 const { data: me, isLoading: meLoading } = useQuery({
   queryKey: ['me'],
@@ -46,7 +49,13 @@ const inventoryName = computed(() => {
 })
 
 function label(user: { name?: string | null; email?: string | null }) {
-  return user.name ?? user.email ?? '—'
+  return userLabel(user)
+}
+
+function canImpersonate(user: ManagedUser) {
+  if (!me.value?.isSuperuser || me.value.impersonation) return false
+  if (user.id === me.value.id) return false
+  return !user.isSuperuser
 }
 
 function inventoriesOf(user: ManagedUser) {
@@ -118,6 +127,10 @@ watch(
   },
 )
 
+watch(expandedId, () => {
+  impersonateReason.value = ''
+})
+
 function toggleRow(userId: number) {
   expandedId.value = expandedId.value === userId ? null : userId
 }
@@ -149,6 +162,22 @@ function fail(error: unknown) {
     actionError.value = t('users.cannotClearPermissions')
     return
   }
+  if (code === 'invalid_reason') {
+    actionError.value = t('users.impersonateReasonRequired')
+    return
+  }
+  if (code === 'cannot_impersonate_superuser') {
+    actionError.value = t('users.impersonateSuperuserForbidden')
+    return
+  }
+  if (code === 'cannot_impersonate_self') {
+    actionError.value = t('users.impersonateSelfForbidden')
+    return
+  }
+  if (code === 'impersonation_active') {
+    actionError.value = t('users.impersonationAlreadyActive')
+    return
+  }
   actionError.value = t('users.updateFailed')
 }
 
@@ -170,6 +199,24 @@ const grantMutation = useMutation({
     await grantUserInventory(payload.userId, payload.inventoryId)
   },
   onSuccess: refreshAccess,
+  onError: fail,
+  onSettled: () => {
+    pendingKey.value = null
+  },
+})
+
+const impersonateMutation = useMutation({
+  mutationFn: async (payload: { userId: number; reason: string }) => {
+    pendingKey.value = `impersonate:${payload.userId}`
+    await startImpersonation(payload.userId, payload.reason)
+  },
+  onSuccess: async () => {
+    expandedId.value = null
+    impersonateReason.value = ''
+    await queryClient.invalidateQueries({ queryKey: ['me'] })
+    await queryClient.invalidateQueries({ queryKey: ['inventories'] })
+    await queryClient.invalidateQueries({ queryKey: ['audit-events'] })
+  },
   onError: fail,
   onSettled: () => {
     pendingKey.value = null
@@ -206,6 +253,16 @@ function onAddInventory(user: ManagedUser, event: Event) {
 function onRemoveInventory(user: ManagedUser, inventoryId: number) {
   actionError.value = null
   revokeMutation.mutate({ userId: user.id, inventoryId })
+}
+
+function onStartImpersonation(user: ManagedUser) {
+  actionError.value = null
+  const reason = impersonateReason.value.trim()
+  if (!reason) {
+    actionError.value = t('users.impersonateReasonRequired')
+    return
+  }
+  impersonateMutation.mutate({ userId: user.id, reason })
 }
 </script>
 
@@ -364,6 +421,28 @@ function onRemoveInventory(user: ManagedUser, inventoryId: number) {
                           </option>
                         </select>
                       </label>
+                    </div>
+                    <div
+                      v-if="canImpersonate(row.original)"
+                      class="flex items-center gap-2 border-t border-base-200 pt-3"
+                    >
+                      <label class="sr-only">{{ t('users.impersonateReasonLabel') }}</label>
+                      <input
+                        v-model="impersonateReason"
+                        type="text"
+                        class="input input-bordered input-sm min-w-0 flex-1"
+                        :placeholder="t('users.impersonateReasonPlaceholder')"
+                        :disabled="pendingKey !== null"
+                        @keydown.enter.stop.prevent="onStartImpersonation(row.original)"
+                      />
+                      <button
+                        type="button"
+                        class="btn btn-outline btn-sm shrink-0 sm:w-auto"
+                        :disabled="pendingKey !== null"
+                        @click.stop="onStartImpersonation(row.original)"
+                      >
+                        {{ t('users.impersonateAction') }}
+                      </button>
                     </div>
                   </div>
                 </td>

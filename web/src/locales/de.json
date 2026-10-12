@@ -428,7 +428,34 @@
     "removeInventory": "{name} entfernen",
     "updateFailed": "Änderung fehlgeschlagen.",
     "cannotRemoveLastSuperuser": "Die letzte Superuser*in kann nicht entfernt werden.",
-    "cannotClearPermissions": "Dieses Inventar braucht mindestens eine berechtigte Person, solange es keine Superuser*in gibt."
+    "cannotClearPermissions": "Dieses Inventar braucht mindestens eine berechtigte Person, solange es keine Superuser*in gibt.",
+    "impersonateReasonLabel": "Grund für Impersonation",
+    "impersonateReasonPlaceholder": "Grund …",
+    "impersonateAction": "Als Person handeln",
+    "impersonateReasonRequired": "Bitte einen Grund angeben.",
+    "impersonateSuperuserForbidden": "Superuser*innen können nicht impersoniert werden.",
+    "impersonateSelfForbidden": "Du kannst dich nicht selbst impersonieren.",
+    "impersonationAlreadyActive": "Es läuft bereits eine Impersonation. Bitte zuerst beenden."
+  },
+  "impersonation": {
+    "banner": "Du handelst als {name} (Superuser*in: {actor}). Grund: {reason}",
+    "stop": "Impersonation beenden"
+  },
+  "audit": {
+    "heading": "Audit-Log",
+    "empty": "Noch keine Einträge.",
+    "columnWhen": "Zeitpunkt",
+    "columnAction": "Aktion",
+    "columnActor": "Akteur*in",
+    "columnTarget": "Betroffene Person",
+    "columnReason": "Grund",
+    "columnDetail": "Details",
+    "settingsFieldsChanged": "Geänderte Felder: {fields}",
+    "actions": {
+      "impersonation_started": "Impersonation gestartet",
+      "impersonation_ended": "Impersonation beendet",
+      "installation_settings_updated": "Installationseinstellungen geändert"
+    }
   },
   "photos": {
     "add": "Foto hinzufügen",

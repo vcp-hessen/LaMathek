@@ -2,7 +2,7 @@ from functools import wraps
 
 from flask import jsonify
 
-from lamathek.auth import current_user
+from lamathek.auth import effective_oidc_sub, session_actor_sub
 from lamathek.db import get_session
 from lamathek.services.inventories import inventory_by_id, user_can_manage_inventory
 from lamathek.services.users import user_by_oidc_sub
@@ -11,11 +11,11 @@ from lamathek.services.users import user_by_oidc_sub
 def require_login(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        session_user = current_user()
-        if session_user is None or not session_user.get("sub"):
+        sub = effective_oidc_sub()
+        if not sub:
             return jsonify({"error": "unauthorized"}), 401
         db = get_session()
-        user = user_by_oidc_sub(db, session_user["sub"])
+        user = user_by_oidc_sub(db, sub)
         if user is None:
             return jsonify({"error": "unauthorized"}), 401
         return fn(user, *args, **kwargs)

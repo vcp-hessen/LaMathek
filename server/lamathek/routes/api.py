@@ -3,8 +3,10 @@ from sqlalchemy import text
 
 from lamathek import db
 from lamathek.access import require_login
-from lamathek.auth import dev_bypass_enabled
+from lamathek.auth import dev_bypass_enabled, session_actor_sub, session_impersonation
+from lamathek.db import get_session
 from lamathek.serializers import user_to_json
+from lamathek.services.users import user_by_oidc_sub
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -24,4 +26,17 @@ def auth_mode():
 @api_bp.get("/me")
 @require_login
 def me(user):
-    return jsonify(user_to_json(user))
+    body = user_to_json(user)
+    imp = session_impersonation()
+    if imp is None:
+        body["impersonation"] = None
+    else:
+        db = get_session()
+        actor_sub = session_actor_sub()
+        actor = user_by_oidc_sub(db, actor_sub) if actor_sub else None
+        body["impersonation"] = {
+            "actor": user_to_json(actor) if actor is not None else None,
+            "reason": imp.get("reason"),
+            "startedAt": imp.get("startedAt"),
+        }
+    return jsonify(body)

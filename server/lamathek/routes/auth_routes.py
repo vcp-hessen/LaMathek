@@ -7,6 +7,7 @@ from lamathek.auth import (
     oidc_configured,
 )
 from lamathek.db import get_session
+from lamathek.services.impersonation import actor_user_from_session, end_impersonation_if_active
 from lamathek.services.users import upsert_user_from_oidc
 
 auth_bp = Blueprint("auth", __name__)
@@ -73,5 +74,10 @@ def auth_callback():
 
 @auth_bp.post("/logout")
 def logout():
+    db = get_session()
+    actor = actor_user_from_session(db)
+    if actor is not None:
+        end_impersonation_if_active(db, actor=actor)
     session.pop("user", None)
+    session.pop("impersonation", None)
     return "", 204

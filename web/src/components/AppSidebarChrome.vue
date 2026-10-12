@@ -13,6 +13,7 @@ const props = defineProps<{
   expanded: boolean
   title: string
   me?: Me | null
+  impersonating?: boolean
   inventories: Inventory[]
   inventoriesLoading?: boolean
   inventoriesListActive: boolean
@@ -31,25 +32,48 @@ const ui = useUiStore()
 
 const showInstanceSection = computed(() => !!props.me)
 
+const mutedBorderClass = computed(() =>
+  props.impersonating ? 'border-vcp-blau/20' : 'border-white/15',
+)
+
+const sectionLabelClass = computed(() =>
+  props.impersonating
+    ? 'mb-1 px-2 text-xs font-medium uppercase tracking-wide text-vcp-blau/50'
+    : 'mb-1 px-2 text-xs font-medium uppercase tracking-wide text-white/50',
+)
+
 function navItemClass(active: boolean, expanded: boolean) {
+  if (props.impersonating) {
+    return [
+      'flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm no-underline transition-colors',
+      expanded ? '' : 'justify-center',
+      active
+        ? 'bg-vcp-blau font-medium text-vcp-feuergelb'
+        : 'text-vcp-blau/90 hover:bg-vcp-blau/10',
+    ]
+  }
   return [
     'flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm no-underline transition-colors',
     expanded ? '' : 'justify-center',
     active ? 'bg-white/15 font-medium text-white' : 'text-white/85 hover:bg-white/10',
   ]
 }
+
+const signOutLabel = computed(() =>
+  props.impersonating ? t('impersonation.stop') : t('auth.signOut'),
+)
 </script>
 
 <template>
-  <div class="flex h-full min-h-0 flex-col text-white">
+  <div class="flex h-full min-h-0 flex-col" :class="impersonating ? 'text-vcp-blau' : 'text-white'">
     <div
-      class="flex items-center gap-1 border-b border-white/15 p-2"
-      :class="expanded ? 'justify-between' : 'flex-col gap-2'"
+      class="flex items-center gap-1 border-b p-2"
+      :class="[mutedBorderClass, expanded ? 'justify-between' : 'flex-col gap-2']"
     >
       <RouterLink
         to="/"
-        class="flex min-w-0 flex-1 items-center gap-2 no-underline text-white"
-        :class="expanded ? '' : 'justify-center'"
+        class="flex min-w-0 flex-1 items-center gap-2 no-underline"
+        :class="[impersonating ? 'text-vcp-blau' : 'text-white', expanded ? '' : 'justify-center']"
         :aria-label="expanded ? undefined : title"
       >
         <img
@@ -57,14 +81,16 @@ function navItemClass(active: boolean, expanded: boolean) {
           width="32"
           height="32"
           alt=""
-          class="size-8 shrink-0 rounded-lg ring-1 ring-white/30"
+          class="size-8 shrink-0 rounded-lg ring-1"
+          :class="impersonating ? 'ring-vcp-blau/30' : 'ring-white/30'"
         />
         <span v-show="expanded" class="truncate text-sm font-semibold leading-tight">{{ title }}</span>
       </RouterLink>
       <button
         v-if="!mobile"
         type="button"
-        class="btn btn-ghost btn-sm btn-square shrink-0 text-white hover:bg-white/10"
+        class="btn btn-ghost btn-sm btn-square shrink-0"
+        :class="impersonating ? 'text-vcp-blau hover:bg-vcp-blau/10' : 'text-white hover:bg-white/10'"
         :title="expanded ? t('shell.collapseSidebar') : t('shell.expandSidebar')"
         :aria-label="expanded ? t('shell.collapseSidebar') : t('shell.expandSidebar')"
         @click="ui.toggleSidebarExpanded()"
@@ -89,6 +115,7 @@ function navItemClass(active: boolean, expanded: boolean) {
     >
       <AppSidebarNav
         :expanded="expanded"
+        :impersonating="impersonating"
         :show-inventory-picker="!!me"
         :inventories="inventories"
         :inventories-loading="inventoriesLoading"
@@ -96,12 +123,9 @@ function navItemClass(active: boolean, expanded: boolean) {
       />
     </nav>
 
-    <div class="mt-auto space-y-2 border-t border-white/15 p-2">
+    <div class="mt-auto space-y-2 border-t p-2" :class="mutedBorderClass">
       <div v-if="showInstanceSection">
-        <p
-          v-show="expanded"
-          class="mb-1 px-2 text-xs font-medium uppercase tracking-wide text-white/50"
-        >
+        <p v-show="expanded" :class="sectionLabelClass">
           {{ t('shell.sectionInstance') }}
         </p>
         <ul class="space-y-1">
@@ -196,13 +220,10 @@ function navItemClass(active: boolean, expanded: boolean) {
         </ul>
       </div>
 
-      <div v-if="showInstanceSection" class="border-t border-white/15" aria-hidden="true" />
+      <div v-if="showInstanceSection" class="border-t" :class="mutedBorderClass" aria-hidden="true" />
 
       <div>
-        <p
-          v-show="expanded"
-          class="mb-1 px-2 text-xs font-medium uppercase tracking-wide text-white/50"
-        >
+        <p v-show="expanded" :class="sectionLabelClass">
           {{ t('shell.sectionUser') }}
         </p>
         <ul class="space-y-1">
@@ -216,8 +237,13 @@ function navItemClass(active: boolean, expanded: boolean) {
             >
               <button
                 type="button"
-                class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-white/85 hover:bg-white/10"
-                :class="expanded ? '' : 'justify-center'"
+                class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm"
+                :class="[
+                  expanded ? '' : 'justify-center',
+                  impersonating
+                    ? 'text-vcp-blau/90 hover:bg-vcp-blau/10'
+                    : 'text-white/85 hover:bg-white/10',
+                ]"
                 :aria-label="t('theme.toggle')"
                 @click="ui.toggleTheme()"
               >
@@ -236,22 +262,35 @@ function navItemClass(active: boolean, expanded: boolean) {
             <div
               class="tooltip tooltip-right w-full"
               :class="{ 'before:hidden': expanded }"
-              :data-tip="expanded ? undefined : t('auth.signOut')"
+              :data-tip="expanded ? undefined : signOutLabel"
             >
               <button
                 type="button"
-                class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-white/85 hover:bg-white/10"
-                :class="expanded ? '' : 'justify-center'"
-                :aria-label="expanded ? undefined : t('auth.signOut')"
+                class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm"
+                :class="[
+                  expanded ? '' : 'justify-center',
+                  impersonating
+                    ? 'bg-vcp-blau font-medium text-vcp-feuergelb hover:bg-vcp-blau/90'
+                    : 'text-white/85 hover:bg-white/10',
+                ]"
+                :aria-label="expanded ? undefined : signOutLabel"
                 @click="emit('signOut')"
               >
-                <WlzIcon glyph="backToStart" size-class="text-lg" :tooltip="t('auth.signOut')" />
-                <span v-show="expanded">{{ t('auth.signOut') }}</span>
+                <WlzIcon glyph="backToStart" size-class="text-lg" :tooltip="signOutLabel" />
+                <span v-show="expanded">{{ signOutLabel }}</span>
               </button>
             </div>
           </li>
           <li v-else-if="expanded || mobile">
-            <a href="/login" class="btn btn-sm w-full border-0 bg-white text-vcp-blau hover:bg-white/90">
+            <a
+              href="/login"
+              class="btn btn-sm w-full border-0"
+              :class="
+                impersonating
+                  ? 'bg-vcp-blau text-vcp-feuergelb hover:bg-vcp-blau/90'
+                  : 'bg-white text-vcp-blau hover:bg-white/90'
+              "
+            >
               {{ t('auth.signIn') }}
             </a>
           </li>

@@ -13,8 +13,9 @@ const props = withDefaults(
     loading?: boolean
     sidebar?: boolean
     expanded?: boolean
+    impersonating?: boolean
   }>(),
-  { sidebar: false, expanded: true },
+  { sidebar: false, expanded: true, impersonating: false },
 )
 
 const { t } = useI18n()
@@ -145,7 +146,15 @@ function pick(id: number) {
 <template>
   <div ref="rootRef" :class="sidebar ? 'w-full min-w-0' : 'flex shrink-0 items-center gap-2'">
     <template v-if="loading">
-      <span :class="sidebar ? 'text-xs text-white/60' : 'text-sm text-base-content/60'">
+      <span
+        :class="
+          sidebar
+            ? impersonating
+              ? 'text-xs text-vcp-blau/60'
+              : 'text-xs text-white/60'
+            : 'text-sm text-base-content/60'
+        "
+      >
         {{ t('auth.loading') }}
       </span>
     </template>
@@ -154,7 +163,9 @@ function pick(id: number) {
         class="badge badge-sm w-full max-w-none truncate font-normal"
         :class="
           sidebar
-            ? 'justify-center border-white/30 bg-transparent text-xs text-white/70'
+            ? impersonating
+              ? 'justify-center border-vcp-blau/30 bg-transparent text-xs text-vcp-blau/70'
+              : 'justify-center border-white/30 bg-transparent text-xs text-white/70'
             : 'badge-outline max-w-[14rem] text-base-content/70'
         "
         role="status"
@@ -166,12 +177,15 @@ function pick(id: number) {
       <button
         ref="triggerRef"
         type="button"
-        class="flex w-full min-w-0 items-center rounded-lg border border-white/30 bg-white/5 text-white hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-        :class="
-          expanded
-            ? 'h-8 gap-1 px-2 text-xs'
-            : 'btn btn-ghost btn-sm btn-square min-h-8 justify-center border-0 bg-transparent hover:bg-white/10'
-        "
+        class="flex w-full min-w-0 items-center rounded-lg border focus:outline-none focus-visible:ring-2"
+        :class="[
+          expanded ? 'h-8 gap-1 px-2 text-xs' : 'btn btn-ghost btn-sm btn-square min-h-8 justify-center border-0 bg-transparent',
+          impersonating
+            ? 'border-vcp-blau/30 bg-vcp-blau/5 text-vcp-blau hover:bg-vcp-blau/10 focus-visible:ring-vcp-blau/40'
+            : expanded
+              ? 'border-white/30 bg-white/5 text-white hover:bg-white/10 focus-visible:ring-white/40'
+              : 'border-0 text-white hover:bg-white/10 focus-visible:ring-white/40',
+        ]"
         :aria-expanded="menuOpen"
         :aria-haspopup="true"
         :aria-label="expanded ? t('inventories.activeLabel') : undefined"
