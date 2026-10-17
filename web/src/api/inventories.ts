@@ -44,16 +44,25 @@ export async function updateInventory(
   return inventorySchema.parse(response.data)
 }
 
-export async function fetchInventoryPermissions(id: number): Promise<User[]> {
+export async function fetchInventoryAccess(id: number) {
   const response = await api.get(`/api/inventories/${id}/permissions`)
-  return inventoryPermissionsSchema.parse(response.data).users
+  const parsed = inventoryPermissionsSchema.parse(response.data)
+  return { users: parsed.users, readers: parsed.readers ?? [] }
+}
+
+export async function fetchInventoryPermissions(id: number): Promise<User[]> {
+  return (await fetchInventoryAccess(id)).users
 }
 
 export async function replaceInventoryPermissions(
   id: number,
   userIds: number[],
+  readerUserIds?: number[],
 ): Promise<User[]> {
-  const response = await api.put(`/api/inventories/${id}/permissions`, { userIds })
+  const response = await api.put(`/api/inventories/${id}/permissions`, {
+    userIds,
+    readerUserIds: readerUserIds ?? [],
+  })
   return inventoryPermissionsPutSchema.parse(response.data).users ?? []
 }
 

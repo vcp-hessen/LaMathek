@@ -11,7 +11,6 @@ const props = defineProps<{
   expanded: boolean
   impersonating?: boolean
   activeInventoryId: number | null
-  activeInventoryCanManage: boolean
   showInventoryPicker: boolean
   inventories: Inventory[]
   inventoriesLoading?: boolean
@@ -37,7 +36,7 @@ const workspaceLinks = computed(() => {
       to: `${base}/material`,
       routeName: 'inventory-material',
       label: t('nav.material'),
-      glyph: 'full' as WlzGlyphId,
+      glyph: 'please' as WlzGlyphId,
     },
     {
       key: 'sets',
@@ -46,17 +45,13 @@ const workspaceLinks = computed(() => {
       label: t('nav.sets'),
       glyph: 'gather' as WlzGlyphId,
     },
-    ...(props.activeInventoryCanManage
-      ? [
-          {
-            key: 'loans',
-            to: `${base}/loans`,
-            routeName: 'inventory-loans',
-            label: t('nav.loans'),
-            glyph: 'exchange' as WlzGlyphId,
-          },
-        ]
-      : []),
+    {
+      key: 'loans',
+      to: `${base}/loans`,
+      routeName: 'inventory-loans',
+      label: t('nav.loans'),
+      glyph: 'exchange' as WlzGlyphId,
+    },
   ]
 })
 
@@ -65,6 +60,7 @@ function isWorkspaceLinkActive(linkRouteName: string): boolean {
   if (linkRouteName === 'inventory-sets' && route.name === 'set-detail') return true
   if (linkRouteName === 'inventory-loans' && route.name === 'loan-detail') return true
   if (linkRouteName === 'inventory-material' && route.name === 'piece-detail') return true
+  if (linkRouteName === 'inventory-material' && route.name === 'stock-lot-detail') return true
   return false
 }
 

@@ -8,7 +8,7 @@ import {
   deleteInventory,
   fetchInventories,
   fetchInventory,
-  fetchInventoryPermissions,
+  fetchInventoryAccess,
   replaceInventoryPermissions,
   updateInventory,
 } from '../api/inventories'
@@ -52,8 +52,13 @@ const editNotes = ref('')
 const editLatitude = ref<number | null>(null)
 const editLongitude = ref<number | null>(null)
 const editUserIds = ref<number[]>([])
+const editReaderIds = ref<number[]>([])
 const permissionsSyncedFor = ref<number | null>(null)
-const savedEdit = ref<{ payload: InventoryWritePayload; userIds: number[] } | null>(null)
+const savedEdit = ref<{
+  payload: InventoryWritePayload
+  userIds: number[]
+  readerUserIds: number[]
+} | null>(null)
 
 const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
 const { data: settings } = useQuery({
@@ -75,7 +80,7 @@ const editingId = computed(() => expandedId.value)
 
 const { data: permittedUsers } = useQuery({
   queryKey: computed(() => ['inventoryPermissionUsers', editingId.value]),
-  queryFn: () => fetchInventoryPermissions(editingId.value!),
+  queryFn: () => fetchInventoryAccess(editingId.value!),
   enabled: () => {
     if (editingId.value === null) return false
     const inv = inventories.value?.find((row) => row.id === editingId.value)
@@ -110,6 +115,7 @@ function currentInventoryEdit() {
       visibility: editVisibility.value,
     }),
     userIds: sortedIds(editUserIds.value),
+    readerUserIds: sortedIds(editReaderIds.value),
   }
 }
 
@@ -125,12 +131,17 @@ const editDirty = computed(
     JSON.stringify(currentInventoryEdit()) !== JSON.stringify(savedEdit.value),
 )
 
-watch([editingId, permittedUsers], ([id, users]) => {
-  if (id === null || !users || permissionsSyncedFor.value === id) return
-  editUserIds.value = users.map((user) => user.id)
+watch([editingId, permittedUsers], ([id, access]) => {
+  if (id === null || !access || permissionsSyncedFor.value === id) return
+  editUserIds.value = access.users.map((user) => user.id)
+  editReaderIds.value = access.readers.map((user) => user.id)
   permissionsSyncedFor.value = id
   if (savedEdit.value) {
-    savedEdit.value = { ...savedEdit.value, userIds: sortedIds(editUserIds.value) }
+    savedEdit.value = {
+      ...savedEdit.value,
+      userIds: sortedIds(editUserIds.value),
+      readerUserIds: sortedIds(editReaderIds.value),
+    }
   }
 })
 
@@ -222,6 +233,7 @@ function loadEditDraft(inv: Inventory) {
       visibility: inv.visibility,
     }),
     userIds: [],
+    readerUserIds: [],
   }
 }
 
@@ -325,7 +337,11 @@ const updateMutation = useMutation({
         visibility: editVisibility.value,
       }),
     ).then(async (inventory) => {
-      await replaceInventoryPermissions(id, editUserIds.value)
+      await replaceInventoryPermissions(
+        id,
+        editUserIds.value,
+        editVisibility.value === 'internal' ? editReaderIds.value : [],
+      )
       return inventory
     }),
   onSuccess: async (_data, id) => {
@@ -563,6 +579,12 @@ const deleteMutation = useMutation({
                           v-if="editingId === row.original.id"
                           v-model="editUserIds"
                           :inventory-id="row.original.id"
+                        />
+                        <InventoryPermissionEditor
+                          v-if="editingId === row.original.id && editVisibility === 'internal'"
+                          v-model="editReaderIds"
+                          :inventory-id="row.original.id"
+                          heading-key="inventories.readersHeading"
                         />
                         <div v-if="editingId === row.original.id && editingInventory">
                           <h3 class="mb-2 text-sm font-semibold">{{ t('photos.heading') }}</h3>

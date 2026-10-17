@@ -146,7 +146,15 @@ def remove_inventory(_user, inventory_id: int):
 def get_permissions(_user, inventory):
     session = get_session()
     users = permission_users(session, inventory.id)
-    return jsonify({"users": [user_to_json(u) for u in users]})
+    from lamathek.models.inventory import PERMISSION_ROLE_READ
+
+    readers = permission_users(session, inventory.id, role=PERMISSION_ROLE_READ)
+    return jsonify(
+        {
+            "users": [user_to_json(u) for u in users],
+            "readers": [user_to_json(u) for u in readers],
+        }
+    )
 
 
 @inventories_bp.put("/inventories/<int:inventory_id>/permissions")
@@ -158,19 +166,35 @@ def put_permissions(_user, inventory):
         isinstance(uid, int) for uid in user_ids
     ):
         return jsonify({"error": "invalid_user_ids"}), 400
+    reader_ids = body.get("readerUserIds")
+    if reader_ids is not None and (
+        not isinstance(reader_ids, list)
+        or not all(isinstance(uid, int) for uid in reader_ids)
+    ):
+        return jsonify({"error": "invalid_user_ids"}), 400
     session = get_session()
     try:
-        ids = replace_permissions(session, inventory, user_ids)
+        manage_ids, saved_reader_ids = replace_permissions(
+            session,
+            inventory,
+            user_ids,
+            reader_user_ids=reader_ids if isinstance(reader_ids, list) else None,
+        )
     except ValueError as exc:
         if str(exc) == "cannot_clear_permissions":
             return jsonify({"error": "cannot_clear_permissions"}), 409
         if str(exc) == "invalid_user_ids":
             return jsonify({"error": "invalid_user_ids"}), 400
         raise
+    from lamathek.models.inventory import PERMISSION_ROLE_READ
+
     users = permission_users(session, inventory.id)
+    readers = permission_users(session, inventory.id, role=PERMISSION_ROLE_READ)
     return jsonify(
         {
-            "userIds": ids,
+            "userIds": manage_ids,
+            "readerUserIds": saved_reader_ids,
             "users": [user_to_json(u) for u in users],
+            "readers": [user_to_json(u) for u in readers],
         }
     )

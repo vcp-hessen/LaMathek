@@ -250,13 +250,22 @@ def upload_loan_photo(user, loan_id: int):
     loan = loan_by_id(session, loan_id)
     if loan is None:
         return jsonify({"error": "not_found"}), 404
-    if not user_can_manage_inventory(session, user, loan.inventory):
+    from lamathek.services.loan_access import user_can_view_loan
+
+    if not user_can_view_loan(session, user, loan):
+        return jsonify({"error": "forbidden"}), 403
+    role = request.args.get("role", "loan")
+    if role not in ("loan", "pickup", "return"):
+        return jsonify({"error": "invalid_role"}), 400
+    if role == "pickup" and not user_can_manage_inventory(session, user, loan.inventory):
         return jsonify({"error": "forbidden"}), 403
     raw, err = _read_upload_file()
     if err:
         return err
     try:
-        photo = add_photo(session, raw_bytes=raw, loan_id=loan_id)
+        photo = add_photo(
+            session, raw_bytes=raw, loan_id=loan_id, loan_photo_role=role
+        )
     except ValueError as exc:
         return _photo_json_error(exc)
     return jsonify({"id": photo.id, "sortOrder": photo.sort_order}), 201

@@ -15,6 +15,7 @@ import {
   variantFiltersAreActive,
 } from '../../utils/pieceVariantFilters'
 import { variantMapSummary } from '../../utils/variantDisplay'
+import AddToBoxButton from '../loans/AddToBoxButton.vue'
 import PiecesActiveFilterChips from '../pieces/PiecesActiveFilterChips.vue'
 import PiecesTableToolbar from '../pieces/PiecesTableToolbar.vue'
 import {
@@ -23,7 +24,6 @@ import {
   createMaterialTypeFilterFn,
   createMaterialVariantColumnFilterFn,
   rowCoverPhotoId,
-  rowAcquiredYear,
   rowDisplayName,
   rowItemStatus,
   rowMaterialTypeName,
@@ -121,16 +121,6 @@ const columns = computed<ColumnDef<MaterialRow>[]>(() => [
     enableColumnFilter: false,
     sortingFn: localeSortRow,
   },
-  {
-    id: 'acquiredYear',
-    accessorFn: (row) => rowAcquiredYear(row) ?? -1,
-    enableSorting: true,
-    sortingFn: (rowA, rowB) => {
-      const a = rowAcquiredYear(rowA.original) ?? -1
-      const b = rowAcquiredYear(rowB.original) ?? -1
-      return a - b
-    },
-  },
 ])
 
 const {
@@ -190,11 +180,6 @@ function showRetiredBadge(row: MaterialRow): boolean {
   return (
     props.statusFilter !== 'active' && rowItemStatus(row) === 'retired'
   )
-}
-
-function yearLabel(row: MaterialRow): string {
-  const year = rowAcquiredYear(row)
-  return year != null ? String(year) : '—'
 }
 
 watch(materialTypeFilter, () => {
@@ -334,12 +319,8 @@ function onRowKeydown(event: KeyboardEvent, row: MaterialRow) {
                 @toggle="table.getColumn('set')?.toggleSorting()"
               />
             </th>
-            <th class="hidden lg:table-cell">
-              <SortHeaderButton
-                :label="t('material.acquiredYear')"
-                :sorted="sortedState('acquiredYear')"
-                @toggle="table.getColumn('acquiredYear')?.toggleSorting()"
-              />
+            <th class="w-0">
+              <span class="sr-only">{{ t('loans.addToBox') }}</span>
             </th>
           </tr>
         </thead>
@@ -391,9 +372,6 @@ function onRowKeydown(event: KeyboardEvent, row: MaterialRow) {
                 <span v-if="row.original.kind === 'stockLot'" class="block sm:hidden">
                   {{ quantityLabel(row.original) }}
                 </span>
-                <span v-if="rowAcquiredYear(row.original) != null" class="block lg:hidden">
-                  {{ t('material.acquiredYear') }}: {{ yearLabel(row.original) }}
-                </span>
               </div>
             </td>
             <td class="hidden md:table-cell">{{ rowMaterialTypeName(row.original) }}</td>
@@ -404,7 +382,23 @@ function onRowKeydown(event: KeyboardEvent, row: MaterialRow) {
             <td class="hidden max-w-[10rem] truncate xl:table-cell">
               {{ setLabel(row.original) }}
             </td>
-            <td class="hidden lg:table-cell">{{ yearLabel(row.original) }}</td>
+            <td class="text-right" @click.stop>
+              <AddToBoxButton
+                v-if="row.original.kind === 'piece'"
+                :inventory-id="inventoryId"
+                :piece-id="row.original.piece.id"
+                size="xs"
+                :show-label="false"
+              />
+              <AddToBoxButton
+                v-else
+                :inventory-id="inventoryId"
+                :material-type-id="row.original.lot.materialTypeId"
+                :quantity="1"
+                size="xs"
+                :show-label="false"
+              />
+            </td>
           </tr>
         </tbody>
       </table>

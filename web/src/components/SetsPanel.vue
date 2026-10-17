@@ -12,6 +12,7 @@ import DataTableSearch from './data-table/DataTableSearch.vue'
 import { localeSortRow } from './data-table/localeSort'
 import SortHeaderButton from './data-table/SortHeaderButton.vue'
 import { useClientTable } from './data-table/useClientTable'
+import AddToBoxButton from './loans/AddToBoxButton.vue'
 import PhotoThumbnail from './PhotoThumbnail.vue'
 import type { SetSummary } from '../schemas/set'
 
@@ -142,11 +143,14 @@ function onRowKeydown(event: KeyboardEvent, setId: number) {
                     @toggle="table.getColumn('shortName')?.toggleSorting()"
                   />
                 </th>
+                <th class="w-0">
+                  <span class="sr-only">{{ t('loans.addToBox') }}</span>
+                </th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="tableRows.length === 0">
-                <td colspan="3" class="py-8 text-center text-sm opacity-70">
+                <td colspan="4" class="py-8 text-center text-sm opacity-70">
                   {{ t('dataTable.noResults') }}
                 </td>
               </tr>
@@ -171,6 +175,17 @@ function onRowKeydown(event: KeyboardEvent, setId: number) {
                   </span>
                 </td>
                 <td class="hidden sm:table-cell">{{ row.original.shortName || '—' }}</td>
+                <td class="text-right" @click.stop @keydown.stop>
+                  <AddToBoxButton
+                    :inventory-id="inventoryId"
+                    :set-id="row.original.id"
+                    set-scope="assignment"
+                    :piece-ids="row.original.assignmentPieceIds"
+                    :stock-type-ids="row.original.assignmentStockTypeIds"
+                    size="xs"
+                    :show-label="false"
+                  />
+                </td>
               </tr>
             </tbody>
           </table>

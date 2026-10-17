@@ -1,7 +1,9 @@
 export const BATCH_NAME_PLACEHOLDER_TOKENS = {
   number: '{n}',
   letter: '{a}',
+  letterUpper: '{A}',
   roman: '{r}',
+  romanUpper: '{R}',
 } as const
 
 export type BatchNamePlaceholderKind = keyof typeof BATCH_NAME_PLACEHOLDER_TOKENS
@@ -24,12 +26,13 @@ export function batchPlaceholderKindFromPattern(pattern: string): BatchNamePlace
   return (entry?.[0] as BatchNamePlaceholderKind) ?? null
 }
 
-function letterAt(index: number): string {
+function letterAt(index: number, upper: boolean): string {
   if (index < 1 || index > 26) return ''
-  return String.fromCharCode(96 + index)
+  const base = upper ? 65 : 96
+  return String.fromCharCode(base + index - 1)
 }
 
-function romanLower(num: number): string {
+function romanAt(num: number, upper: boolean): string {
   if (num < 1 || num > 3999) return ''
   const values = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
   const symbols = ['m', 'cm', 'd', 'cd', 'c', 'xc', 'l', 'xl', 'x', 'ix', 'v', 'iv', 'i']
@@ -41,13 +44,15 @@ function romanLower(num: number): string {
       n -= values[i]
     }
   }
-  return result
+  return upper ? result.toUpperCase() : result
 }
 
 function valueForPlaceholder(token: string, index: number): string {
   if (token === BATCH_NAME_PLACEHOLDER_TOKENS.number) return String(index)
-  if (token === BATCH_NAME_PLACEHOLDER_TOKENS.letter) return letterAt(index)
-  if (token === BATCH_NAME_PLACEHOLDER_TOKENS.roman) return romanLower(index)
+  if (token === BATCH_NAME_PLACEHOLDER_TOKENS.letter) return letterAt(index, false)
+  if (token === BATCH_NAME_PLACEHOLDER_TOKENS.letterUpper) return letterAt(index, true)
+  if (token === BATCH_NAME_PLACEHOLDER_TOKENS.roman) return romanAt(index, false)
+  if (token === BATCH_NAME_PLACEHOLDER_TOKENS.romanUpper) return romanAt(index, true)
   return ''
 }
 

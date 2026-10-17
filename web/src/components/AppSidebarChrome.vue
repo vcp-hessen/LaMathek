@@ -20,16 +20,11 @@ const props = defineProps<{
   settingsActive: boolean
   diagnosticsActive: boolean
   usersActive: boolean
+  myLoansActive: boolean
   mobile?: boolean
 }>()
 
 const inventoryStore = useInventoryStore()
-
-const activeInventoryCanManage = computed(() => {
-  const id = inventoryStore.activeInventoryId
-  if (id === null) return false
-  return props.inventories.find((inv) => inv.id === id)?.canManage === true
-})
 
 const emit = defineEmits<{ signOut: [] }>()
 
@@ -126,7 +121,6 @@ const signOutLabel = computed(() =>
         :inventories="inventories"
         :inventories-loading="inventoriesLoading"
         :active-inventory-id="inventoryStore.activeInventoryId"
-        :active-inventory-can-manage="activeInventoryCanManage"
       />
     </nav>
 
@@ -158,7 +152,7 @@ const signOutLabel = computed(() =>
               </RouterLink>
             </div>
           </li>
-          <li v-if="me?.isSuperuser">
+          <li v-if="me?.isSuperuser || inventories.some((inventory) => inventory.canManage)">
             <div
               class="tooltip tooltip-right w-full"
               :class="{ 'before:hidden': expanded }"
@@ -234,6 +228,28 @@ const signOutLabel = computed(() =>
           {{ t('shell.sectionUser') }}
         </p>
         <ul class="space-y-1">
+          <li v-if="me">
+            <div
+              class="tooltip tooltip-right w-full"
+              :class="{ 'before:hidden': expanded }"
+              :data-tip="expanded ? undefined : t('nav.myLoans')"
+            >
+              <RouterLink
+                to="/my-loans"
+                :class="navItemClass(myLoansActive, expanded)"
+                :aria-label="expanded ? undefined : t('nav.myLoans')"
+                :aria-current="myLoansActive ? 'page' : undefined"
+              >
+                <WlzIcon
+                  glyph="exchange"
+                  :active="myLoansActive"
+                  size-class="text-lg"
+                  :tooltip="t('nav.myLoans')"
+                />
+                <span v-show="expanded" class="truncate">{{ t('nav.myLoans') }}</span>
+              </RouterLink>
+            </div>
+          </li>
           <li>
             <div
               class="tooltip tooltip-right w-full"

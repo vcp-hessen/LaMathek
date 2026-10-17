@@ -1,12 +1,47 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
-import { Bars3Icon, ChevronDownIcon } from '@heroicons/vue/24/outline'
+import {
+  ArchiveBoxIcon,
+  ArchiveBoxXMarkIcon,
+  ArrowPathIcon,
+  ArrowUturnLeftIcon,
+  Bars3Icon,
+  CheckIcon,
+  ChevronDownIcon,
+  ExclamationTriangleIcon,
+  HandRaisedIcon,
+  NoSymbolIcon,
+  PlusIcon,
+  XMarkIcon,
+} from '@heroicons/vue/24/outline'
 
-export type UiIconName = 'menu' | 'chevronDown'
+export type UiIconName =
+  | 'menu'
+  | 'chevronDown'
+  | 'plus'
+  | 'check'
+  | 'x'
+  | 'pack'
+  | 'packOff'
+  | 'pickup'
+  | 'pickupOff'
+  | 'return'
+  | 'restock'
+  | 'loss'
 
 const ICONS: Record<UiIconName, Component> = {
   menu: Bars3Icon,
   chevronDown: ChevronDownIcon,
+  plus: PlusIcon,
+  check: CheckIcon,
+  x: XMarkIcon,
+  pack: ArchiveBoxIcon,
+  packOff: ArchiveBoxXMarkIcon,
+  pickup: HandRaisedIcon,
+  pickupOff: NoSymbolIcon,
+  return: ArrowUturnLeftIcon,
+  restock: ArrowPathIcon,
+  loss: ExclamationTriangleIcon,
 }
 
 withDefaults(

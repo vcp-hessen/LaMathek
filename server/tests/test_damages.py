@@ -47,12 +47,12 @@ def test_severe_open_damage_blocks_piece_and_set_handout():
         inv_id = _setup_inventory(client)
         piece_id = _piece_id(client, inv_id)
 
-        loan_piece = client.post(
-            f"/api/inventories/{inv_id}/loans",
-            json={"groupName": "Stamm A", "responsibleUserId": ver_id},
-        )
+        from loan_helpers import create_loan
+
+        loan_piece = create_loan(client, inv_id, ver_id, groupName="Stamm A")
         loan_piece_id = loan_piece.get_json()["id"]
         client.post(f"/api/loans/{loan_piece_id}/lines", json={"pieceId": piece_id})
+        _login(client, "su")
 
         material_set = client.post(
             f"/api/inventories/{inv_id}/sets", json={"name": "Jurte"}
@@ -62,12 +62,16 @@ def test_severe_open_damage_blocks_piece_and_set_handout():
             f"/api/sets/{set_id}/pieces",
             json={"pieceId": piece_id, "role": "assignment"},
         )
-        loan_set = client.post(
-            f"/api/inventories/{inv_id}/loans",
-            json={"groupName": "Stamm B", "responsibleUserId": ver_id},
-        )
+        from loan_helpers import borrower_id, create_loan
+
+        ver2_id = borrower_id(client, sub="ver2")
+        loan_set = create_loan(client, inv_id, ver2_id, groupName="Stamm B")
         loan_set_id = loan_set.get_json()["id"]
-        client.post(f"/api/loans/{loan_set_id}/lines", json={"setId": set_id})
+        client.post(
+            f"/api/loans/{loan_set_id}/lines",
+            json={"setId": set_id, "scope": "assignment"},
+        )
+        _login(client, "su")
 
         damage = client.post(
             f"/api/pieces/{piece_id}/damages",
@@ -75,11 +79,31 @@ def test_severe_open_damage_blocks_piece_and_set_handout():
         )
         assert damage.status_code == 201
 
-        conflict = client.post(f"/api/loans/{loan_piece_id}/hand-out")
+        from loan_helpers import confirm_all_lines, manager_id, submit_request
+
+        mgr_id = manager_id(client)
+        with client.application.app_context():
+            session = get_session()
+            u = session.get(__import__("lamathek.models.user", fromlist=["User"]).User, ver_id)
+            u.phone = "+49123"
+            session.commit()
+        _login(client, "ver")
+        submit_request(client, loan_piece_id)
+        _login(client, "su")
+        lines = client.get(f"/api/loans/{loan_piece_id}").get_json()["lines"]
+        conflict = confirm_all_lines(
+            client, loan_piece_id, mgr_id, [lines[0]["id"]]
+        )
         assert conflict.status_code == 409
         assert conflict.get_json()["error"] == "piece_unavailable"
 
-        conflict_set = client.post(f"/api/loans/{loan_set_id}/hand-out")
+        _login(client, "ver2")
+        submit_request(client, loan_set_id)
+        _login(client, "su")
+        lines_set = client.get(f"/api/loans/{loan_set_id}").get_json()["lines"]
+        conflict_set = confirm_all_lines(
+            client, loan_set_id, mgr_id, [l["id"] for l in lines_set]
+        )
         assert conflict_set.status_code == 409
         assert conflict_set.get_json()["error"] == "piece_unavailable"
     finally:
@@ -113,13 +137,25 @@ def test_repair_allows_handout_again():
             == 201
         )
 
-        loan = client.post(
-            f"/api/inventories/{inv_id}/loans",
-            json={"groupName": "Stamm A", "responsibleUserId": ver_id},
-        )
+        from loan_helpers import confirm_all_lines, create_loan, manager_id, submit_request
+
+        loan = create_loan(client, inv_id, ver_id, groupName="Stamm A")
         loan_id = loan.get_json()["id"]
         client.post(f"/api/loans/{loan_id}/lines", json={"pieceId": piece_id})
-        assert client.post(f"/api/loans/{loan_id}/hand-out").status_code == 200
+
+        with client.application.app_context():
+            session = get_session()
+            from lamathek.models.user import User
+
+            u = session.get(User, ver_id)
+            u.phone = "+49123"
+            session.commit()
+        mgr_id = manager_id(client)
+        _login(client, "ver")
+        submit_request(client, loan_id)
+        _login(client, "su")
+        lines = client.get(f"/api/loans/{loan_id}").get_json()["lines"]
+        assert confirm_all_lines(client, loan_id, mgr_id, [lines[0]["id"]]).status_code == 200
     finally:
         tmp.cleanup()
 
@@ -146,13 +182,25 @@ def test_non_severe_damage_does_not_block():
             == 201
         )
 
-        loan = client.post(
-            f"/api/inventories/{inv_id}/loans",
-            json={"groupName": "Stamm A", "responsibleUserId": ver_id},
-        )
+        from loan_helpers import confirm_all_lines, create_loan, manager_id, submit_request
+
+        loan = create_loan(client, inv_id, ver_id, groupName="Stamm A")
         loan_id = loan.get_json()["id"]
         client.post(f"/api/loans/{loan_id}/lines", json={"pieceId": piece_id})
-        assert client.post(f"/api/loans/{loan_id}/hand-out").status_code == 200
+
+        with client.application.app_context():
+            session = get_session()
+            from lamathek.models.user import User
+
+            u = session.get(User, ver_id)
+            u.phone = "+49123"
+            session.commit()
+        mgr_id = manager_id(client)
+        _login(client, "ver")
+        submit_request(client, loan_id)
+        _login(client, "su")
+        lines = client.get(f"/api/loans/{loan_id}").get_json()["lines"]
+        assert confirm_all_lines(client, loan_id, mgr_id, [lines[0]["id"]]).status_code == 200
     finally:
         tmp.cleanup()
 

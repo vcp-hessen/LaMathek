@@ -8,9 +8,13 @@
   --color-vcp-blau: #004287;
   --color-vcp-blau-reduced: #c3d1e0;
   --color-vcp-feuerrot: #e94653;
+  --color-vcp-feuerrot-reduced: #f9c5c9;
   --color-vcp-feuergelb: #fecf16;
+  --color-vcp-feuergelb-reduced: #fff3cc;
   --color-vcp-wasserblau: #00b0eb;
+  --color-vcp-wasserblau-reduced: #cceff8;
   --color-vcp-erdbraun: #603609;
+  --color-vcp-erdbraun-reduced: #dccdbf;
   --color-vcp-luftgrau: #f0f1ef;
 }
 

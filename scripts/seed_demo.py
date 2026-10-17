@@ -128,10 +128,10 @@ def main() -> None:
             session,
             inventory,
             group_name="Stamm Falken",
-            responsible_user_id=ver.id,
+            borrower_user_id=ver.id,
             event_name="Pfingstlager 2026",
-            starts_on=None,
-            ends_on=None,
+            pickup_on=None,
+            return_on=None,
         )
         add_set_assignment_lines(session, loan, jurte.id)
         add_piece_line(session, loan, beamer.id)

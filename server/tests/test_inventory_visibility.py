@@ -58,7 +58,9 @@ def test_active_inventory_readable_without_permission():
         sets = client.get(f"/api/inventories/{active_id}/sets")
         assert sets.status_code == 200
 
-        assert client.get(f"/api/inventories/{active_id}/loans").status_code == 403
+        loans = client.get(f"/api/inventories/{active_id}/loans")
+        assert loans.status_code == 200
+        assert loans.get_json() == []
         assert client.get(f"/api/inventories/{active_id}/permissions").status_code == 403
 
         denied_write = client.post(

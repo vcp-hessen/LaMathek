@@ -7,7 +7,15 @@ import { fetchInventories } from '../api/inventories'
 import { apiErrorCode } from '../api/errors'
 import { fetchMe } from '../api/me'
 import { startImpersonation } from '../api/impersonation'
-import { fetchUsers, grantUserInventory, revokeUserInventory, setUserSuperuser } from '../api/users'
+import {
+  createLocalUser,
+  fetchUsers,
+  grantUserInventory,
+  mergeLocalUser,
+  revokeUserInventory,
+  setUserSuperuser,
+  updateUserContact,
+} from '../api/users'
 import { userLabel } from '../utils/userLabel'
 import DataTableFooter from '../components/data-table/DataTableFooter.vue'
 import DataTableSearch from '../components/data-table/DataTableSearch.vue'
@@ -22,22 +30,33 @@ const actionError = ref<string | null>(null)
 const pendingKey = ref<string | null>(null)
 const expandedId = ref<number | null>(null)
 const impersonateReason = ref('')
+const creating = ref(false)
+const newName = ref('')
+const newPhone = ref('')
+const newEmail = ref('')
+const contactPhone = ref('')
+const contactEmail = ref('')
+const mergeTargetId = ref('')
 
 const { data: me, isLoading: meLoading } = useQuery({
   queryKey: ['me'],
   queryFn: fetchMe,
 })
 
-const { data: users, isLoading: usersLoading } = useQuery({
-  queryKey: ['users'],
-  queryFn: fetchUsers,
-  enabled: () => !!me.value?.isSuperuser,
-})
-
 const { data: inventories } = useQuery({
   queryKey: ['inventories'],
   queryFn: fetchInventories,
-  enabled: () => !!me.value?.isSuperuser,
+})
+
+const canManageAny = computed(
+  () => (inventories.value ?? []).some((inventory) => inventory.canManage),
+)
+const canOpenUsers = computed(() => !!me.value?.isSuperuser || canManageAny.value)
+
+const { data: users, isLoading: usersLoading } = useQuery({
+  queryKey: ['users'],
+  queryFn: fetchUsers,
+  enabled: () => canOpenUsers.value,
 })
 
 const inventoryName = computed(() => {
@@ -54,6 +73,7 @@ function label(user: { name?: string | null; email?: string | null }) {
 
 function canImpersonate(user: ManagedUser) {
   if (!me.value?.isSuperuser || me.value.impersonation) return false
+  if (user.hasLogin === false) return false
   if (user.id === me.value.id) return false
   return !user.isSuperuser
 }
@@ -127,8 +147,11 @@ watch(
   },
 )
 
-watch(expandedId, () => {
+watch(expandedId, (id) => {
   impersonateReason.value = ''
+  const person = users.value?.find((row) => row.id === id)
+  contactPhone.value = person?.phone ?? ''
+  contactEmail.value = person?.email ?? ''
 })
 
 function toggleRow(userId: number) {
@@ -176,6 +199,10 @@ function fail(error: unknown) {
   }
   if (code === 'impersonation_active') {
     actionError.value = t('users.impersonationAlreadyActive')
+    return
+  }
+  if (code === 'email_taken') {
+    actionError.value = t('users.emailTaken')
     return
   }
   actionError.value = t('users.updateFailed')
@@ -255,6 +282,72 @@ function onRemoveInventory(user: ManagedUser, inventoryId: number) {
   revokeMutation.mutate({ userId: user.id, inventoryId })
 }
 
+const loginUsers = computed(() => (users.value ?? []).filter((user) => user.hasLogin !== false))
+
+const createMutation = useMutation({
+  mutationFn: () =>
+    createLocalUser({
+      name: newName.value.trim(),
+      phone: newPhone.value.trim(),
+      email: newEmail.value.trim(),
+    }),
+  onSuccess: async () => {
+    newName.value = ''
+    newPhone.value = ''
+    newEmail.value = ''
+    creating.value = false
+    actionError.value = null
+    await queryClient.invalidateQueries({ queryKey: ['users'] })
+    await queryClient.invalidateQueries({ queryKey: ['borrowers'] })
+  },
+  onError: fail,
+})
+
+const contactMutation = useMutation({
+  mutationFn: (userId: number) =>
+    updateUserContact(userId, {
+      phone: contactPhone.value.trim(),
+      email: contactEmail.value.trim(),
+    }),
+  onSuccess: async () => {
+    actionError.value = null
+    await queryClient.invalidateQueries({ queryKey: ['users'] })
+    await queryClient.invalidateQueries({ queryKey: ['borrowers'] })
+    await queryClient.invalidateQueries({ queryKey: ['me'] })
+  },
+  onError: fail,
+})
+
+const mergeMutation = useMutation({
+  mutationFn: (payload: { sourceId: number; targetId: number }) =>
+    mergeLocalUser(payload.sourceId, payload.targetId),
+  onSuccess: async () => {
+    mergeTargetId.value = ''
+    expandedId.value = null
+    actionError.value = null
+    await queryClient.invalidateQueries({ queryKey: ['users'] })
+    await queryClient.invalidateQueries({ queryKey: ['borrowers'] })
+  },
+  onError: fail,
+})
+
+function onCreateUser() {
+  actionError.value = null
+  createMutation.mutate()
+}
+
+function onSaveContact(userId: number) {
+  actionError.value = null
+  contactMutation.mutate(userId)
+}
+
+function onMerge(user: ManagedUser) {
+  const targetId = Number(mergeTargetId.value)
+  if (!Number.isFinite(targetId)) return
+  actionError.value = null
+  mergeMutation.mutate({ sourceId: user.id, targetId })
+}
+
 function onStartImpersonation(user: ManagedUser) {
   actionError.value = null
   const reason = impersonateReason.value.trim()
@@ -268,14 +361,46 @@ function onStartImpersonation(user: ManagedUser) {
 
 <template>
   <div class="app-page space-y-4">
-    <h1 class="text-2xl font-bold">{{ t('users.heading') }}</h1>
-    <p v-if="meLoading || (me?.isSuperuser && usersLoading)" class="text-sm">
+    <div class="app-section-header flex flex-wrap items-center justify-between gap-2">
+      <h1 class="text-2xl font-bold">{{ t('users.heading') }}</h1>
+      <button
+        v-if="canOpenUsers"
+        type="button"
+        class="btn btn-ghost btn-sm"
+        :aria-expanded="creating"
+        @click="creating = !creating"
+      >
+        {{ t('users.createSubmit') }}
+      </button>
+    </div>
+    <p v-if="meLoading || (canOpenUsers && usersLoading)" class="text-sm">
       {{ t('auth.loading') }}
     </p>
-    <p v-else-if="!me?.isSuperuser" class="text-sm text-base-content/70">
+    <p v-else-if="!canOpenUsers" class="text-sm text-base-content/70">
       {{ t('users.superuserOnly') }}
     </p>
     <div v-else class="flex flex-col gap-3 text-left">
+      <form
+        v-if="creating"
+        class="flex flex-wrap items-end gap-2 rounded-lg border border-base-200 p-4"
+        @submit.prevent="onCreateUser"
+      >
+        <label class="flex flex-col gap-1">
+          <span class="text-xs opacity-80">{{ t('users.createName') }}</span>
+          <input v-model="newName" class="input input-bordered input-sm" required />
+        </label>
+        <label class="flex flex-col gap-1">
+          <span class="text-xs opacity-80">{{ t('users.createPhone') }}</span>
+          <input v-model="newPhone" class="input input-bordered input-sm" required />
+        </label>
+        <label class="flex flex-col gap-1">
+          <span class="text-xs opacity-80">{{ t('users.createEmail') }}</span>
+          <input v-model="newEmail" type="email" class="input input-bordered input-sm" required />
+        </label>
+        <button type="submit" class="btn btn-primary btn-sm" :disabled="createMutation.isPending.value">
+          {{ t('users.createSubmit') }}
+        </button>
+      </form>
       <p v-if="!(users?.length)" class="text-sm opacity-70">{{ t('users.noMatches') }}</p>
       <div v-else class="rounded-lg border border-base-200">
         <div
@@ -350,6 +475,12 @@ function onStartImpersonation(user: ManagedUser) {
                     </span>
                     <div class="min-w-0">
                       <span class="font-medium">{{ label(row.original) }}</span>
+                      <span
+                        v-if="row.original.hasLogin === false"
+                        class="ml-2 badge badge-ghost badge-sm"
+                      >
+                        {{ t('users.noLogin') }}
+                      </span>
                       <div class="mt-0.5 space-y-0.5 text-xs opacity-70">
                         <span v-if="row.original.email" class="block sm:hidden">
                           {{ row.original.email }}
@@ -373,7 +504,35 @@ function onStartImpersonation(user: ManagedUser) {
               <tr v-if="expandedId === row.original.id" class="data-table-editor">
                 <td colspan="4" class="pb-4 pt-3">
                   <div class="flex flex-col gap-3 pl-5">
-                    <label class="label cursor-pointer justify-start gap-2 py-0">
+                    <form
+                      class="flex flex-wrap items-end gap-2"
+                      @submit.prevent="onSaveContact(row.original.id)"
+                    >
+                      <label class="flex min-w-40 flex-col gap-1">
+                        <span class="text-xs opacity-80">{{ t('users.createPhone') }}</span>
+                        <input v-model="contactPhone" class="input input-bordered input-sm" />
+                      </label>
+                      <label class="flex min-w-48 flex-col gap-1">
+                        <span class="text-xs opacity-80">{{ t('users.createEmail') }}</span>
+                        <input
+                          v-model="contactEmail"
+                          type="email"
+                          class="input input-bordered input-sm"
+                          required
+                        />
+                      </label>
+                      <button
+                        type="submit"
+                        class="btn btn-outline btn-sm"
+                        :disabled="contactMutation.isPending.value"
+                      >
+                        {{ t('users.saveContact') }}
+                      </button>
+                    </form>
+                    <label
+                      v-if="me?.isSuperuser && row.original.hasLogin !== false"
+                      class="label cursor-pointer justify-start gap-2 py-0"
+                    >
                       <span class="label-text text-sm">{{ t('users.superuserLabel') }}</span>
                       <input
                         type="checkbox"
@@ -383,7 +542,10 @@ function onStartImpersonation(user: ManagedUser) {
                         @change="onSuperuserChange(row.original, $event)"
                       />
                     </label>
-                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div
+                      v-if="me?.isSuperuser && row.original.hasLogin !== false"
+                      class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"
+                    >
                       <div class="min-w-0 flex-1">
                         <p class="text-xs opacity-80">{{ t('users.inventoriesLabel') }}</p>
                         <ul v-if="inventoriesOf(row.original).length" class="mt-1 flex flex-wrap gap-1">
@@ -421,6 +583,32 @@ function onStartImpersonation(user: ManagedUser) {
                           </option>
                         </select>
                       </label>
+                    </div>
+                    <div
+                      v-if="row.original.hasLogin === false"
+                      class="flex flex-wrap items-end gap-2 border-t border-base-200 pt-3"
+                    >
+                      <label class="flex min-w-48 flex-col gap-1">
+                        <span class="text-xs opacity-80">{{ t('users.mergeLabel') }}</span>
+                        <select v-model="mergeTargetId" class="select select-bordered select-sm">
+                          <option value="">{{ t('users.mergePlaceholder') }}</option>
+                          <option
+                            v-for="person in loginUsers"
+                            :key="person.id"
+                            :value="String(person.id)"
+                          >
+                            {{ label(person) }}
+                          </option>
+                        </select>
+                      </label>
+                      <button
+                        type="button"
+                        class="btn btn-outline btn-sm"
+                        :disabled="!mergeTargetId || mergeMutation.isPending.value"
+                        @click.stop="onMerge(row.original)"
+                      >
+                        {{ t('users.mergeSubmit') }}
+                      </button>
                     </div>
                     <div
                       v-if="canImpersonate(row.original)"

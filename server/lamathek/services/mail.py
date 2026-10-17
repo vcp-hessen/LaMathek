@@ -99,6 +99,8 @@ def send_mail(
     subject: str,
     text: str,
     html: str | None = None,
+    *,
+    cc: list[str] | None = None,
 ) -> None:
     if not mail_configured():
         raise MailDeliveryError("smtp_not_configured")
@@ -106,6 +108,10 @@ def send_mail(
     message = EmailMessage()
     message["From"] = _smtp_from_header()
     message["To"] = to
+    if cc:
+        filtered = [addr.strip() for addr in cc if addr.strip() and addr.strip() != to]
+        if filtered:
+            message["Cc"] = ", ".join(filtered)
     message["Subject"] = subject
     message.set_content(text)
     if html:

@@ -193,6 +193,58 @@ def test_batch_pieces_with_roman_placeholder():
         tmp.cleanup()
 
 
+def test_batch_pieces_with_uppercase_placeholders():
+    app, tmp = _app_with_db()
+    try:
+        with app.app_context():
+            session = get_session()
+            upsert_user_from_oidc(
+                session, sub="su", name="SU", email=None, force_superuser=True
+            )
+            session.commit()
+
+        client = app.test_client()
+        inv_id = _setup_inventory(client)
+        plane = client.post(
+            f"/api/inventories/{inv_id}/material-types",
+            json={"name": "Plane2", "tracking": "piece"},
+        )
+        plane_id = plane.get_json()["id"]
+
+        batch_a = client.post(
+            f"/api/inventories/{inv_id}/pieces/batch",
+            json={
+                "materialTypeId": plane_id,
+                "count": 3,
+                "namePattern": "Gruppe-{A}",
+            },
+        )
+        assert batch_a.status_code == 201
+        assert [p["name"] for p in batch_a.get_json()["pieces"]] == [
+            "Gruppe-A",
+            "Gruppe-B",
+            "Gruppe-C",
+        ]
+
+        batch_r = client.post(
+            f"/api/inventories/{inv_id}/pieces/batch",
+            json={
+                "materialTypeId": plane_id,
+                "count": 4,
+                "namePattern": "J3-{R}",
+            },
+        )
+        assert batch_r.status_code == 201
+        assert [p["name"] for p in batch_r.get_json()["pieces"]] == [
+            "J3-I",
+            "J3-II",
+            "J3-III",
+            "J3-IV",
+        ]
+    finally:
+        tmp.cleanup()
+
+
 def test_batch_requires_placeholder_in_pattern():
     app, tmp = _app_with_db()
     try:

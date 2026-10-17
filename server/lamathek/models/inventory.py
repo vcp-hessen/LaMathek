@@ -14,6 +14,10 @@ VALID_INVENTORY_VISIBILITIES = frozenset(
     }
 )
 
+PERMISSION_ROLE_MANAGE = "manage"
+PERMISSION_ROLE_READ = "read"
+VALID_PERMISSION_ROLES = frozenset({PERMISSION_ROLE_MANAGE, PERMISSION_ROLE_READ})
+
 
 class Inventory(Base):
     __tablename__ = "inventories"
@@ -61,6 +65,10 @@ class InventoryPermission(Base):
     __tablename__ = "inventory_permissions"
     __table_args__ = (
         UniqueConstraint("user_id", "inventory_id", name="uq_inventory_permission"),
+        CheckConstraint(
+            "role IN ('manage', 'read')",
+            name="ck_inventory_permission_role",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -68,5 +76,6 @@ class InventoryPermission(Base):
     inventory_id: Mapped[int] = mapped_column(
         ForeignKey("inventories.id", ondelete="CASCADE")
     )
+    role: Mapped[str] = mapped_column(String(16), default=PERMISSION_ROLE_MANAGE)
 
     inventory: Mapped["Inventory"] = relationship(back_populates="permissions")

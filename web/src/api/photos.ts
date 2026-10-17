@@ -14,7 +14,7 @@ export type PhotoOwner =
   | { kind: 'materialType'; materialTypeId: number }
   | { kind: 'damage'; damageId: number }
   | { kind: 'inventory'; inventoryId: number }
-  | { kind: 'loan'; loanId: number }
+  | { kind: 'loan'; loanId: number; role?: 'loan' | 'pickup' | 'return' }
 
 function uploadPath(owner: PhotoOwner): string {
   switch (owner.kind) {
@@ -30,8 +30,13 @@ function uploadPath(owner: PhotoOwner): string {
       return `/api/damages/${owner.damageId}/photos`
     case 'inventory':
       return `/api/inventories/${owner.inventoryId}/photos`
-    case 'loan':
-      return `/api/loans/${owner.loanId}/photos`
+    case 'loan': {
+      const base = `/api/loans/${owner.loanId}/photos`
+      if (owner.role && owner.role !== 'loan') {
+        return `${base}?role=${owner.role}`
+      }
+      return base
+    }
   }
 }
 

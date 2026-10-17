@@ -108,10 +108,9 @@ def test_retired_piece_cannot_join_loan():
             == 200
         )
 
-        loan = client.post(
-            f"/api/inventories/{inv_id}/loans",
-            json={"groupName": "Stamm", "responsibleUserId": ver_id},
-        )
+        from loan_helpers import create_loan
+
+        loan = create_loan(client, inv_id, ver_id, groupName="Stamm")
         loan_id = loan.get_json()["id"]
         conflict = client.post(f"/api/loans/{loan_id}/lines", json={"pieceId": piece_id})
         assert conflict.status_code == 409
@@ -165,10 +164,9 @@ def test_retired_stock_lot_excluded_from_quantity_and_retire_floor():
         assert stocks_after["quantity"] == 10
         assert stocks_after["lots"][1]["status"] == "retired"
 
-        loan = client.post(
-            f"/api/inventories/{inv_id}/loans",
-            json={"groupName": "Stamm", "responsibleUserId": ver_id},
-        )
+        from loan_helpers import confirm_all_lines, create_loan, manager_id, submit_request
+
+        loan = create_loan(client, inv_id, ver_id, groupName="Stamm")
         loan_id = loan.get_json()["id"]
         assert (
             client.post(
@@ -177,6 +175,19 @@ def test_retired_stock_lot_excluded_from_quantity_and_retire_floor():
             ).status_code
             == 201
         )
+        with client.application.app_context():
+            session = get_session()
+            from lamathek.models.user import User
+
+            u = session.get(User, ver_id)
+            u.phone = "+49123"
+            session.commit()
+        mgr_id = manager_id(client)
+        _login(client, "ver")
+        submit_request(client, loan_id)
+        _login(client, "su")
+        lines = client.get(f"/api/loans/{loan_id}").get_json()["lines"]
+        assert confirm_all_lines(client, loan_id, mgr_id, [lines[0]["id"]]).status_code == 200
 
         below = client.patch(
             f"/api/inventories/{inv_id}/stock-lots/{lot_a_id}",

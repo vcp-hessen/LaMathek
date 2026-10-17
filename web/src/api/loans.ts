@@ -19,8 +19,8 @@ export async function fetchEvents() {
   return eventSchema.array().parse(response.data)
 }
 
-export async function fetchVerantwortliche(): Promise<Me[]> {
-  const response = await api.get('/api/users/verantwortliche')
+export async function fetchBorrowers(): Promise<Me[]> {
+  const response = await api.get('/api/users/borrowers')
   return meSchema.array().parse(response.data)
 }
 
@@ -29,23 +29,63 @@ export async function fetchLoans(inventoryId: number): Promise<Loan[]> {
   return loanSchema.array().parse(response.data)
 }
 
+export async function fetchMyLoans(): Promise<Loan[]> {
+  const response = await api.get('/api/me/loans')
+  return loanSchema.array().parse(response.data)
+}
+
+export async function fetchDraftLoan(
+  inventoryId: number,
+  borrowerUserId?: number,
+): Promise<LoanDetail | null> {
+  const params = borrowerUserId ? { borrowerUserId } : {}
+  const response = await api.get(`/api/inventories/${inventoryId}/loans/draft`, { params })
+  if (response.data === null) return null
+  return loanDetailSchema.parse(response.data)
+}
+
 export async function createLoan(
   inventoryId: number,
   payload: {
     groupName: string
-    responsibleUserId: number
+    borrowerUserId: number
     kind?: 'short' | 'permanent'
     eventName?: string
-    startsOn?: string
-    endsOn?: string
+    pickupOn?: string
+    returnOn?: string
   },
 ): Promise<LoanDetail> {
   const response = await api.post(`/api/inventories/${inventoryId}/loans`, payload)
   return loanDetailSchema.parse(response.data)
 }
 
+export async function addDraftLine(
+  inventoryId: number,
+  payload: Record<string, unknown>,
+): Promise<LoanDetail> {
+  const response = await api.post(`/api/inventories/${inventoryId}/loans/draft-lines`, payload)
+  return loanDetailSchema.parse(response.data)
+}
+
 export async function fetchLoan(loanId: number): Promise<LoanDetail> {
   const response = await api.get(`/api/loans/${loanId}`)
+  return loanDetailSchema.parse(response.data)
+}
+
+export async function patchLoan(
+  loanId: number,
+  payload: Record<string, unknown>,
+): Promise<LoanDetail> {
+  const response = await api.patch(`/api/loans/${loanId}`, payload)
+  return loanDetailSchema.parse(response.data)
+}
+
+export async function loanAction(
+  loanId: number,
+  action: string,
+  payload: Record<string, unknown> = {},
+): Promise<LoanDetail> {
+  const response = await api.post(`/api/loans/${loanId}/actions/${action}`, payload)
   return loanDetailSchema.parse(response.data)
 }
 
@@ -92,22 +132,6 @@ export async function removeLoanLine(loanId: number, lineId: number): Promise<vo
   await api.delete(`/api/loans/${loanId}/lines/${lineId}`)
 }
 
-export async function handOutLoan(loanId: number): Promise<LoanDetail> {
-  const response = await api.post(`/api/loans/${loanId}/hand-out`)
-  return loanDetailSchema.parse(response.data)
-}
-
-export async function recordLoanReturn(
-  loanId: number,
-  payload: {
-    recordedOn: string
-    entries: Array<{
-      loanLineId: number
-      outcome: 'returned' | 'loss'
-      quantity?: number
-    }>
-  },
-): Promise<LoanDetail> {
-  const response = await api.post(`/api/loans/${loanId}/returns`, payload)
-  return loanDetailSchema.parse(response.data)
+export async function deleteLoan(loanId: number): Promise<void> {
+  await api.delete(`/api/loans/${loanId}`)
 }

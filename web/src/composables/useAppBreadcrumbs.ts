@@ -7,6 +7,7 @@ import { fetchPiece, fetchStocks } from '../api/material'
 import { fetchLoan } from '../api/loans'
 import { fetchSet } from '../api/sets'
 import { fetchMe } from '../api/me'
+import { loanDisplayName } from '../utils/loanDisplayName'
 
 export type BreadcrumbItem = {
   label: string
@@ -111,6 +112,8 @@ export function useAppBreadcrumbs() {
         return [{ label: t('privacy.heading') }]
       case 'inventories':
         return [{ label: t('inventories.title') }]
+      case 'my-loans':
+        return [{ label: t('loans.myLoansHeading') }]
       case 'inventory-material-types':
       case 'inventory-material':
       case 'inventory-sets':
@@ -132,9 +135,10 @@ export function useAppBreadcrumbs() {
       }
       case 'loan-detail': {
         const id = routeInventoryId.value
-        const label =
-          loanDetail.value?.groupName ??
-          `${t('loans.heading')} ${routeLoanId.value ?? ''}`
+        const loan = loanDetail.value
+        const label = loan
+          ? loanDisplayName(loan) || loan.groupName || `${t('loans.heading')} ${routeLoanId.value ?? ''}`
+          : `${t('loans.heading')} ${routeLoanId.value ?? ''}`
         if (id === null) return [{ label }]
         return [
           ...inventoryTrail(id),

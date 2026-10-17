@@ -7,6 +7,7 @@ export type WlzGlyphId =
   | 'gather'
   | 'gatherHere'
   | 'exchange'
+  | 'please'
   | 'day'
   | 'night'
   | 'opposite'
@@ -22,6 +23,7 @@ export const WLZ_GLYPH: Record<WlzGlyphId, string> = {
   gather: 'V',
   gatherHere: 'U',
   exchange: 'v',
+  please: 'w',
   day: 't',
   night: 's',
   opposite: 'y',

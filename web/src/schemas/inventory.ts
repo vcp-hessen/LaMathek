@@ -34,9 +34,12 @@ export type Inventory = z.infer<typeof inventorySchema>
 
 export const inventoryPermissionsSchema = z.object({
   users: z.array(userSchema),
+  readers: z.array(userSchema).optional(),
 })
 
 export const inventoryPermissionsPutSchema = z.object({
   userIds: z.array(z.number()),
+  readerUserIds: z.array(z.number()).optional(),
   users: z.array(userSchema).optional(),
+  readers: z.array(userSchema).optional(),
 })

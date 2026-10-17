@@ -49,8 +49,8 @@ def test_superuser_assigns_inventories_per_user():
         assert removed.get_json()["inventoryIds"] == [first]
 
         _login(client, "person")
-        denied = client.get("/api/users")
-        assert denied.status_code == 403
+        visible = client.get("/api/users")
+        assert visible.status_code == 200
     finally:
         tmp.cleanup()
 

@@ -298,7 +298,7 @@ def piece_by_id(session: Session, piece_id: int) -> Piece | None:
 MAX_PIECES_BATCH_COUNT = 24
 
 
-_BATCH_NAME_PLACEHOLDERS = ("{n}", "{a}", "{r}")
+_BATCH_NAME_PLACEHOLDERS = ("{n}", "{a}", "{A}", "{r}", "{R}")
 
 
 def _active_batch_placeholder(pattern: str) -> str | None:
@@ -329,8 +329,14 @@ def _piece_value_for_batch_placeholder(token: str, index: int) -> str:
         if index < 1 or index > 26:
             raise ValueError("invalid_name_pattern")
         return chr(ord("a") + index - 1)
+    if token == "{A}":
+        if index < 1 or index > 26:
+            raise ValueError("invalid_name_pattern")
+        return chr(ord("A") + index - 1)
     if token == "{r}":
         return _int_to_roman_lower(index)
+    if token == "{R}":
+        return _int_to_roman_lower(index).upper()
     raise ValueError("invalid_name_pattern")
 
 

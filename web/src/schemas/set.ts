@@ -8,6 +8,10 @@ export const setSummarySchema = z.object({
   name: z.string(),
   shortName: z.string().nullable(),
   coverPhotoId: z.number().nullish(),
+  assignmentPieceIds: z.array(z.number()),
+  optionalPieceIds: z.array(z.number()),
+  assignmentStockTypeIds: z.array(z.number()),
+  optionalStockTypeIds: z.array(z.number()),
 })
 
 export type SetSummary = z.infer<typeof setSummarySchema>

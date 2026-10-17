@@ -1,0 +1,10 @@
+{% extends "mail/layout.html" %}
+{% block content %}
+<p>Verleih #{{ loan_id }} ({{ group_name }}) für {{ borrower_name }}.</p>
+<p><strong>Aktion:</strong> {{ action }}</p>
+{% if pickup_on %}<p>Abholung: {{ pickup_on }}</p>{% endif %}
+{% if return_on %}<p>Rückgabe: {{ return_on }}</p>{% endif %}
+<ul>
+{% for label in line_labels %}<li>{{ label }}</li>{% endfor %}
+</ul>
+{% endblock %}

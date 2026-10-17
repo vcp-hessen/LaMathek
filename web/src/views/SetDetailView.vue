@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { fetchMaterialTypes, fetchPieces } from '../api/material'
 import SuperuserDestructiveDelete from '../components/SuperuserDestructiveDelete.vue'
+import AddToBoxButton from '../components/loans/AddToBoxButton.vue'
 import PhotoGallery from '../components/PhotoGallery.vue'
 import { useApiErrorMessage } from '../composables/useApiErrorMessage'
 import { useInventoryCanManage } from '../composables/useInventoryCanManage'
@@ -187,7 +188,19 @@ function addPiece() {
       <div class="grid gap-6 md:grid-cols-2">
         <section class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
           
-            <h2 class="app-page-title text-base">{{ t('sets.assignment') }}</h2>
+            <div class="flex items-center justify-between gap-2">
+              <h2 class="app-page-title text-base">{{ t('sets.assignment') }}</h2>
+              <AddToBoxButton
+                :inventory-id="inventoryId"
+                :set-id="setId"
+                set-scope="assignment"
+                :piece-ids="setDetail.assignmentPieceIds"
+                :stock-type-ids="setDetail.assignmentStockTypeIds"
+                :label="t('sets.assignment')"
+                size="xs"
+                :show-label="false"
+              />
+            </div>
             <ul class="space-y-1 text-sm">
               <li v-for="p in setDetail.assignmentPieces" :key="p.id" class="flex justify-between gap-2">
                 <span>{{ p.name }} <span class="opacity-60">· {{ p.materialTypeName }}</span></span>
@@ -211,7 +224,19 @@ function addPiece() {
 
         <section class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
           
-            <h2 class="app-page-title text-base">{{ t('sets.optionals') }}</h2>
+            <div class="flex items-center justify-between gap-2">
+              <h2 class="app-page-title text-base">{{ t('sets.optionals') }}</h2>
+              <AddToBoxButton
+                :inventory-id="inventoryId"
+                :set-id="setId"
+                set-scope="optionals"
+                :piece-ids="setDetail.optionalPieceIds"
+                :stock-type-ids="setDetail.optionalStockTypeIds"
+                :label="t('sets.optionals')"
+                size="xs"
+                :show-label="false"
+              />
+            </div>
             <ul class="space-y-1 text-sm">
               <li v-for="p in setDetail.optionalPieces" :key="p.id" class="flex justify-between gap-2">
                 <span>{{ p.name }}</span>

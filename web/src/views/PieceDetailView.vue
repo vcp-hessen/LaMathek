@@ -22,6 +22,7 @@ import {
   itemMetadataToWritePayload,
   type ItemMetadataDraft,
 } from '../utils/materialItemValue'
+import AddToBoxButton from '../components/loans/AddToBoxButton.vue'
 import PhotoGallery from '../components/PhotoGallery.vue'
 import SuperuserDestructiveDelete from '../components/SuperuserDestructiveDelete.vue'
 import VariantAxisSelects from '../components/VariantAxisSelects.vue'
@@ -186,6 +187,13 @@ function damageStatusLabel(damage: Damage): string {
   <div class="app-page space-y-6">
     <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
     <template v-else-if="piece">
+      <div class="flex justify-end">
+        <AddToBoxButton
+          :inventory-id="inventoryId"
+          :piece-id="piece.id"
+          size="md"
+        />
+      </div>
       <MaterialDetailsSection
         :form-error="stammdatenError"
         :saving="updateMutation.isPending.value"

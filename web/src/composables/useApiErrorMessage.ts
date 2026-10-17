@@ -1,6 +1,25 @@
 import { useI18n } from 'vue-i18n'
 import { apiErrorCode } from '../api/errors'
 
+const LOAN_ERROR_CODES = new Set([
+  'pickup_required',
+  'return_required',
+  'invalid_date_range',
+  'invalid_permanent_fields',
+  'invalid_contact',
+  'contact_required',
+  'empty_loan',
+  'borrower_phone_required',
+  'piece_unavailable',
+  'over_loaned',
+  'line_exists',
+  'set_unavailable',
+  'invalid_line_status',
+  'invalid_loan_state',
+  'loan_not_editable',
+  'set_already_added',
+])
+
 const KNOWN_CODES = new Set([
   'tracking_locked',
   'material_type_locked',
@@ -32,6 +51,9 @@ export function useApiErrorMessage() {
 
   function messageFor(error: unknown): string {
     const code = apiErrorCode(error)
+    if (code && LOAN_ERROR_CODES.has(code)) {
+      return t(`loans.errors.${code}`)
+    }
     if (code && KNOWN_CODES.has(code)) {
       return t(`material.errors.${code}`)
     }

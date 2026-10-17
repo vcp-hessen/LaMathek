@@ -13,6 +13,7 @@ import StockLotDetailView from '../views/StockLotDetailView.vue'
 import InventoryLoansView from '../views/InventoryLoansView.vue'
 import InventorySetsView from '../views/InventorySetsView.vue'
 import LoanDetailView from '../views/LoanDetailView.vue'
+import MyLoansView from '../views/MyLoansView.vue'
 import SetDetailView from '../views/SetDetailView.vue'
 
 export const router = createRouter({
@@ -52,6 +53,11 @@ export const router = createRouter({
       path: '/inventories',
       name: 'inventories',
       component: InventoriesListView,
+    },
+    {
+      path: '/my-loans',
+      name: 'my-loans',
+      component: MyLoansView,
     },
     {
       path: '/inventories/:id/material-types',

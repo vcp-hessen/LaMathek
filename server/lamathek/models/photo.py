@@ -1,4 +1,4 @@
-from sqlalchemy import CheckConstraint, ForeignKey, Integer, event
+from sqlalchemy import CheckConstraint, ForeignKey, Integer, String, event
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from lamathek.db import Base
@@ -43,6 +43,7 @@ class Photo(Base):
     loan_id: Mapped[int | None] = mapped_column(
         ForeignKey("loans.id", ondelete="CASCADE"), nullable=True
     )
+    loan_photo_role: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     piece: Mapped["Piece | None"] = relationship(back_populates="photos")
     stock_lot: Mapped["StockLot | None"] = relationship(back_populates="photos")

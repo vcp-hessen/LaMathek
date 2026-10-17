@@ -1,35 +1,62 @@
 from flask import Blueprint, jsonify, request
 
-from lamathek.routes.http_errors import error_response
-from lamathek.routes.parsing import parse_date
-from sqlalchemy import select
-
-from lamathek.access import require_inventory_manager, require_login
+from lamathek.access import require_login
 from lamathek.db import get_session
 from lamathek.models.user import User
+from lamathek.routes.http_errors import error_response
+from lamathek.routes.parsing import parse_date
 from lamathek.serializers import (
     event_to_json,
     group_to_json,
     loan_detail_to_json,
     loan_to_json,
+    user_to_json,
 )
-from lamathek.services.inventories import user_can_manage_any_inventory, user_can_manage_inventory
-from lamathek.services.photos import cover_photo_ids_for_loans
+from lamathek.services.inventories import user_can_manage_inventory
+from lamathek.services.loan_access import (
+    user_can_create_loan_on_inventory,
+    user_can_view_loan,
+)
+from lamathek.services.loan_workflow import (
+    cancel_unpacked_loan,
+    confirm_lines,
+    decline_lines,
+    hand_draft_to_borrower,
+    delete_unreleased_loan,
+    mark_not_packed,
+    mark_not_picked_up,
+    notify_added_lines,
+    pack_lines,
+    pickup_lines,
+    record_loss_lines,
+    replace_line,
+    report_return_lines,
+    restock_lines,
+    skip_pickup_to_return,
+    submit_loan_request,
+    undo_pickup_lines,
+    unpack_lines,
+    withdraw_lines,
+)
 from lamathek.services.loans import (
     add_piece_line,
     add_set_assignment_lines,
     add_set_optional_lines,
     add_stock_line,
     create_loan,
-    hand_out_loan,
+    get_draft_loan,
+    get_or_create_draft_loan,
     list_events,
     list_groups,
-    list_loans,
+    list_loans_for_borrower,
+    list_loans_for_manager,
+    list_loans_for_user_as_borrower,
     loan_by_id,
-    record_loan_return,
     remove_line,
     update_loan,
 )
+from lamathek.services.photos import cover_photo_ids_for_loans
+from sqlalchemy import select
 
 loans_bp = Blueprint("loans", __name__, url_prefix="/api")
 
@@ -38,6 +65,8 @@ def _loan_status(code: str) -> int:
     status = 400
     if code == "not_found":
         status = 404
+    if code == "forbidden":
+        status = 403
     if code in (
         "piece_unavailable",
         "over_loaned",
@@ -45,22 +74,45 @@ def _loan_status(code: str) -> int:
         "loan_not_editable",
         "set_unavailable",
         "empty_loan",
-        "loan_not_returnable",
-        "line_already_settled",
-        "over_returned",
         "set_already_added",
         "piece_on_loan",
+        "draft_exists",
+        "invalid_line_status",
+        "invalid_loan_state",
+        "borrower_phone_required",
+        "empty_notify",
     ):
         status = 409
     if code in ("invalid_permanent_fields", "invalid_date_range", "invalid_scope"):
         status = 400
-    if code in ("invalid_set", "invalid_piece", "invalid_material_type", "invalid_responsible"):
+    if code in ("invalid_set", "invalid_piece", "invalid_material_type", "invalid_borrower"):
         status = 400
     return status
 
 
 def _loan_error(exc: ValueError):
     return error_response(exc, _loan_status)
+
+
+def _require_loan_access(session, user, loan_id: int):
+    loan = loan_by_id(session, loan_id)
+    if loan is None:
+        return None, (jsonify({"error": "not_found"}), 404)
+    if not user_can_view_loan(session, user, loan):
+        return None, (jsonify({"error": "forbidden"}), 403)
+    return loan, None
+
+
+def _line_ids_from_body(body: dict) -> list[int]:
+    raw = body.get("lineIds")
+    if not isinstance(raw, list) or not raw:
+        raise ValueError("invalid_line_ids")
+    ids: list[int] = []
+    for item in raw:
+        if not isinstance(item, int):
+            raise ValueError("invalid_line_ids")
+        ids.append(item)
+    return ids
 
 
 @loans_bp.get("/groups")
@@ -107,39 +159,109 @@ def post_event(_user):
     return jsonify(event_to_json(event)), 201
 
 
-@loans_bp.get("/users/verantwortliche")
+@loans_bp.get("/users/borrowers")
 @require_login
-def get_verantwortliche(user):
+def get_borrowers(user):
+    from lamathek.services.inventories import user_can_manage_any_inventory
+
     session = get_session()
     if not user_can_manage_any_inventory(session, user):
         return jsonify({"error": "forbidden"}), 403
     users = session.scalars(select(User).order_by(User.name, User.email)).all()
-    from lamathek.serializers import user_to_json
-
     return jsonify([user_to_json(u) for u in users])
 
 
-@loans_bp.get("/inventories/<int:inventory_id>/loans")
-@require_inventory_manager()
-def get_loans(_user, inventory):
+@loans_bp.get("/me/loans")
+@require_login
+def get_my_loans(user):
     session = get_session()
-    loans = list_loans(session, inventory.id)
+    loans = list_loans_for_user_as_borrower(session, user)
     covers = cover_photo_ids_for_loans(session, [loan.id for loan in loans])
     return jsonify(
-        [loan_to_json(loan, cover_photo_id=covers.get(loan.id)) for loan in loans]
+        [
+            loan_to_json(loan, cover_photo_id=covers.get(loan.id), viewer=user, session=session)
+            for loan in loans
+        ]
+    )
+
+
+@loans_bp.get("/inventories/<int:inventory_id>/loans")
+@require_login
+def get_loans(user, inventory_id: int):
+    from lamathek.services.inventories import inventory_by_id, user_can_view_inventory
+
+    session = get_session()
+    inventory = inventory_by_id(session, inventory_id)
+    if inventory is None:
+        return jsonify({"error": "not_found"}), 404
+    if user_can_manage_inventory(session, user, inventory):
+        loans = list_loans_for_manager(
+            session, inventory.id, viewer_user_id=user.id
+        )
+    elif user_can_view_inventory(session, user, inventory):
+        loans = list_loans_for_borrower(session, inventory.id, user.id)
+    else:
+        return jsonify({"error": "forbidden"}), 403
+    covers = cover_photo_ids_for_loans(session, [loan.id for loan in loans])
+    return jsonify(
+        [
+            loan_to_json(loan, cover_photo_id=covers.get(loan.id), viewer=user, session=session)
+            for loan in loans
+        ]
+    )
+
+
+@loans_bp.get("/inventories/<int:inventory_id>/loans/draft")
+@require_login
+def get_draft(user, inventory_id: int):
+    from lamathek.services.inventories import inventory_by_id
+
+    session = get_session()
+    inventory = inventory_by_id(session, inventory_id)
+    if inventory is None:
+        return jsonify({"error": "not_found"}), 404
+    if not user_can_create_loan_on_inventory(session, user, inventory):
+        return jsonify({"error": "forbidden"}), 403
+    borrower_id = user.id
+    body_borrower = request.args.get("borrowerUserId")
+    if body_borrower is not None:
+        if int(body_borrower) != user.id:
+            return jsonify({"error": "forbidden"}), 403
+        borrower_id = int(body_borrower)
+    draft = get_draft_loan(session, inventory.id, borrower_id)
+    if draft is None:
+        return jsonify(None)
+    covers = cover_photo_ids_for_loans(session, [draft.id])
+    return jsonify(
+        loan_detail_to_json(
+            draft, cover_photo_id=covers.get(draft.id), viewer=user, session=session
+        )
     )
 
 
 @loans_bp.post("/inventories/<int:inventory_id>/loans")
-@require_inventory_manager()
-def post_loan(_user, inventory):
+@require_login
+def post_loan(user, inventory_id: int):
+    from lamathek.services.inventories import inventory_by_id
+
+    session = get_session()
+    inventory = inventory_by_id(session, inventory_id)
+    if inventory is None:
+        return jsonify({"error": "not_found"}), 404
+    if not user_can_create_loan_on_inventory(session, user, inventory):
+        return jsonify({"error": "forbidden"}), 403
+
     body = request.get_json(silent=True) or {}
     group_name = body.get("groupName")
-    responsible_user_id = body.get("responsibleUserId")
+    borrower_user_id = body.get("borrowerUserId", user.id)
     if not isinstance(group_name, str) or not group_name.strip():
         return jsonify({"error": "invalid_group"}), 400
-    if not isinstance(responsible_user_id, int):
-        return jsonify({"error": "invalid_responsible"}), 400
+    if not isinstance(borrower_user_id, int):
+        return jsonify({"error": "invalid_borrower"}), 400
+    if borrower_user_id != user.id and not user_can_manage_inventory(
+        session, user, inventory
+    ):
+        return jsonify({"error": "forbidden"}), 403
     event_name = body.get("eventName")
     if event_name is not None and not isinstance(event_name, str):
         return jsonify({"error": "invalid_event"}), 400
@@ -147,106 +269,492 @@ def post_loan(_user, inventory):
     if not isinstance(loan_kind, str):
         return jsonify({"error": "invalid_kind"}), 400
     try:
-        starts_on = parse_date(body.get("startsOn"))
-        ends_on = parse_date(body.get("endsOn"))
+        pickup_on = parse_date(body.get("pickupOn"))
+        return_on = parse_date(body.get("returnOn"))
     except ValueError:
         return jsonify({"error": "invalid_date"}), 400
 
-    session = get_session()
     try:
         loan = create_loan(
             session,
             inventory,
             group_name=group_name,
-            responsible_user_id=responsible_user_id,
+            borrower_user_id=borrower_user_id,
             event_name=event_name,
-            starts_on=starts_on,
-            ends_on=ends_on,
+            pickup_on=pickup_on,
+            return_on=return_on,
             kind=loan_kind,
+            actor=user,
         )
     except ValueError as exc:
         return _loan_error(exc)
-    return jsonify(loan_detail_to_json(loan)), 201
+    covers = cover_photo_ids_for_loans(session, [loan.id])
+    return (
+        jsonify(
+            loan_detail_to_json(
+                loan, cover_photo_id=covers.get(loan.id), viewer=user, session=session
+            )
+        ),
+        201,
+    )
+
+
+@loans_bp.post("/inventories/<int:inventory_id>/loans/draft-lines")
+@require_login
+def post_draft_line(user, inventory_id: int):
+    from lamathek.services.inventories import inventory_by_id
+
+    session = get_session()
+    inventory = inventory_by_id(session, inventory_id)
+    if inventory is None:
+        return jsonify({"error": "not_found"}), 404
+    if not user_can_create_loan_on_inventory(session, user, inventory):
+        return jsonify({"error": "forbidden"}), 403
+    body = request.get_json(silent=True) or {}
+    borrower_user_id = body.get("borrowerUserId", user.id)
+    if not isinstance(borrower_user_id, int):
+        return jsonify({"error": "invalid_borrower"}), 400
+    if borrower_user_id != user.id:
+        return jsonify({"error": "forbidden"}), 403
+    group_name = body.get("groupName") or "—"
+    if not isinstance(group_name, str):
+        return jsonify({"error": "invalid_group"}), 400
+    loan = get_or_create_draft_loan(
+        session, inventory, borrower_user_id, group_name=group_name
+    )
+    try:
+        if "setId" in body:
+            if not isinstance(body["setId"], int):
+                return jsonify({"error": "invalid_set"}), 400
+            scope = body.get("scope", "assignment")
+            if scope == "optionals":
+                add_set_optional_lines(session, loan, body["setId"])
+            elif scope == "assignment":
+                add_set_assignment_lines(session, loan, body["setId"])
+            else:
+                return jsonify({"error": "invalid_scope"}), 400
+        elif "pieceId" in body:
+            if not isinstance(body["pieceId"], int):
+                return jsonify({"error": "invalid_piece"}), 400
+            add_piece_line(session, loan, body["pieceId"])
+        elif "materialTypeId" in body:
+            if not isinstance(body["materialTypeId"], int) or not isinstance(
+                body.get("quantity"), int
+            ):
+                return jsonify({"error": "invalid_material_type"}), 400
+            add_stock_line(session, loan, body["materialTypeId"], body["quantity"])
+        else:
+            return jsonify({"error": "invalid_line"}), 400
+    except ValueError as exc:
+        return _loan_error(exc)
+    loan = loan_by_id(session, loan.id)
+    covers = cover_photo_ids_for_loans(session, [loan.id])
+    return jsonify(
+        loan_detail_to_json(
+            loan, cover_photo_id=covers.get(loan.id), viewer=user, session=session
+        )
+    ), 201
+
+
+@loans_bp.delete("/loans/<int:loan_id>")
+@require_login
+def delete_loan(user, loan_id: int):
+    session = get_session()
+    loan, err = _require_loan_access(session, user, loan_id)
+    if err:
+        return err
+    try:
+        delete_unreleased_loan(session, loan, actor=user)
+    except ValueError as exc:
+        return _loan_error(exc)
+    return jsonify({"ok": True})
 
 
 @loans_bp.get("/loans/<int:loan_id>")
 @require_login
 def get_loan(user, loan_id: int):
     session = get_session()
-    loan = loan_by_id(session, loan_id)
-    if loan is None:
-        return jsonify({"error": "not_found"}), 404
-    if not user_can_manage_inventory(session, user, loan.inventory):
-        return jsonify({"error": "forbidden"}), 403
+    loan, err = _require_loan_access(session, user, loan_id)
+    if err:
+        return err
     covers = cover_photo_ids_for_loans(session, [loan.id])
-    return jsonify(loan_detail_to_json(loan, cover_photo_id=covers.get(loan.id)))
+    return jsonify(
+        loan_detail_to_json(
+            loan, cover_photo_id=covers.get(loan.id), viewer=user, session=session
+        )
+    )
 
 
 @loans_bp.patch("/loans/<int:loan_id>")
 @require_login
 def patch_loan(user, loan_id: int):
     session = get_session()
-    loan = loan_by_id(session, loan_id)
-    if loan is None:
-        return jsonify({"error": "not_found"}), 404
-    if not user_can_manage_inventory(session, user, loan.inventory):
-        return jsonify({"error": "forbidden"}), 403
-
+    loan, err = _require_loan_access(session, user, loan_id)
+    if err:
+        return err
+    is_inventory_manager = user_can_manage_inventory(session, user, loan.inventory)
+    is_borrower = user.id == loan.borrower_user_id
+    manager_powers = is_inventory_manager and loan.phase != "draft"
+    can_edit_shared = is_borrower or manager_powers
     body = request.get_json(silent=True) or {}
     kwargs: dict = {}
+    if can_edit_shared:
+        kwargs["allow_shared_meta"] = True
     if "groupName" in body:
         name = body["groupName"]
         if not isinstance(name, str) or not name.strip():
             return jsonify({"error": "invalid_group"}), 400
+        if not ((loan.phase == "draft" and is_borrower) or manager_powers):
+            return jsonify({"error": "invalid_loan_state"}), 409
         kwargs["group_name"] = name
-    if "responsibleUserId" in body:
-        if not isinstance(body["responsibleUserId"], int):
-            return jsonify({"error": "invalid_responsible"}), 400
-        kwargs["responsible_user_id"] = body["responsibleUserId"]
+        if manager_powers:
+            kwargs["manager_edit"] = True
+    if "borrowerUserId" in body:
+        borrower_user_id = body["borrowerUserId"]
+        if not isinstance(borrower_user_id, int):
+            return jsonify({"error": "invalid_borrower"}), 400
+        if not is_inventory_manager or loan.phase != "draft":
+            return jsonify({"error": "forbidden"}), 403
+        try:
+            loan = hand_draft_to_borrower(
+                session, loan, borrower_user_id=borrower_user_id, actor=user
+            )
+        except ValueError as exc:
+            return _loan_error(exc)
+        return jsonify(loan_detail_to_json(loan, viewer=user, session=session))
     if body.get("clearEvent") is True:
+        if not ((loan.phase == "draft" and is_borrower) or manager_powers):
+            return jsonify({"error": "invalid_loan_state"}), 409
         kwargs["clear_event"] = True
+        if manager_powers:
+            kwargs["manager_edit"] = True
     elif "eventName" in body:
         event_name = body["eventName"]
         if event_name is not None and not isinstance(event_name, str):
             return jsonify({"error": "invalid_event"}), 400
+        if not ((loan.phase == "draft" and is_borrower) or manager_powers):
+            return jsonify({"error": "invalid_loan_state"}), 409
         kwargs["event_name"] = event_name
-    if "startsOn" in body:
+        if manager_powers:
+            kwargs["manager_edit"] = True
+    if "wishPickupOn" in body or "wishReturnOn" in body:
+        if loan.phase != "draft" or not is_borrower:
+            return jsonify({"error": "invalid_loan_state"}), 409
+    if "wishPickupOn" in body:
         try:
-            kwargs["starts_on"] = parse_date(body.get("startsOn"))
-            kwargs["update_starts_on"] = True
+            kwargs["wish_pickup_on"] = parse_date(body.get("wishPickupOn"))
+            kwargs["update_wish_pickup_on"] = True
         except ValueError:
             return jsonify({"error": "invalid_date"}), 400
-    if "endsOn" in body:
+    if "wishReturnOn" in body:
         try:
-            kwargs["ends_on"] = parse_date(body.get("endsOn"))
-            kwargs["update_ends_on"] = True
+            kwargs["wish_return_on"] = parse_date(body.get("wishReturnOn"))
+            kwargs["update_wish_return_on"] = True
+        except ValueError:
+            return jsonify({"error": "invalid_date"}), 400
+    if "pickupOn" in body or "returnOn" in body:
+        if not manager_powers:
+            return jsonify({"error": "forbidden"}), 403
+    if "pickupOn" in body:
+        try:
+            kwargs["pickup_on"] = parse_date(body.get("pickupOn"))
+            kwargs["update_pickup_on"] = True
+            kwargs["manager_edit"] = True
+        except ValueError:
+            return jsonify({"error": "invalid_date"}), 400
+    if "returnOn" in body:
+        try:
+            kwargs["return_on"] = parse_date(body.get("returnOn"))
+            kwargs["update_return_on"] = True
+            kwargs["manager_edit"] = True
         except ValueError:
             return jsonify({"error": "invalid_date"}), 400
     if "kind" in body:
+        if not ((loan.phase == "draft" and is_borrower) or manager_powers):
+            return jsonify({"error": "invalid_loan_state"}), 409
+        if manager_powers:
+            kwargs["manager_edit"] = True
         kind = body["kind"]
         if not isinstance(kind, str):
             return jsonify({"error": "invalid_kind"}), 400
         kwargs["kind"] = kind
+    if "contactUserId" in body and manager_powers:
+        cid = body["contactUserId"]
+        if cid is not None and not isinstance(cid, int):
+            return jsonify({"error": "invalid_contact"}), 400
+        kwargs["contact_user_id"] = cid
+        kwargs["update_contact"] = True
+        kwargs["manager_edit"] = True
+    if "pickupNote" in body:
+        if not manager_powers:
+            return jsonify({"error": "forbidden"}), 403
+        if not isinstance(body.get("pickupNote"), str):
+            return jsonify({"error": "forbidden"}), 403
+        kwargs["pickup_note"] = body.get("pickupNote")
+        kwargs["update_pickup_note"] = True
+    if "returnNote" in body:
+        if not is_borrower and not manager_powers:
+            return jsonify({"error": "forbidden"}), 403
+        if not isinstance(body.get("returnNote"), str):
+            return jsonify({"error": "forbidden"}), 403
+        kwargs["return_note"] = body.get("returnNote")
+        kwargs["update_return_note"] = True
 
     try:
         loan = update_loan(session, loan, **kwargs)
     except ValueError as exc:
         return _loan_error(exc)
-    return jsonify(loan_detail_to_json(loan))
+    return jsonify(
+        loan_detail_to_json(loan, viewer=user, session=session)
+    )
+
+
+def _handle_request(session, loan, body, user):
+    try:
+        pickup_on = parse_date(body.get("pickupOn"))
+        if pickup_on is None:
+            pickup_on = parse_date(body.get("wishPickupOn"))
+        return_on = parse_date(body.get("returnOn"))
+        if return_on is None:
+            return_on = parse_date(body.get("wishReturnOn"))
+    except ValueError:
+        raise ValueError("invalid_date") from None
+    if pickup_on is None:
+        pickup_on = loan.wish_pickup_on
+    if return_on is None and loan.kind != "permanent":
+        return_on = loan.wish_return_on
+    if pickup_on is None:
+        raise ValueError("pickup_required")
+    return submit_loan_request(
+        session, loan, pickup_on=pickup_on, return_on=return_on, actor=user
+    )
+
+
+def _handle_confirm(session, loan, body, user):
+    line_ids = _line_ids_from_body(body)
+    return confirm_lines(session, loan, line_ids, actor=user)
+
+
+def _handle_decline(session, loan, body, user):
+    entries = body.get("entries")
+    if not isinstance(entries, list):
+        raise ValueError("invalid_decline")
+    return decline_lines(session, loan, entries, actor=user)
+
+
+def _handle_replace(session, loan, body, user):
+    original_line_id = body.get("originalLineId")
+    reason = body.get("reason")
+    replacement = body.get("replacement")
+    if not isinstance(original_line_id, int) or not isinstance(reason, str):
+        raise ValueError("invalid_replacement")
+    if not isinstance(replacement, dict):
+        raise ValueError("invalid_replacement")
+    return replace_line(
+        session,
+        loan,
+        original_line_id=original_line_id,
+        reason=reason,
+        replacement=replacement,
+        actor=user,
+    )
+
+
+def _handle_withdraw(session, loan, body, user):
+    return withdraw_lines(session, loan, _line_ids_from_body(body), actor=user)
+
+
+def _handle_pack(session, loan, body, user):
+    return pack_lines(session, loan, _line_ids_from_body(body), actor=user)
+
+
+def _handle_unpack(session, loan, body, user):
+    return unpack_lines(session, loan, _line_ids_from_body(body), actor=user)
+
+
+def _handle_mark_not_packed(session, loan, body, user):
+    entries = body.get("entries")
+    if not isinstance(entries, list):
+        raise ValueError("invalid_entry")
+    return mark_not_packed(session, loan, entries, actor=user)
+
+
+def _handle_pickup(session, loan, body, user):
+    return pickup_lines(session, loan, _line_ids_from_body(body), actor=user)
+
+
+def _handle_undo_pickup(session, loan, body, user):
+    return undo_pickup_lines(session, loan, _line_ids_from_body(body), actor=user)
+
+
+def _handle_mark_not_picked_up(session, loan, body, user):
+    entries = body.get("entries")
+    if not isinstance(entries, list):
+        raise ValueError("invalid_entry")
+    return mark_not_picked_up(session, loan, entries, actor=user)
+
+
+def _handle_report_return(session, loan, body, user):
+    return report_return_lines(session, loan, _line_ids_from_body(body), actor=user)
+
+
+def _handle_restock(session, loan, body, user):
+    entries = body.get("entries")
+    if isinstance(entries, list) and entries:
+        return restock_lines(session, loan, entries, actor=user)
+    line_ids = _line_ids_from_body(body)
+    return restock_lines(
+        session,
+        loan,
+        [{"lineId": line_id} for line_id in line_ids],
+        actor=user,
+    )
+
+
+def _handle_record_loss(session, loan, body, user):
+    entries = body.get("entries")
+    if not isinstance(entries, list):
+        raise ValueError("invalid_entry")
+    return record_loss_lines(session, loan, entries, actor=user)
+
+
+def _action_invoke(user, loan_id: int, handler):
+    session = get_session()
+    loan, err = _require_loan_access(session, user, loan_id)
+    if err:
+        return err
+    body = request.get_json(silent=True) or {}
+    try:
+        loan = handler(session, loan, body, user)
+    except ValueError as exc:
+        return _loan_error(exc)
+    return jsonify(loan_detail_to_json(loan, viewer=user, session=session))
+
+
+@loans_bp.post("/loans/<int:loan_id>/actions/request")
+@require_login
+def loan_action_request(user, loan_id: int):
+    return _action_invoke(user, loan_id, _handle_request)
+
+
+@loans_bp.post("/loans/<int:loan_id>/actions/notify-added")
+@require_login
+def loan_action_notify_added(user, loan_id: int):
+    def _handle_notify(session, loan, _body, user):
+        return notify_added_lines(session, loan, actor=user)
+
+    return _action_invoke(user, loan_id, _handle_notify)
+
+
+@loans_bp.post("/loans/<int:loan_id>/actions/confirm")
+@require_login
+def loan_action_confirm(user, loan_id: int):
+    return _action_invoke(user, loan_id, _handle_confirm)
+
+
+@loans_bp.post("/loans/<int:loan_id>/actions/decline")
+@require_login
+def loan_action_decline(user, loan_id: int):
+    return _action_invoke(user, loan_id, _handle_decline)
+
+
+@loans_bp.post("/loans/<int:loan_id>/actions/replace")
+@require_login
+def loan_action_replace(user, loan_id: int):
+    return _action_invoke(user, loan_id, _handle_replace)
+
+
+@loans_bp.post("/loans/<int:loan_id>/actions/withdraw")
+@require_login
+def loan_action_withdraw(user, loan_id: int):
+    return _action_invoke(user, loan_id, _handle_withdraw)
+
+
+@loans_bp.post("/loans/<int:loan_id>/actions/cancel")
+@require_login
+def loan_action_cancel(user, loan_id: int):
+    def _handle_cancel(session, loan, _body, user):
+        return cancel_unpacked_loan(session, loan, actor=user)
+
+    return _action_invoke(user, loan_id, _handle_cancel)
+
+
+@loans_bp.post("/loans/<int:loan_id>/actions/skip-pickup")
+@require_login
+def loan_action_skip_pickup(user, loan_id: int):
+    def _handle_skip_pickup(session, loan, _body, user):
+        return skip_pickup_to_return(session, loan, actor=user)
+
+    return _action_invoke(user, loan_id, _handle_skip_pickup)
+
+
+@loans_bp.post("/loans/<int:loan_id>/actions/pack")
+@require_login
+def loan_action_pack(user, loan_id: int):
+    return _action_invoke(user, loan_id, _handle_pack)
+
+
+@loans_bp.post("/loans/<int:loan_id>/actions/unpack")
+@require_login
+def loan_action_unpack(user, loan_id: int):
+    return _action_invoke(user, loan_id, _handle_unpack)
+
+
+@loans_bp.post("/loans/<int:loan_id>/actions/mark-not-packed")
+@require_login
+def loan_action_not_packed(user, loan_id: int):
+    return _action_invoke(user, loan_id, _handle_mark_not_packed)
+
+
+@loans_bp.post("/loans/<int:loan_id>/actions/pickup")
+@require_login
+def loan_action_pickup(user, loan_id: int):
+    return _action_invoke(user, loan_id, _handle_pickup)
+
+
+@loans_bp.post("/loans/<int:loan_id>/actions/undo-pickup")
+@require_login
+def loan_action_undo_pickup(user, loan_id: int):
+    return _action_invoke(user, loan_id, _handle_undo_pickup)
+
+
+@loans_bp.post("/loans/<int:loan_id>/actions/mark-not-picked-up")
+@require_login
+def loan_action_not_picked_up(user, loan_id: int):
+    return _action_invoke(user, loan_id, _handle_mark_not_picked_up)
+
+
+@loans_bp.post("/loans/<int:loan_id>/actions/report-return")
+@require_login
+def loan_action_report_return(user, loan_id: int):
+    return _action_invoke(user, loan_id, _handle_report_return)
+
+
+@loans_bp.post("/loans/<int:loan_id>/actions/restock")
+@require_login
+def loan_action_restock(user, loan_id: int):
+    return _action_invoke(user, loan_id, _handle_restock)
+
+
+@loans_bp.post("/loans/<int:loan_id>/actions/record-loss")
+@require_login
+def loan_action_loss(user, loan_id: int):
+    return _action_invoke(user, loan_id, _handle_record_loss)
 
 
 @loans_bp.post("/loans/<int:loan_id>/lines")
 @require_login
 def post_loan_line(user, loan_id: int):
     session = get_session()
-    loan = loan_by_id(session, loan_id)
-    if loan is None:
-        return jsonify({"error": "not_found"}), 404
-    if not user_can_manage_inventory(session, user, loan.inventory):
+    loan, err = _require_loan_access(session, user, loan_id)
+    if err:
+        return err
+    if loan.borrower_user_id != user.id and not user_can_manage_inventory(
+        session, user, loan.inventory
+    ):
         return jsonify({"error": "forbidden"}), 403
 
     body = request.get_json(silent=True) or {}
-    session = get_session()
     loan = loan_by_id(session, loan_id)
     try:
         if "setId" in body:
@@ -274,82 +782,18 @@ def post_loan_line(user, loan_id: int):
     except ValueError as exc:
         return _loan_error(exc)
     loan = loan_by_id(session, loan_id)
-    return jsonify(loan_detail_to_json(loan)), 201
+    return jsonify(loan_detail_to_json(loan, viewer=user, session=session)), 201
 
 
 @loans_bp.delete("/loans/<int:loan_id>/lines/<int:line_id>")
 @require_login
 def delete_loan_line(user, loan_id: int, line_id: int):
     session = get_session()
-    loan = loan_by_id(session, loan_id)
-    if loan is None:
-        return jsonify({"error": "not_found"}), 404
-    if not user_can_manage_inventory(session, user, loan.inventory):
-        return jsonify({"error": "forbidden"}), 403
+    loan, err = _require_loan_access(session, user, loan_id)
+    if err:
+        return err
     try:
         remove_line(session, loan, line_id)
     except ValueError as exc:
         return _loan_error(exc)
     return jsonify({"ok": True})
-
-
-@loans_bp.post("/loans/<int:loan_id>/returns")
-@require_login
-def post_loan_return(user, loan_id: int):
-    session = get_session()
-    loan = loan_by_id(session, loan_id)
-    if loan is None:
-        return jsonify({"error": "not_found"}), 404
-    if not user_can_manage_inventory(session, user, loan.inventory):
-        return jsonify({"error": "forbidden"}), 403
-
-    body = request.get_json(silent=True) or {}
-    try:
-        recorded_on = parse_date(body.get("recordedOn"))
-    except ValueError:
-        return jsonify({"error": "invalid_date"}), 400
-    if recorded_on is None:
-        return jsonify({"error": "invalid_date"}), 400
-
-    entries = body.get("entries")
-    if not isinstance(entries, list):
-        return jsonify({"error": "invalid_entries"}), 400
-
-    parsed: list[dict] = []
-    for entry in entries:
-        if not isinstance(entry, dict):
-            return jsonify({"error": "invalid_entries"}), 400
-        loan_line_id = entry.get("loanLineId")
-        outcome = entry.get("outcome")
-        quantity = entry.get("quantity")
-        if not isinstance(loan_line_id, int):
-            return jsonify({"error": "invalid_entries"}), 400
-        if not isinstance(outcome, str):
-            return jsonify({"error": "invalid_entries"}), 400
-        if quantity is not None and not isinstance(quantity, int):
-            return jsonify({"error": "invalid_entries"}), 400
-        parsed.append(
-            {"loanLineId": loan_line_id, "outcome": outcome, "quantity": quantity}
-        )
-
-    try:
-        loan = record_loan_return(session, loan, recorded_on, parsed)
-    except ValueError as exc:
-        return _loan_error(exc)
-    return jsonify(loan_detail_to_json(loan)), 201
-
-
-@loans_bp.post("/loans/<int:loan_id>/hand-out")
-@require_login
-def post_hand_out(user, loan_id: int):
-    session = get_session()
-    loan = loan_by_id(session, loan_id)
-    if loan is None:
-        return jsonify({"error": "not_found"}), 404
-    if not user_can_manage_inventory(session, user, loan.inventory):
-        return jsonify({"error": "forbidden"}), 403
-    try:
-        loan = hand_out_loan(session, loan)
-    except ValueError as exc:
-        return _loan_error(exc)
-    return jsonify(loan_detail_to_json(loan))

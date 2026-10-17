@@ -65,6 +65,7 @@ def add_photo(
     damage_id: int | None = None,
     inventory_id: int | None = None,
     loan_id: int | None = None,
+    loan_photo_role: str | None = None,
 ) -> Photo:
     owners = [
         piece_id,
@@ -86,6 +87,7 @@ def add_photo(
         damage_id=damage_id,
         inventory_id=inventory_id,
         loan_id=loan_id,
+        loan_photo_role=loan_photo_role,
         sort_order=0,
     )
     if piece_id is not None:

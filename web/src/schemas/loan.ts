@@ -3,16 +3,22 @@ import { photoMetaSchema } from './photo'
 
 export const loanKindSchema = z.enum(['short', 'permanent'])
 
-export const loanStatusSchema = z.enum(['planned', 'handed_out', 'closed'])
+export const loanPhaseSchema = z.enum(['draft', 'active', 'closed'])
 
-export const returnOutcomeSchema = z.enum(['returned', 'loss'])
-
-const loanLineReturnFieldsSchema = z.object({
-  returnedQuantity: z.number(),
-  lostQuantity: z.number(),
-  outstandingQuantity: z.number(),
-  settled: z.boolean(),
-})
+export const loanLineStatusSchema = z.enum([
+  'draft',
+  'requested',
+  'confirmed',
+  'packed',
+  'picked_up',
+  'return_reported',
+  'restocked',
+  'unavailable',
+  'not_packed',
+  'not_picked_up',
+  'not_returned',
+  'withdrawn',
+])
 
 const loanLineOriginSchema = z.object({
   originSetId: z.number().nullable(),
@@ -20,59 +26,78 @@ const loanLineOriginSchema = z.object({
   originSetRole: z.enum(['assignment', 'optional']).nullable(),
 })
 
-export const loanReturnLineSchema = z.object({
-  loanLineId: z.number(),
-  outcome: returnOutcomeSchema,
-  quantity: z.number().nullable(),
-})
-
-export const loanReturnSchema = z.object({
-  id: z.number(),
-  recordedOn: z.string(),
-  lines: z.array(loanReturnLineSchema),
-})
-
-export const loanSchema = z.object({
-  id: z.number(),
-  inventoryId: z.number(),
-  kind: loanKindSchema,
-  status: loanStatusSchema,
-  groupId: z.number(),
-  groupName: z.string(),
-  responsibleUserId: z.number(),
-  responsibleUserName: z.string(),
-  eventId: z.number().nullable(),
-  eventName: z.string().nullable(),
-  startsOn: z.string().nullable(),
-  endsOn: z.string().nullable(),
-  coverPhotoId: z.number().nullish(),
-})
+const loanLineCommonSchema = {
+  requestNotified: z.boolean().optional(),
+  returnedQuantity: z.number().nullable().optional(),
+}
 
 export const loanLineSchema = z.discriminatedUnion('kind', [
   z.object({
     id: z.number(),
+    status: loanLineStatusSchema,
+    note: z.string(),
+    reason: z.string(),
+    replacesLineId: z.number().nullable(),
+    splitFromLineId: z.number().nullable().optional(),
     kind: z.literal('piece'),
     pieceId: z.number(),
     pieceName: z.string(),
     materialTypeName: z.string(),
     ...loanLineOriginSchema.shape,
-    ...loanLineReturnFieldsSchema.shape,
+    ...loanLineCommonSchema,
   }),
   z.object({
     id: z.number(),
+    status: loanLineStatusSchema,
+    note: z.string(),
+    reason: z.string(),
+    replacesLineId: z.number().nullable(),
+    splitFromLineId: z.number().nullable().optional(),
     kind: z.literal('stock'),
     materialTypeId: z.number(),
     materialTypeName: z.string(),
     quantity: z.number(),
+    consumable: z.boolean().optional(),
     ...loanLineOriginSchema.shape,
-    ...loanLineReturnFieldsSchema.shape,
+    ...loanLineCommonSchema,
   }),
 ])
 
+export const loanSchema = z.object({
+  id: z.number(),
+  inventoryId: z.number(),
+  inventoryName: z.string().optional(),
+  kind: loanKindSchema,
+  phase: loanPhaseSchema,
+  groupId: z.number(),
+  groupName: z.string(),
+  borrowerUserId: z.number(),
+  borrowerUserName: z.string(),
+  borrowerPhone: z.string().optional(),
+  contactUserId: z.number().nullable(),
+  contactUserName: z.string().nullable(),
+  contactPhone: z.string().nullable().optional(),
+  eventId: z.number().nullable(),
+  eventName: z.string().nullable(),
+  wishPickupOn: z.string().nullable().optional(),
+  wishReturnOn: z.string().nullable().optional(),
+  pickupOn: z.string().nullable(),
+  returnOn: z.string().nullable(),
+  pickupNote: z.string(),
+  returnNote: z.string(),
+  coverPhotoId: z.number().nullish(),
+})
+
 export const loanDetailSchema = loanSchema.extend({
   photos: z.array(photoMetaSchema).optional(),
+  pickupPhotos: z.array(photoMetaSchema).optional(),
+  returnPhotos: z.array(photoMetaSchema).optional(),
   lines: z.array(loanLineSchema),
-  returns: z.array(loanReturnSchema),
+  hasUnnotifiedRequestedLines: z.boolean().optional(),
+  openWorkflowStep: z
+    .enum(['review', 'pack', 'handover', 'return', 'restock'])
+    .nullable()
+    .optional(),
 })
 
 export const groupSchema = z.object({ id: z.number(), name: z.string() })

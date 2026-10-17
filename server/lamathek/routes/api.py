@@ -1,4 +1,4 @@
-from flask import Blueprint, current_app, jsonify
+from flask import Blueprint, current_app, jsonify, request
 from sqlalchemy import text
 
 from lamathek import db
@@ -6,7 +6,7 @@ from lamathek.access import require_login
 from lamathek.auth import dev_bypass_enabled, session_actor_sub, session_impersonation
 from lamathek.db import get_session
 from lamathek.serializers import user_to_json
-from lamathek.services.users import user_by_oidc_sub
+from lamathek.services.users import update_user_phone, user_by_oidc_sub
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -40,3 +40,16 @@ def me(user):
             "startedAt": imp.get("startedAt"),
         }
     return jsonify(body)
+
+
+@api_bp.patch("/me")
+@require_login
+def patch_me(user):
+    body = request.get_json(silent=True) or {}
+    if "phone" in body:
+        phone = body.get("phone")
+        if not isinstance(phone, str):
+            return jsonify({"error": "invalid_phone"}), 400
+        session = get_session()
+        user = update_user_phone(session, user, phone)
+    return jsonify(user_to_json(user))

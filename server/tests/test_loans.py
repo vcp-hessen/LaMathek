@@ -2,44 +2,36 @@ from lamathek.db import get_session
 from lamathek.services.users import upsert_user_from_oidc
 
 from conftest import app_with_db as _app_with_db, login as _login
+from loan_helpers import (
+    add_piece_line,
+    borrower_id,
+    confirm_all_lines,
+    create_loan,
+    manager_id,
+    pack_lines,
+    pickup_lines,
+    setup_inventory,
+    submit_request,
+)
 
 
-def _setup_inventory(client):
-    _login(client, "su")
-    inv = client.post("/api/inventories", json={"name": "Donnerskopf"})
-    assert inv.status_code == 201
-    return inv.get_json()["id"]
-
-
-def _verantwortliche_id(client) -> int:
-    with client.application.app_context():
+def _bootstrap(app):
+    with app.app_context():
         session = get_session()
-        user = upsert_user_from_oidc(
-            session, sub="ver", name="Ver", email=None, force_superuser=False
+        upsert_user_from_oidc(
+            session, sub="su", name="SU", email=None, force_superuser=True
         )
-        return user.id
+        session.commit()
 
 
-def _create_loan(client, inv_id: int, ver_id: int):
-    return client.post(
-        f"/api/inventories/{inv_id}/loans",
-        json={"groupName": "Stamm A", "responsibleUserId": ver_id},
-    )
-
-
-def test_piece_cannot_be_handed_out_twice():
+def test_piece_blocked_after_confirm_not_in_draft():
     app, tmp = _app_with_db()
     try:
-        with app.app_context():
-            session = get_session()
-            upsert_user_from_oidc(
-                session, sub="su", name="SU", email=None, force_superuser=True
-            )
-            session.commit()
-        ver_id = _verantwortliche_id(app.test_client())
-
+        _bootstrap(app)
         client = app.test_client()
-        inv_id = _setup_inventory(client)
+        inv_id = setup_inventory(client)
+        bor_id = borrower_id(client)
+        mgr_id = manager_id(client)
 
         mt = client.post(
             f"/api/inventories/{inv_id}/material-types",
@@ -52,41 +44,58 @@ def test_piece_cannot_be_handed_out_twice():
         )
         piece_id = piece.get_json()["id"]
 
-        loan_a = _create_loan(client, inv_id, ver_id)
-        loan_b = _create_loan(client, inv_id, ver_id)
+        loan_a = create_loan(client, inv_id, bor_id)
         loan_a_id = loan_a.get_json()["id"]
+        assert add_piece_line(client, loan_a_id, piece_id).status_code == 201
+
+        submit_request(client, loan_a_id)
+        _login(client, "mgr")
+        lines = client.get(f"/api/loans/{loan_a_id}").get_json()["lines"]
+        line_ids = [line["id"] for line in lines]
+        assert confirm_all_lines(client, loan_a_id, mgr_id, line_ids).status_code == 200
+
+        loan_b = create_loan(client, inv_id, bor_id, groupName="Stamm B")
+        assert loan_b.status_code == 201
         loan_b_id = loan_b.get_json()["id"]
-
-        assert (
-            client.post(f"/api/loans/{loan_a_id}/lines", json={"pieceId": piece_id}).status_code
-            == 201
+        assert add_piece_line(client, loan_b_id, piece_id).status_code == 201
+        submit_request(client, loan_b_id)
+        _login(client, "mgr")
+        lines_b = client.get(f"/api/loans/{loan_b_id}").get_json()["lines"]
+        conflict = confirm_all_lines(
+            client, loan_b_id, mgr_id, [lines_b[0]["id"]]
         )
-        assert (
-            client.post(f"/api/loans/{loan_b_id}/lines", json={"pieceId": piece_id}).status_code
-            == 201
-        )
-        assert client.post(f"/api/loans/{loan_a_id}/hand-out").status_code == 200
-
-        conflict = client.post(f"/api/loans/{loan_b_id}/hand-out")
         assert conflict.status_code == 409
         assert conflict.get_json()["error"] == "piece_unavailable"
     finally:
         tmp.cleanup()
 
 
-def test_planned_loan_does_not_block_piece_on_another_planned():
+def test_create_loan_allows_second_draft():
     app, tmp = _app_with_db()
     try:
-        with app.app_context():
-            session = get_session()
-            upsert_user_from_oidc(
-                session, sub="su", name="SU", email=None, force_superuser=True
-            )
-            session.commit()
-        ver_id = _verantwortliche_id(app.test_client())
-
+        _bootstrap(app)
         client = app.test_client()
-        inv_id = _setup_inventory(client)
+        inv_id = setup_inventory(client)
+        bor_id = borrower_id(client)
+        first = create_loan(client, inv_id, bor_id)
+        assert first.status_code == 201
+        first_id = first.get_json()["id"]
+        assert first.get_json()["phase"] == "draft"
+        second = create_loan(client, inv_id, bor_id)
+        assert second.status_code == 201
+        assert second.get_json()["id"] != first_id
+        assert second.get_json()["phase"] == "draft"
+    finally:
+        tmp.cleanup()
+
+
+def test_draft_does_not_block_second_draft_line():
+    app, tmp = _app_with_db()
+    try:
+        _bootstrap(app)
+        client = app.test_client()
+        inv_id = setup_inventory(client, visibility="active")
+        bor_id = borrower_id(client)
 
         mt = client.post(
             f"/api/inventories/{inv_id}/material-types",
@@ -99,124 +108,163 @@ def test_planned_loan_does_not_block_piece_on_another_planned():
         )
         piece_id = piece.get_json()["id"]
 
-        loan_a = _create_loan(client, inv_id, ver_id)
-        loan_b = _create_loan(client, inv_id, ver_id)
-        loan_a_id = loan_a.get_json()["id"]
-        loan_b_id = loan_b.get_json()["id"]
+        from conftest import login as _login_b
 
-        assert (
-            client.post(f"/api/loans/{loan_a_id}/lines", json={"pieceId": piece_id}).status_code
-            == 201
+        bor2_id = borrower_id(client, sub="borrower2")
+        _login_b(client, "borrower")
+        loan_a = create_loan(client, inv_id, bor_id)
+        assert loan_a.status_code == 201
+        loan_a_id = loan_a.get_json()["id"]
+        add_piece_line(client, loan_a_id, piece_id)
+
+        _login_b(client, "borrower2")
+        draft_line = client.post(
+            f"/api/inventories/{inv_id}/loans/draft-lines",
+            json={"pieceId": piece_id, "borrowerUserId": bor2_id},
         )
-        ok = client.post(f"/api/loans/{loan_b_id}/lines", json={"pieceId": piece_id})
-        assert ok.status_code == 201
+        assert draft_line.status_code == 201
     finally:
         tmp.cleanup()
 
 
-def test_set_hand_out_blocked_when_assignment_piece_out():
+def test_workflow_pickup_requires_pack():
     app, tmp = _app_with_db()
     try:
-        with app.app_context():
-            session = get_session()
-            upsert_user_from_oidc(
-                session, sub="su", name="SU", email=None, force_superuser=True
-            )
-            session.commit()
-        ver_id = _verantwortliche_id(app.test_client())
-
+        _bootstrap(app)
         client = app.test_client()
-        inv_id = _setup_inventory(client)
+        inv_id = setup_inventory(client)
+        bor_id = borrower_id(client)
+        mgr_id = manager_id(client)
 
         mt = client.post(
             f"/api/inventories/{inv_id}/material-types",
-            json={"name": "Plane", "tracking": "piece"},
+            json={"name": "Brettspiel", "tracking": "piece"},
         )
         type_id = mt.get_json()["id"]
         piece = client.post(
             f"/api/inventories/{inv_id}/pieces",
-            json={"materialTypeId": type_id, "name": "P1"},
+            json={"materialTypeId": type_id, "name": "Catan"},
         )
         piece_id = piece.get_json()["id"]
 
-        material_set = client.post(
-            f"/api/inventories/{inv_id}/sets", json={"name": "Jurte"}
-        )
-        set_id = material_set.get_json()["id"]
-        client.put(
-            f"/api/sets/{set_id}/pieces",
-            json={"pieceId": piece_id, "role": "assignment"},
-        )
-
-        loan_piece = _create_loan(client, inv_id, ver_id)
-        loan_piece_id = loan_piece.get_json()["id"]
-        client.post(f"/api/loans/{loan_piece_id}/lines", json={"pieceId": piece_id})
-        client.post(f"/api/loans/{loan_piece_id}/hand-out")
-
-        loan_set = _create_loan(client, inv_id, ver_id)
-        loan_set_id = loan_set.get_json()["id"]
-        conflict = client.post(f"/api/loans/{loan_set_id}/lines", json={"setId": set_id})
-        assert conflict.status_code == 409
-        assert conflict.get_json()["error"] == "piece_unavailable"
+        loan = create_loan(client, inv_id, bor_id)
+        loan_id = loan.get_json()["id"]
+        add_piece_line(client, loan_id, piece_id)
+        submit_request(client, loan_id)
+        lines = client.get(f"/api/loans/{loan_id}").get_json()["lines"]
+        line_ids = [line["id"] for line in lines]
+        _login(client, "mgr")
+        confirm_all_lines(client, loan_id, mgr_id, line_ids)
+        bad = pickup_lines(client, loan_id, line_ids)
+        assert bad.status_code == 409
+        pack_lines(client, loan_id, line_ids)
+        assert pickup_lines(client, loan_id, line_ids).status_code == 200
     finally:
         tmp.cleanup()
 
 
-def test_stock_hand_out_cannot_exceed_available():
+def test_borrower_can_save_wish_dates_on_draft():
     app, tmp = _app_with_db()
     try:
-        with app.app_context():
-            session = get_session()
-            upsert_user_from_oidc(
-                session, sub="su", name="SU", email=None, force_superuser=True
-            )
-            session.commit()
-        ver_id = _verantwortliche_id(app.test_client())
-
+        _bootstrap(app)
         client = app.test_client()
-        inv_id = _setup_inventory(client)
+        with client.application.app_context():
+            session = get_session()
+            from lamathek.services.inventories import create_inventory
 
-        heringe = client.post(
-            f"/api/inventories/{inv_id}/material-types",
-            json={"name": "Heringe", "tracking": "stock"},
-        )
-        type_id = heringe.get_json()["id"]
-        client.post(f"/api/inventories/{inv_id}/stocks/{type_id}/lots", json={"quantity": 5})
+            inv = create_inventory(session, "Public", visibility="active")
+            session.commit()
+            inv_id = inv.id
 
-        loan = _create_loan(client, inv_id, ver_id)
-        loan_id = loan.get_json()["id"]
-        client.post(
-            f"/api/loans/{loan_id}/lines",
-            json={"materialTypeId": type_id, "quantity": 6},
+        bor_id = borrower_id(client)
+        _login(client, "su")
+        loan_id = create_loan(client, inv_id, bor_id).get_json()["id"]
+
+        _login(client, "borrower")
+        patch = client.patch(
+            f"/api/loans/{loan_id}",
+            json={
+                "groupName": "Stamm A",
+                "wishPickupOn": "2026-08-01",
+                "wishReturnOn": "2026-08-15",
+            },
         )
-        conflict = client.post(f"/api/loans/{loan_id}/hand-out")
-        assert conflict.status_code == 409
-        assert conflict.get_json()["error"] == "over_loaned"
+        assert patch.status_code == 200
+        body = patch.get_json()
+        assert body["wishPickupOn"] == "2026-08-01"
+        assert body["wishReturnOn"] == "2026-08-15"
+        assert body["pickupOn"] is None
+        assert body["returnOn"] is None
     finally:
         tmp.cleanup()
 
 
-def test_loans_forbidden_without_inventory_access():
+def test_loans_forbidden_without_access():
     app, tmp = _app_with_db()
     try:
+        _bootstrap(app)
+        client = app.test_client()
+        inv_id = setup_inventory(client)
+        bor_id = borrower_id(client)
+        loan = create_loan(client, inv_id, bor_id)
+        loan_id = loan.get_json()["id"]
+
+        _login(client, "other", email="other@test.example")
         with app.app_context():
             session = get_session()
             upsert_user_from_oidc(
-                session, sub="su", name="SU", email=None, force_superuser=True
-            )
-            upsert_user_from_oidc(
-                session, sub="other", name="Other", email=None, force_superuser=False
+                session, sub="other", name="Other", email="other@test.example"
             )
             session.commit()
-        ver_id = _verantwortliche_id(app.test_client())
 
-        client = app.test_client()
-        inv_id = _setup_inventory(client)
-        loan = _create_loan(client, inv_id, ver_id)
-        loan_id = loan.get_json()["id"]
-
-        _login(client, "other")
         forbidden = client.get(f"/api/loans/{loan_id}")
         assert forbidden.status_code == 403
+    finally:
+        tmp.cleanup()
+
+
+def test_withdrawn_piece_can_be_added_again():
+    app, tmp = _app_with_db()
+    try:
+        _bootstrap(app)
+        client = app.test_client()
+        inv_id = setup_inventory(client)
+        bor_id = borrower_id(client)
+
+        mt = client.post(
+            f"/api/inventories/{inv_id}/material-types",
+            json={"name": "Brettspiel", "tracking": "piece"},
+        )
+        type_id = mt.get_json()["id"]
+        piece = client.post(
+            f"/api/inventories/{inv_id}/pieces",
+            json={"materialTypeId": type_id, "name": "Catan"},
+        )
+        other = client.post(
+            f"/api/inventories/{inv_id}/pieces",
+            json={"materialTypeId": type_id, "name": "Carcassonne"},
+        )
+        piece_id = piece.get_json()["id"]
+        loan_id = create_loan(client, inv_id, bor_id).get_json()["id"]
+        added = add_piece_line(client, loan_id, piece_id)
+        assert added.status_code == 201
+        assert add_piece_line(client, loan_id, other.get_json()["id"]).status_code == 201
+        line_id = next(
+            line["id"]
+            for line in client.get(f"/api/loans/{loan_id}").get_json()["lines"]
+            if line["pieceId"] == piece_id
+        )
+        assert submit_request(client, loan_id).status_code == 200
+        withdrawn = client.post(
+            f"/api/loans/{loan_id}/actions/withdraw",
+            json={"lineIds": [line_id]},
+        )
+        assert withdrawn.status_code == 200
+        again = add_piece_line(client, loan_id, piece_id)
+        assert again.status_code == 201, again.get_json()
+        lines = again.get_json()["lines"]
+        revived = next(line for line in lines if line["id"] == line_id)
+        assert revived["status"] == "requested"
+        assert sum(1 for line in lines if line["pieceId"] == piece_id) == 1
     finally:
         tmp.cleanup()

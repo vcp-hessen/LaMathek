@@ -1,5 +1,5 @@
 from lamathek.models.inventory import Inventory, InventoryPermission
-from lamathek.models.loan import Event, Group, Loan, LoanLine, LoanReturn, LoanReturnLine
+from lamathek.models.loan import Event, Group, Loan, LoanLine
 from lamathek.models.damage import Damage, Repair
 from lamathek.models.category import Category
 from lamathek.models.material import (
@@ -24,8 +24,6 @@ __all__ = [
     "InstallationSettings",
     "Loan",
     "LoanLine",
-    "LoanReturn",
-    "LoanReturnLine",
     "Category",
     "Damage",
     "Inventory",

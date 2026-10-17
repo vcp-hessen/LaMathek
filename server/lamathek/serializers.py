@@ -5,13 +5,7 @@ from lamathek.services.inventories import (
     format_content_responsible_users,
     users_with_inventory_permission,
 )
-from lamathek.models.loan import (
-    RETURN_OUTCOME_LOSS,
-    RETURN_OUTCOME_RETURNED,
-    Loan,
-    LoanLine,
-    LoanReturn,
-)
+from lamathek.models.loan import Loan, LoanLine
 from lamathek.models.damage import Damage, Repair
 from lamathek.models.category import Category
 from lamathek.models.material import MaterialType, Piece, StockLot
@@ -33,7 +27,9 @@ def user_to_json(user: User) -> dict:
         "sub": user.oidc_sub,
         "name": user.name,
         "email": user.email,
+        "phone": user.phone or "",
         "isSuperuser": user.is_superuser,
+        "hasLogin": not (user.oidc_sub or "").startswith("local:"),
     }
 
 
@@ -199,6 +195,26 @@ def set_to_json(material_set: MaterialSet, *, cover_photo_id: int | None = None)
         "name": material_set.name,
         "shortName": material_set.short_name,
         "coverPhotoId": cover_photo_id,
+        "assignmentPieceIds": [
+            piece.id
+            for piece in material_set.pieces
+            if piece.set_role == SET_ROLE_ASSIGNMENT
+        ],
+        "optionalPieceIds": [
+            piece.id
+            for piece in material_set.pieces
+            if piece.set_role == SET_ROLE_OPTIONAL
+        ],
+        "assignmentStockTypeIds": [
+            line.material_type_id
+            for line in material_set.stock_lines
+            if line.role == SET_ROLE_ASSIGNMENT
+        ],
+        "optionalStockTypeIds": [
+            line.material_type_id
+            for line in material_set.stock_lines
+            if line.role == SET_ROLE_OPTIONAL
+        ],
     }
 
 
@@ -250,37 +266,6 @@ def event_to_json(event) -> dict:
     return {"id": event.id, "name": event.name}
 
 
-def _line_return_totals(line: LoanLine) -> tuple[int, int]:
-    returned = 0
-    lost = 0
-    for row in line.return_lines:
-        qty = row.quantity if row.quantity is not None else 1
-        if row.outcome == RETURN_OUTCOME_RETURNED:
-            returned += qty
-        elif row.outcome == RETURN_OUTCOME_LOSS:
-            lost += qty
-    return returned, lost
-
-
-def _line_return_fields(line: LoanLine) -> dict:
-    returned, lost = _line_return_totals(line)
-    if line.material_type_id is not None and line.quantity is not None:
-        outstanding = max(0, line.quantity - returned - lost)
-        return {
-            "returnedQuantity": returned,
-            "lostQuantity": lost,
-            "outstandingQuantity": outstanding,
-            "settled": outstanding == 0,
-        }
-    settled = returned + lost >= 1
-    return {
-        "returnedQuantity": returned,
-        "lostQuantity": lost,
-        "outstandingQuantity": 0 if settled else 1,
-        "settled": settled,
-    }
-
-
 def _origin_json(line: LoanLine) -> dict:
     return {
         "originSetId": line.origin_set_id,
@@ -289,71 +274,142 @@ def _origin_json(line: LoanLine) -> dict:
     }
 
 
+def _loan_open_workflow_step(loan: Loan) -> str | None:
+    from lamathek.models.loan import (
+        LINE_STATUS_CONFIRMED,
+        LINE_STATUS_PACKED,
+        LINE_STATUS_PICKED_UP,
+        LINE_STATUS_REQUESTED,
+        LINE_STATUS_RETURN_REPORTED,
+        LINE_STATUSES_TERMINAL,
+        LOAN_PHASE_ACTIVE,
+    )
+
+    if loan.phase != LOAN_PHASE_ACTIVE:
+        return None
+    open_statuses = {
+        line.status
+        for line in loan.lines
+        if line.status not in LINE_STATUSES_TERMINAL
+    }
+    if LINE_STATUS_REQUESTED in open_statuses:
+        return "review"
+    if LINE_STATUS_CONFIRMED in open_statuses:
+        return "pack"
+    if LINE_STATUS_PACKED in open_statuses:
+        return "handover"
+    if LINE_STATUS_PICKED_UP in open_statuses:
+        return "return"
+    if LINE_STATUS_RETURN_REPORTED in open_statuses:
+        return "restock"
+    return None
+
+
 def _loan_line_to_json(line: LoanLine) -> dict:
-    return_fields = _line_return_fields(line)
     origin = _origin_json(line)
+    base = {
+        "id": line.id,
+        "status": line.status,
+        "note": line.note or "",
+        "reason": line.reason or "",
+        "replacesLineId": line.replaces_line_id,
+        "splitFromLineId": line.split_from_line_id,
+        "requestNotified": bool(line.request_notified),
+        "returnedQuantity": line.returned_quantity,
+        **origin,
+    }
     if line.piece_id is not None and line.piece is not None:
         return {
-            "id": line.id,
+            **base,
             "kind": "piece",
             "pieceId": line.piece_id,
             "pieceName": line.piece.name,
             "materialTypeName": line.piece.material_type.name,
-            **origin,
-            **return_fields,
         }
     if line.material_type_id is not None and line.material_type is not None:
         return {
-            "id": line.id,
+            **base,
             "kind": "stock",
             "materialTypeId": line.material_type_id,
             "materialTypeName": line.material_type.name,
             "quantity": line.quantity,
-            **origin,
-            **return_fields,
+            "consumable": line.material_type.consumable,
         }
-    return {"id": line.id, "kind": "unknown", **origin, **return_fields}
+    return {**base, "kind": "unknown"}
 
 
-def _loan_return_to_json(loan_return: LoanReturn) -> dict:
-    return {
-        "id": loan_return.id,
-        "recordedOn": loan_return.recorded_on.isoformat(),
-        "lines": [
-            {
-                "loanLineId": line.loan_line_id,
-                "outcome": line.outcome,
-                "quantity": line.quantity,
-            }
-            for line in loan_return.lines
-        ],
-    }
+def loan_to_json(
+    loan: Loan,
+    *,
+    cover_photo_id: int | None = None,
+    viewer: User | None = None,
+    session: Session | None = None,
+) -> dict:
+    borrower_phone = ""
+    contact_phone = ""
+    if viewer is not None and session is not None:
+        from lamathek.services.inventories import user_can_manage_inventory
+        from lamathek.services.loan_access import user_is_borrower
 
-
-def loan_to_json(loan: Loan, *, cover_photo_id: int | None = None) -> dict:
+        if user_can_manage_inventory(session, viewer, loan.inventory):
+            borrower_phone = loan.borrower_user.phone or ""
+        if user_is_borrower(viewer, loan) and loan.contact_user is not None:
+            contact_phone = loan.contact_user.phone or ""
+    inventory_name = loan.inventory.name if loan.inventory is not None else ""
     return {
         "id": loan.id,
         "inventoryId": loan.inventory_id,
+        "inventoryName": inventory_name,
         "kind": loan.kind,
-        "status": loan.status,
+        "phase": loan.phase,
         "groupId": loan.group_id,
         "groupName": loan.group.name if loan.group else "",
-        "responsibleUserId": loan.responsible_user_id,
-        "responsibleUserName": loan.responsible_user.name or loan.responsible_user.email or "",
+        "borrowerUserId": loan.borrower_user_id,
+        "borrowerUserName": loan.borrower_user.name or loan.borrower_user.email or "",
+        "borrowerPhone": borrower_phone,
+        "contactUserId": loan.contact_user_id,
+        "contactUserName": (
+            loan.contact_user.name or loan.contact_user.email or ""
+            if loan.contact_user
+            else None
+        ),
+        "contactPhone": contact_phone or None,
         "eventId": loan.event_id,
         "eventName": loan.event.name if loan.event else None,
-        "startsOn": loan.starts_on.isoformat() if loan.starts_on else None,
-        "endsOn": loan.ends_on.isoformat() if loan.ends_on else None,
+        "wishPickupOn": loan.wish_pickup_on.isoformat() if loan.wish_pickup_on else None,
+        "wishReturnOn": loan.wish_return_on.isoformat() if loan.wish_return_on else None,
+        "pickupOn": loan.pickup_on.isoformat() if loan.pickup_on else None,
+        "returnOn": loan.return_on.isoformat() if loan.return_on else None,
+        "pickupNote": loan.pickup_note or "",
+        "returnNote": loan.return_note or "",
         "coverPhotoId": cover_photo_id,
     }
 
 
-def loan_detail_to_json(loan: Loan, *, cover_photo_id: int | None = None) -> dict:
+def loan_detail_to_json(
+    loan: Loan,
+    *,
+    cover_photo_id: int | None = None,
+    viewer: User | None = None,
+    session: Session | None = None,
+) -> dict:
+    from lamathek.models.loan import PHOTO_ROLE_LOAN, PHOTO_ROLE_PICKUP, PHOTO_ROLE_RETURN
+
+    loan_photos = [p for p in loan.photos if p.loan_photo_role in (None, PHOTO_ROLE_LOAN)]
+    pickup_photos = [p for p in loan.photos if p.loan_photo_role == PHOTO_ROLE_PICKUP]
+    return_photos = [p for p in loan.photos if p.loan_photo_role == PHOTO_ROLE_RETURN]
     return {
-        **loan_to_json(loan, cover_photo_id=cover_photo_id),
-        "photos": photos_to_json(list(loan.photos)),
+        **loan_to_json(
+            loan, cover_photo_id=cover_photo_id, viewer=viewer, session=session
+        ),
+        "photos": photos_to_json(loan_photos),
+        "pickupPhotos": photos_to_json(pickup_photos),
+        "returnPhotos": photos_to_json(return_photos),
         "lines": [_loan_line_to_json(line) for line in loan.lines],
-        "returns": [_loan_return_to_json(r) for r in loan.returns],
+        "hasUnnotifiedRequestedLines": any(
+            line.status == "requested" and not line.request_notified for line in loan.lines
+        ),
+        "openWorkflowStep": _loan_open_workflow_step(loan),
     }
 
 

@@ -3,12 +3,16 @@ import { useQuery } from '@tanstack/vue-query'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { searchUsers } from '../api/users'
-import { fetchInventoryPermissions } from '../api/inventories'
+import { fetchInventoryAccess } from '../api/inventories'
 import type { User } from '../schemas/user'
 
-const props = defineProps<{
-  inventoryId: number | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    inventoryId: number | null
+    headingKey?: string
+  }>(),
+  { headingKey: 'inventories.permissionsHeading' },
+)
 
 const userIds = defineModel<number[]>({ required: true })
 
@@ -18,7 +22,7 @@ const knownUsers = ref(new Map<number, User>())
 
 const { data: loadedUsers } = useQuery({
   queryKey: computed(() => ['inventoryPermissionUsers', props.inventoryId]),
-  queryFn: () => fetchInventoryPermissions(props.inventoryId!),
+  queryFn: () => fetchInventoryAccess(props.inventoryId!),
   enabled: () => props.inventoryId !== null,
 })
 
@@ -26,7 +30,7 @@ watch(
   loadedUsers,
   (users) => {
     if (!users) return
-    for (const user of users) {
+    for (const user of [...users.users, ...users.readers]) {
       knownUsers.value.set(user.id, user)
     }
   },
@@ -69,7 +73,7 @@ function addUser(user: User) {
 
 <template>
   <fieldset class="rounded-lg border border-base-200 px-3 pb-3 pt-2">
-    <legend class="px-1 text-sm font-medium">{{ t('inventories.permissionsHeading') }}</legend>
+    <legend class="px-1 text-sm font-medium">{{ t(headingKey) }}</legend>
 
     <ul v-if="displayUsers.length" class="mt-2 divide-y divide-base-200">
       <li

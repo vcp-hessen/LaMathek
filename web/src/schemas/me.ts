@@ -13,6 +13,7 @@ export const meSchema = z.object({
   sub: z.string().optional(),
   name: z.string().nullable().optional(),
   email: z.string().nullable().optional(),
+  phone: z.string().optional(),
   isSuperuser: z.boolean(),
   impersonation: impersonationStateSchema.nullable().optional(),
 })

@@ -99,6 +99,33 @@ def format_mail_subject(raw_subject: str, installation_title: str) -> str:
     return f"{prefix}{subject}"
 
 
+def render_loan_action_mail(
+    session,
+    loan,
+    action: str,
+    line_ids: list[int],
+) -> tuple[str, str, str]:
+    lines = [line for line in loan.lines if line.id in line_ids]
+    line_labels = []
+    for line in lines:
+        if line.piece is not None:
+            line_labels.append(line.piece.name)
+        elif line.material_type is not None:
+            line_labels.append(f"{line.material_type.name} × {line.quantity}")
+        else:
+            line_labels.append(f"Position {line.id}")
+    return render_mail(
+        "loan_action",
+        loan_id=loan.id,
+        action=action,
+        group_name=loan.group.name if loan.group else "",
+        borrower_name=loan.borrower_user.name or loan.borrower_user.email or "",
+        pickup_on=loan.pickup_on.isoformat() if loan.pickup_on else "",
+        return_on=loan.return_on.isoformat() if loan.return_on else "",
+        line_labels=line_labels,
+    )
+
+
 def render_mail(template: str, **context) -> tuple[str, str, str]:
     """Return (subject, plain text, html) for a mail template name without extension."""
     variables = {**mail_base_context(), **context}

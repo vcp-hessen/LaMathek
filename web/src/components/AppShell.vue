@@ -7,7 +7,9 @@ import { fetchInventories } from '../api/inventories'
 import { fetchInstallationSettings } from '../api/settings'
 import { stopImpersonation } from '../api/impersonation'
 import { fetchMe, logout } from '../api/me'
+import ActiveBoxPicker from './loans/ActiveBoxPicker.vue'
 import AppBreadcrumbs from './AppBreadcrumbs.vue'
+import { INVENTORY_WORKSPACE_ROUTE_NAMES } from '../utils/inventoryWorkspaceRoutes'
 import AppFooter from './AppFooter.vue'
 import AppSidebarChrome from './AppSidebarChrome.vue'
 import UiIcon from './UiIcon.vue'
@@ -44,6 +46,7 @@ const inventoriesListActive = computed(
 const settingsActive = computed(() => route.path === '/settings')
 const diagnosticsActive = computed(() => route.path === '/diagnose')
 const usersActive = computed(() => route.path === '/users')
+const myLoansActive = computed(() => route.path === '/my-loans')
 
 watch(
   () => route.fullPath,
@@ -58,15 +61,13 @@ watch(
   { immediate: true },
 )
 
-const inventoryRouteNames = new Set([
-  'inventory-material-types',
-  'inventory-material',
-  'piece-detail',
-  'inventory-sets',
-  'inventory-loans',
-  'loan-detail',
-  'set-detail',
-])
+const inventoryRouteNames = INVENTORY_WORKSPACE_ROUTE_NAMES
+
+const headerInventoryId = computed(() => {
+  if (!inventoryRouteNames.has(String(route.name))) return null
+  const num = Number(route.params.id)
+  return Number.isFinite(num) ? num : null
+})
 
 watch(
   () => [route.name, route.params.id] as const,
@@ -142,6 +143,7 @@ async function onSidebarSignOut() {
             :settings-active="settingsActive"
             :diagnostics-active="diagnosticsActive"
             :users-active="usersActive"
+            :my-loans-active="myLoansActive"
             mobile
             @sign-out="onSidebarSignOut"
           />
@@ -164,6 +166,7 @@ async function onSidebarSignOut() {
         :settings-active="settingsActive"
         :diagnostics-active="diagnosticsActive"
         :users-active="usersActive"
+        :my-loans-active="myLoansActive"
         @sign-out="onSidebarSignOut"
       />
     </aside>
@@ -192,6 +195,12 @@ async function onSidebarSignOut() {
         <div class="flex min-w-0 flex-1 items-center gap-2 px-2 sm:gap-3">
           <AppBreadcrumbs class="min-w-0 flex-1" />
         </div>
+        <ActiveBoxPicker
+          v-if="me && headerInventoryId != null"
+          :inventory-id="headerInventoryId"
+          :show-when-logged-in="true"
+          class="min-w-0 flex-none shrink pr-1 sm:shrink-0 sm:pr-2"
+        />
         <div v-if="!me" class="flex-none pr-1 md:hidden">
           <a class="btn btn-primary btn-sm" href="/login">
             {{ t('auth.signIn') }}

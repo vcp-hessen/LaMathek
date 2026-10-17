@@ -1,0 +1,9 @@
+Verleih #{{ loan_id }} ({{ group_name }}) für {{ borrower_name }}.
+
+Aktion: {{ action }}
+{% if pickup_on %}Abholung: {{ pickup_on }}
+{% endif %}{% if return_on %}Rückgabe: {{ return_on }}
+{% endif %}
+Positionen:
+{% for label in line_labels %}- {{ label }}
+{% endfor %}

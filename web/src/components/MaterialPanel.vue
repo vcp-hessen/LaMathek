@@ -611,8 +611,14 @@ const createLotMutation = useMutation({
                     <option value="letter">
                       {{ t('material.pieceBatchPlaceholderLetter', { placeholder: '{a}' }) }}
                     </option>
+                    <option value="letterUpper">
+                      {{ t('material.pieceBatchPlaceholderLetterUpper', { placeholder: '{A}' }) }}
+                    </option>
                     <option value="roman">
                       {{ t('material.pieceBatchPlaceholderRoman', { placeholder: '{r}' }) }}
+                    </option>
+                    <option value="romanUpper">
+                      {{ t('material.pieceBatchPlaceholderRomanUpper', { placeholder: '{R}' }) }}
                     </option>
                   </select>
                   <button

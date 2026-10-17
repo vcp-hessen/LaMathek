@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -52,6 +54,95 @@ def set_superuser(session: Session, user: User, is_superuser: bool) -> None:
         raise ValueError("cannot_remove_last_superuser")
     user.is_superuser = is_superuser
     session.commit()
+
+
+def user_has_login(user: User) -> bool:
+    return not (user.oidc_sub or "").startswith("local:")
+
+
+def create_local_user(
+    session: Session,
+    *,
+    name: str,
+    phone: str,
+    email: str | None = None,
+) -> User:
+    trimmed_name = name.strip()
+    trimmed_phone = phone.strip()
+    trimmed_email = email.strip() if isinstance(email, str) else ""
+    if not trimmed_name or not trimmed_phone or not trimmed_email:
+        raise ValueError("invalid_user")
+    _require_unique_email(session, trimmed_email)
+    user = User(
+        oidc_sub=f"local:{uuid.uuid4()}",
+        name=trimmed_name,
+        phone=trimmed_phone,
+        email=trimmed_email,
+        is_superuser=False,
+    )
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+def merge_local_user_into_login(
+    session: Session, *, source_id: int, target_id: int
+) -> User:
+    from lamathek.models.loan import Loan
+
+    if source_id == target_id:
+        raise ValueError("invalid_merge")
+    source = session.get(User, source_id)
+    target = session.get(User, target_id)
+    if source is None or target is None:
+        raise ValueError("not_found")
+    if user_has_login(source) or not user_has_login(target):
+        raise ValueError("invalid_merge")
+    for loan in session.scalars(select(Loan).where(Loan.borrower_user_id == source.id)):
+        loan.borrower_user_id = target.id
+    session.flush()
+    session.delete(source)
+    session.commit()
+    return target
+
+
+def _require_unique_email(session: Session, email: str, *, except_user_id: int | None = None) -> None:
+    taken = session.scalar(
+        select(User.id).where(
+            func.lower(User.email) == email.lower(),
+            User.id != except_user_id,
+        )
+    )
+    if taken is not None:
+        raise ValueError("email_taken")
+
+
+def update_user_phone(session: Session, user: User, phone: str) -> User:
+    user.phone = phone.strip()
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+def update_user_contact(
+    session: Session,
+    user: User,
+    *,
+    phone: str | None = None,
+    email: str | None = None,
+) -> User:
+    if phone is not None:
+        user.phone = phone.strip()
+    if email is not None:
+        trimmed = email.strip()
+        if not trimmed:
+            raise ValueError("invalid_user")
+        _require_unique_email(session, trimmed, except_user_id=user.id)
+        user.email = trimmed
+    session.commit()
+    session.refresh(user)
+    return user
 
 
 def search_users(session: Session, query: str, *, limit: int = 20) -> list[User]:

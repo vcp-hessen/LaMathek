@@ -29,6 +29,10 @@ def list_sets(session: Session, inventory_id: int) -> list[MaterialSet]:
         session.scalars(
             select(MaterialSet)
             .where(MaterialSet.inventory_id == inventory_id)
+            .options(
+                selectinload(MaterialSet.pieces),
+                selectinload(MaterialSet.stock_lines),
+            )
             .order_by(MaterialSet.name)
         ).all()
     )

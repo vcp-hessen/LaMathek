@@ -14,6 +14,7 @@ import {
   type ItemMetadataDraft,
 } from '../utils/materialItemValue'
 import { stockLotListItemFromStocks } from '../components/material/materialTableSetup'
+import AddToBoxButton from '../components/loans/AddToBoxButton.vue'
 import PhotoGallery from '../components/PhotoGallery.vue'
 import SuperuserDestructiveDelete from '../components/SuperuserDestructiveDelete.vue'
 import VariantAxisSelects from '../components/VariantAxisSelects.vue'
@@ -125,6 +126,14 @@ const deleteMutation = useMutation({
   <div class="app-page space-y-6">
     <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
     <template v-else-if="lot">
+      <div class="flex justify-end">
+        <AddToBoxButton
+          :inventory-id="inventoryId"
+          :material-type-id="lot.materialTypeId"
+          :quantity="1"
+          size="md"
+        />
+      </div>
       <MaterialDetailsSection
         :form-error="formError"
         :saving="updateMutation.isPending.value"

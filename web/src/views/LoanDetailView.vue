@@ -1,26 +1,28 @@
 <script setup lang="ts">
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { computed, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { fetchMaterialTypes, fetchPieces } from '../api/material'
-import {
-  addLoanPieceLine,
-  addLoanSetAssignmentLines,
-  addLoanSetOptionalLines,
-  addLoanStockLine,
-  fetchLoan,
-  handOutLoan,
-  recordLoanReturn,
-  removeLoanLine,
-} from '../api/loans'
-import { fetchSets } from '../api/sets'
-import type { LoanLine } from '../schemas/loan'
+import { fetchInventoryPermissions } from '../api/inventories'
+import { fetchMe, patchMePhone } from '../api/me'
+import { deleteLoan, fetchLoan, loanAction, patchLoan, removeLoanLine } from '../api/loans'
+import LoanDetailsCollapsible from '../components/loans/LoanDetailsCollapsible.vue'
+import LoanLinesSection from '../components/loans/LoanLinesSection.vue'
+import LoanPrimaryActions from '../components/loans/LoanPrimaryActions.vue'
+import ActionFeedbackBanner from '../components/ActionFeedbackBanner.vue'
+import LoanStatusHeader from '../components/loans/LoanStatusHeader.vue'
+import { useActiveBox } from '../composables/useActiveBox'
 import { useApiErrorMessage } from '../composables/useApiErrorMessage'
-import { useInventoryQueryKey } from '../composables/useInventoryQueryKey'
-import PhotoGallery from '../components/PhotoGallery.vue'
+import { useInventoryCanManage } from '../composables/useInventoryCanManage'
+import { useLoanParticipantRoles } from '../composables/useLoanParticipantRoles'
+import {
+  canCancelUnpackedLoan,
+  canDeleteUnreleasedLoan,
+  canSkipPickupToReturn,
+} from '../utils/loanShortcutEligibility'
 
 const route = useRoute()
+const router = useRouter()
 const { t } = useI18n()
 const queryClient = useQueryClient()
 const { messageFor } = useApiErrorMessage()
@@ -33,140 +35,99 @@ function onMutationError(error: unknown) {
 const inventoryId = computed(() => Number(route.params.id))
 const loanId = computed(() => Number(route.params.loanId))
 
+const { canManage } = useInventoryCanManage(inventoryId)
+const { setActiveLoan, activeLoanId } = useActiveBox(inventoryId)
+
+watch(
+  loanId,
+  (id) => {
+    if (Number.isFinite(id)) setActiveLoan(id)
+  },
+  { immediate: true },
+)
+
+const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
+
 const { data: loan, isLoading } = useQuery({
   queryKey: ['loan', loanId],
   queryFn: () => fetchLoan(loanId.value),
   enabled: () => Number.isFinite(loanId.value),
 })
 
-const setsQueryKey = useInventoryQueryKey('sets', inventoryId)
-const piecesQueryKey = useInventoryQueryKey('pieces', inventoryId)
-const materialTypesQueryKey = useInventoryQueryKey('materialTypes', inventoryId)
+const {
+  isLoanBorrower,
+  canActAsManager,
+  canEditBorrowerStammdaten,
+  canParticipateInLineWorkflow,
+  useManagerWorkflowSteps,
+} = useLoanParticipantRoles(me, loan, canManage)
 
-const { data: sets } = useQuery({
-  queryKey: setsQueryKey,
-  queryFn: () => fetchSets(inventoryId.value),
-  enabled: () => Number.isFinite(inventoryId.value),
+const { data: permissionUsers } = useQuery({
+  queryKey: ['inventory-permissions', inventoryId],
+  queryFn: () => fetchInventoryPermissions(inventoryId.value),
+  enabled: () => Number.isFinite(inventoryId.value) && canActAsManager.value,
 })
 
-const { data: pieces } = useQuery({
-  queryKey: piecesQueryKey,
-  queryFn: () => fetchPieces(inventoryId.value),
-  enabled: () => Number.isFinite(inventoryId.value),
-})
+const selectedLineIds = ref<number[]>([])
+const phoneForRequest = ref('')
 
-const { data: materialTypes } = useQuery({
-  queryKey: materialTypesQueryKey,
-  queryFn: () => fetchMaterialTypes(inventoryId.value),
-  enabled: () => Number.isFinite(inventoryId.value),
-})
-
-const addSetId = ref('')
-const addOptionalSetId = ref('')
-const addPieceId = ref('')
-const addStockTypeId = ref('')
-const addStockQty = ref('1')
-
-const returnRecordedOn = ref(new Date().toISOString().slice(0, 10))
-const returnOutcomes = reactive<Record<number, 'returned' | 'loss' | ''>>({})
-const returnQuantities = reactive<Record<number, string>>({})
-
-const isPlanned = computed(() => loan.value?.status === 'planned')
-const isHandedOut = computed(() => loan.value?.status === 'handed_out')
-const isClosed = computed(() => loan.value?.status === 'closed')
-
-const kindLabel = computed(() => {
-  const kind = loan.value?.kind
-  if (kind === 'permanent') return t('loans.kindPermanent')
-  return t('loans.kindShort')
-})
-
-const statusLabel = computed(() => {
-  const status = loan.value?.status
-  if (status === 'handed_out') return t('loans.statusHandedOut')
-  if (status === 'closed') return t('loans.statusClosed')
-  return t('loans.statusPlanned')
-})
-
-const stockTypes = computed(() =>
-  (materialTypes.value ?? []).filter((mt) => mt.tracking === 'stock'),
-)
-
-const loanablePieces = computed(() =>
-  (pieces.value ?? []).filter((p) => p.status === 'active'),
-)
-
-const outstandingLines = computed(() =>
-  (loan.value?.lines ?? []).filter((line) => !line.settled),
-)
-
-type LineGroup = { setId: number; setName: string; lines: LoanLine[] }
-
-const lineGroups = computed(() => {
-  const lines = loan.value?.lines ?? []
-  const loose: LoanLine[] = []
-  const bySet = new Map<number, LineGroup>()
-  for (const line of lines) {
-    const sid = line.originSetId
-    if (sid == null) {
-      loose.push(line)
-      continue
-    }
-    let group = bySet.get(sid)
-    if (!group) {
-      group = { setId: sid, setName: line.originSetName ?? '', lines: [] }
-      bySet.set(sid, group)
-    }
-    group.lines.push(line)
-  }
-  return { loose, groups: [...bySet.values()] }
-})
-
-const setsForOptionalAdd = computed(() => {
-  const onLoan = new Set(
-    (loan.value?.lines ?? [])
-      .filter((l) => l.originSetId != null && l.originSetRole === 'assignment')
-      .map((l) => l.originSetId as number),
-  )
-  return (sets.value ?? []).filter((s) => onLoan.has(s.id))
-})
+const editPickupNote = ref('')
+const editReturnNote = ref('')
 
 watch(
-  outstandingLines,
-  (lines) => {
-    for (const line of lines) {
-      if (returnOutcomes[line.id] === undefined) {
-        returnOutcomes[line.id] = ''
-      }
-      if (line.kind === 'stock' && returnQuantities[line.id] === undefined) {
-        returnQuantities[line.id] = ''
-      }
-    }
+  loan,
+  (value) => {
+    if (!value) return
+    editPickupNote.value = value.pickupNote ?? ''
+    editReturnNote.value = value.returnNote ?? ''
+    selectedLineIds.value = []
   },
   { immediate: true },
 )
 
-function lineLabel(line: LoanLine): string {
-  if (line.kind === 'piece') return `${line.pieceName} · ${line.materialTypeName}`
-  return `${line.materialTypeName} × ${line.quantity}`
-}
+watch(me, (value) => {
+  if (value?.phone) phoneForRequest.value = value.phone
+})
 
-function optionalTag(line: LoanLine): boolean {
-  return line.originSetRole === 'optional'
-}
+const isDraftPhase = computed(() => loan.value?.phase === 'draft')
+const isClosedPhase = computed(() => loan.value?.phase === 'closed')
+const isPermanent = computed(() => loan.value?.kind === 'permanent')
 
-function returnEntryLabel(line: LoanLine, outcome: string, quantity: number | null): string {
-  const base = lineLabel(line)
-  if (outcome === 'loss') {
-    if (line.kind === 'stock' && quantity != null) {
-      return t('loans.returnHistoryLossStock', { label: base, quantity })
+function toggleLine(id: number, checked: boolean) {
+  if (checked) {
+    if (!selectedLineIds.value.includes(id)) {
+      selectedLineIds.value = [...selectedLineIds.value, id]
     }
-    return t('loans.returnHistoryLoss', { label: base })
+  } else {
+    selectedLineIds.value = selectedLineIds.value.filter((x) => x !== id)
   }
-  if (line.kind === 'stock' && quantity != null) {
-    return t('loans.returnHistoryReturnedStock', { label: base, quantity })
-  }
-  return t('loans.returnHistoryReturned', { label: base })
+}
+
+function selectLines(ids: number[]) {
+  if (!ids.length) return
+  const set = new Set(selectedLineIds.value)
+  for (const id of ids) set.add(id)
+  selectedLineIds.value = [...set]
+}
+
+function deselectLines(ids: number[]) {
+  if (!ids.length) return
+  const remove = new Set(ids)
+  selectedLineIds.value = selectedLineIds.value.filter((id) => !remove.has(id))
+}
+
+function linesMatching(...statuses: string[]) {
+  return (loan.value?.lines ?? []).filter((l) => statuses.includes(l.status))
+}
+
+function selectedMatching(...statuses: string[]) {
+  const allowed = new Set(linesMatching(...statuses).map((l) => l.id))
+  return selectedLineIds.value.filter((id) => allowed.has(id))
+}
+
+function lineIdsForAction(override: number[] | undefined, ...statuses: string[]) {
+  if (override?.length) return override
+  return selectedMatching(...statuses)
 }
 
 async function invalidate() {
@@ -174,8 +135,8 @@ async function invalidate() {
   await queryClient.invalidateQueries({ queryKey: ['loans', inventoryId.value] })
 }
 
-const handOutMutation = useMutation({
-  mutationFn: () => handOutLoan(loanId.value),
+const patchMetaMutation = useMutation({
+  mutationFn: (payload: Record<string, unknown>) => patchLoan(loanId.value, payload),
   onSuccess: async () => {
     actionError.value = null
     await invalidate()
@@ -183,43 +144,107 @@ const handOutMutation = useMutation({
   onError: onMutationError,
 })
 
-const addSetMutation = useMutation({
-  mutationFn: () => addLoanSetAssignmentLines(loanId.value, Number(addSetId.value)),
+const requestMutation = useMutation({
+  mutationFn: async () => {
+    if (isLoanBorrower.value && !(me.value?.phone ?? '').trim()) {
+      await patchMePhone(phoneForRequest.value.trim())
+      await queryClient.invalidateQueries({ queryKey: ['me'] })
+    }
+    const pickupOn = loan.value?.wishPickupOn ?? loan.value?.pickupOn
+    const returnOn = loan.value?.wishReturnOn ?? loan.value?.returnOn
+    if (!pickupOn) {
+      actionError.value = t('loans.requestDatesRequired')
+      return Promise.reject(new Error('dates_required'))
+    }
+    if (!isPermanent.value && !returnOn) {
+      actionError.value = t('loans.requestDatesRequired')
+      return Promise.reject(new Error('dates_required'))
+    }
+    return loanAction(loanId.value, 'request', {
+      wishPickupOn: pickupOn,
+      wishReturnOn: isPermanent.value ? null : returnOn,
+    })
+  },
   onSuccess: async () => {
     actionError.value = null
-    addSetId.value = ''
+    await invalidate()
+  },
+  onError: (error) => {
+    if (error instanceof Error && error.message === 'dates_required') return
+    onMutationError(error)
+  },
+})
+
+function runLineAction(action: string, lineIds: number[], extra: Record<string, unknown> = {}) {
+  if (!lineIds.length) throw new Error('no_lines_selected')
+  return loanAction(loanId.value, action, { lineIds, ...extra })
+}
+
+const actionMutation = useMutation({
+  mutationFn: (args: { action: string; lineIds: number[]; extra?: Record<string, unknown> }) =>
+    runLineAction(args.action, args.lineIds, args.extra ?? {}),
+  onSuccess: async () => {
+    actionError.value = null
+    selectedLineIds.value = []
     await invalidate()
   },
   onError: onMutationError,
 })
 
-const addOptionalSetMutation = useMutation({
-  mutationFn: () => addLoanSetOptionalLines(loanId.value, Number(addOptionalSetId.value)),
+const confirmMutation = useMutation({
+  mutationFn: (overrideLineIds?: number[]) => {
+    const lineIds = overrideLineIds ?? selectedMatching('requested')
+    const contactUserId = loan.value?.contactUserId
+    if (contactUserId == null) {
+      actionError.value = t('loans.contactRequiredForConfirm')
+      return Promise.reject(new Error('contact_required'))
+    }
+    const pickupOn = loan.value?.pickupOn?.trim()
+    const returnOn = loan.value?.returnOn?.trim()
+    if (!pickupOn) {
+      actionError.value = t('loans.errors.pickup_required')
+      return Promise.reject(new Error('dates_required'))
+    }
+    if (!isPermanent.value && !returnOn) {
+      actionError.value = t('loans.errors.return_required')
+      return Promise.reject(new Error('dates_required'))
+    }
+    return loanAction(loanId.value, 'confirm', { lineIds })
+  },
   onSuccess: async () => {
     actionError.value = null
-    addOptionalSetId.value = ''
+    selectedLineIds.value = []
+    await invalidate()
+  },
+  onError: (error) => {
+    if (error instanceof Error && error.message === 'contact_required') return
+    if (error instanceof Error && error.message === 'dates_required') return
+    onMutationError(error)
+  },
+})
+
+const declineMutation = useMutation({
+  mutationFn: (entries: { lineId: number; reason: string }[]) => {
+    return loanAction(loanId.value, 'decline', { entries })
+  },
+  onSuccess: async () => {
+    actionError.value = null
+    selectedLineIds.value = []
     await invalidate()
   },
   onError: onMutationError,
 })
 
-const addPieceMutation = useMutation({
-  mutationFn: () => addLoanPieceLine(loanId.value, Number(addPieceId.value)),
-  onSuccess: async () => {
-    actionError.value = null
-    addPieceId.value = ''
-    await invalidate()
+const entryActionMutation = useMutation({
+  mutationFn: (args: {
+    action: string
+    entries: { lineId: number; reason?: string; returnedQuantity?: number }[]
+  }) => {
+    return loanAction(loanId.value, args.action, { entries: args.entries })
   },
-  onError: onMutationError,
-})
-
-const addStockMutation = useMutation({
-  mutationFn: () =>
-    addLoanStockLine(loanId.value, Number(addStockTypeId.value), Number(addStockQty.value)),
   onSuccess: async () => {
     actionError.value = null
-    addStockTypeId.value = ''
-    addStockQty.value = '1'
+    selectedLineIds.value = []
     await invalidate()
   },
   onError: onMutationError,
@@ -234,322 +259,271 @@ const removeMutation = useMutation({
   onError: onMutationError,
 })
 
-function buildReturnEntries() {
-  return outstandingLines.value
-    .map((line) => {
-      const outcome = returnOutcomes[line.id]
-      if (outcome !== 'returned' && outcome !== 'loss') return null
-      if (line.kind === 'stock') {
-        const qty = Number(returnQuantities[line.id])
-        if (!Number.isFinite(qty) || qty <= 0) return null
-        if (qty > line.outstandingQuantity) return null
-        return { loanLineId: line.id, outcome, quantity: qty }
-      }
-      return { loanLineId: line.id, outcome }
-    })
-    .filter((e): e is NonNullable<typeof e> => e !== null)
-}
+const loanLines = computed(() => loan.value?.lines ?? [])
 
-const returnMutation = useMutation({
-  mutationFn: () => {
-    const entries = buildReturnEntries()
-    if (!entries.length) {
-      throw new Error('no_return_entries')
-    }
-    return recordLoanReturn(loanId.value, {
-      recordedOn: returnRecordedOn.value,
-      entries,
-    })
-  },
+const showDeleteShortcut = computed(
+  () =>
+    isLoanBorrower.value &&
+    loan.value != null &&
+    canDeleteUnreleasedLoan(loanLines.value, loan.value.phase),
+)
+
+const showCancelShortcut = computed(
+  () =>
+    canParticipateInLineWorkflow.value &&
+    loan.value?.phase === 'active' &&
+    canCancelUnpackedLoan(loanLines.value),
+)
+
+const showSkipPickupShortcut = computed(
+  () =>
+    canParticipateInLineWorkflow.value &&
+    loan.value?.phase !== 'closed' &&
+    canSkipPickupToReturn(loanLines.value),
+)
+
+const showNotifyAddedShortcut = computed(
+  () =>
+    canParticipateInLineWorkflow.value &&
+    loan.value?.phase === 'active' &&
+    loan.value?.hasUnnotifiedRequestedLines === true,
+)
+
+const notifyAddedMutation = useMutation({
+  mutationFn: () => loanAction(loanId.value, 'notify-added'),
   onSuccess: async () => {
     actionError.value = null
-    for (const key of Object.keys(returnOutcomes)) {
-      delete returnOutcomes[Number(key)]
-    }
-    for (const key of Object.keys(returnQuantities)) {
-      delete returnQuantities[Number(key)]
-    }
     await invalidate()
   },
   onError: onMutationError,
 })
+
+const deleteLoanMutation = useMutation({
+  mutationFn: () => deleteLoan(loanId.value),
+  onSuccess: async () => {
+    actionError.value = null
+    if (activeLoanId.value === loanId.value) {
+      setActiveLoan(null)
+    }
+    await queryClient.invalidateQueries({ queryKey: ['loans', inventoryId.value] })
+    await router.push({ name: 'inventory-loans', params: { id: String(inventoryId.value) } })
+  },
+  onError: onMutationError,
+})
+
+const cancelLoanMutation = useMutation({
+  mutationFn: () => loanAction(loanId.value, 'cancel'),
+  onSuccess: async () => {
+    actionError.value = null
+    await invalidate()
+  },
+  onError: onMutationError,
+})
+
+const skipPickupMutation = useMutation({
+  mutationFn: () => loanAction(loanId.value, 'skip-pickup'),
+  onSuccess: async () => {
+    actionError.value = null
+    await invalidate()
+  },
+  onError: onMutationError,
+})
+
+const shortcutPending = computed(
+  () =>
+    deleteLoanMutation.isPending.value ||
+    cancelLoanMutation.isPending.value ||
+    skipPickupMutation.isPending.value,
+)
+
+function onShortcutDelete() {
+  if (!window.confirm(t('loans.shortcutDeleteConfirm'))) return
+  deleteLoanMutation.mutate()
+}
+
+function onShortcutCancel() {
+  if (!window.confirm(t('loans.shortcutCancelConfirm'))) return
+  cancelLoanMutation.mutate()
+}
+
+function onShortcutSkipPickup() {
+  if (!window.confirm(t('loans.shortcutSkipPickupConfirm'))) return
+  skipPickupMutation.mutate()
+}
+
+const needsPhoneBeforeRequest = computed(
+  () =>
+    isLoanBorrower.value &&
+    isDraftPhase.value &&
+    !(me.value?.phone ?? '').trim(),
+)
+
+const materialActionError = computed(() => {
+  if (!actionError.value || !loan.value) return null
+  const hasLines = (loan.value.lines?.length ?? 0) > 0
+  if (!hasLines || !canParticipateInLineWorkflow.value) return null
+  return actionError.value
+})
+
+const requestActionError = computed(() => {
+  if (!actionError.value || materialActionError.value) return null
+  if (!isDraftPhase.value || !isLoanBorrower.value) return null
+  return actionError.value
+})
+
+const globalActionError = computed(() => {
+  if (!actionError.value) return null
+  if (materialActionError.value || requestActionError.value) return null
+  return actionError.value
+})
+
 </script>
 
 <template>
-  <div class="app-page space-y-6">
+  <div class="app-page">
     <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
     <template v-else-if="loan">
-      <p v-if="actionError" class="text-sm text-error">{{ actionError }}</p>
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p class="text-sm text-base-content/70">{{ kindLabel }} · {{ statusLabel }}</p>
-          <p class="text-lg font-semibold">{{ loan.groupName }}</p>
-          <p class="text-sm">
-            {{ t('loans.responsible') }}: {{ loan.responsibleUserName }}
-            <template v-if="loan.eventName"> · {{ loan.eventName }}</template>
-          </p>
-        </div>
-        <button
-          v-if="isPlanned"
-          type="button"
-          class="btn btn-primary"
-          :disabled="handOutMutation.isPending.value || !loan.lines.length"
-          @click="handOutMutation.mutate()"
-        >
-          {{ t('loans.handOut') }}
-        </button>
-      </div>
+      <LoanStatusHeader
+        :loan="loan"
+        :can-manage="canManage"
+        :use-manager-workflow-steps="useManagerWorkflowSteps"
+        :can-edit-borrower="canEditBorrowerStammdaten"
+        :permission-users="permissionUsers ?? []"
+        :is-loan-borrower="isLoanBorrower"
+        :show-delete-shortcut="showDeleteShortcut"
+        :show-cancel-shortcut="showCancelShortcut"
+        :show-skip-pickup-shortcut="showSkipPickupShortcut"
+        :show-notify-added-shortcut="showNotifyAddedShortcut"
+        :notify-added-pending="notifyAddedMutation.isPending.value"
+        :shortcut-pending="shortcutPending"
+        @use-as-box="setActiveLoan(loan.id)"
+        @meta-saved="invalidate()"
+        @shortcut-delete="onShortcutDelete"
+        @shortcut-cancel="onShortcutCancel"
+        @shortcut-skip-pickup="onShortcutSkipPickup"
+        @shortcut-notify-added="notifyAddedMutation.mutate()"
+      />
 
-      <section class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
-        
-          <h2 class="app-page-title text-base">{{ t('photos.heading') }}</h2>
-          <PhotoGallery
-            :owner="{ kind: 'loan', loanId: loan.id }"
-            :photos="loan.photos ?? []"
-            @change="() => queryClient.invalidateQueries({ queryKey: ['loan', loanId] })"
-          />
-      </section>
+      <LoanLinesSection
+        :loan="loan"
+        :inventory-id="inventoryId"
+        :can-manage="canActAsManager"
+        :is-loan-borrower="isLoanBorrower"
+        :can-participate-in-line-workflow="canParticipateInLineWorkflow"
+        :selected-line-ids="selectedLineIds"
+        :confirm-pending="confirmMutation.isPending.value"
+        :decline-pending="declineMutation.isPending.value"
+        :action-pending="actionMutation.isPending.value"
+        :entry-action-pending="entryActionMutation.isPending.value"
+        :action-message="materialActionError"
+        @select-lines="selectLines"
+        @deselect-lines="deselectLines"
+        @toggle-line="toggleLine"
+        @confirm="(lineIds) => confirmMutation.mutate(lineIds)"
+        @decline="(entries) => declineMutation.mutate(entries)"
+        @withdraw="
+          (lineIds) =>
+            actionMutation.mutate({
+              action: 'withdraw',
+              lineIds: lineIdsForAction(lineIds, 'requested', 'confirmed'),
+            })
+        "
+        @pack="
+          (lineIds) =>
+            actionMutation.mutate({
+              action: 'pack',
+              lineIds: lineIdsForAction(lineIds, 'confirmed'),
+            })
+        "
+        @unpack="
+          (lineIds) =>
+            actionMutation.mutate({
+              action: 'unpack',
+              lineIds: lineIdsForAction(lineIds, 'packed'),
+            })
+        "
+        @not-packed="
+          (entries) =>
+            entryActionMutation.mutate({
+              action: 'mark-not-packed',
+              entries,
+            })
+        "
+        @pickup="
+          (lineIds) =>
+            actionMutation.mutate({
+              action: 'pickup',
+              lineIds: lineIdsForAction(lineIds, 'packed'),
+            })
+        "
+        @undo-pickup="
+          (lineIds) =>
+            actionMutation.mutate({
+              action: 'undo-pickup',
+              lineIds: lineIdsForAction(lineIds, 'picked_up'),
+            })
+        "
+        @not-picked-up="
+          (entries) =>
+            entryActionMutation.mutate({
+              action: 'mark-not-picked-up',
+              entries,
+            })
+        "
+        @report-return="
+          (lineIds) =>
+            actionMutation.mutate({
+              action: 'report-return',
+              lineIds: lineIdsForAction(lineIds, 'picked_up'),
+            })
+        "
+        @restock="
+          (entries) =>
+            entryActionMutation.mutate({
+              action: 'restock',
+              entries,
+            })
+        "
+        @record-loss="
+          (entries) =>
+            entryActionMutation.mutate({
+              action: 'record-loss',
+              entries,
+            })
+        "
+        @remove-line="removeMutation.mutate($event)"
+      />
 
-      <section class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
-        
-          <h2 class="app-page-title text-base">{{ t('loans.linesHeading') }}</h2>
-          <div class="space-y-4 text-sm">
-            <div v-for="group in lineGroups.groups" :key="group.setId" class="space-y-2">
-              <p class="font-semibold text-base-content/90">
-                {{ t('sets.heading') }}: {{ group.setName }}
-              </p>
-              <ul class="space-y-2 pl-2">
-                <li
-                  v-for="line in group.lines"
-                  :key="line.id"
-                  class="rounded-lg bg-base-200/50 p-3"
-                >
-                  <div class="flex justify-between gap-2">
-                    <span>
-                      <template v-if="line.kind === 'piece'">
-                        {{ line.pieceName }} · {{ line.materialTypeName }}
-                      </template>
-                      <template v-else>
-                        {{ line.materialTypeName }} × {{ line.quantity }}
-                      </template>
-                      <span v-if="optionalTag(line)" class="ml-1 text-xs opacity-70">
-                        ({{ t('sets.optionals') }})
-                      </span>
-                    </span>
-                    <button
-                      v-if="isPlanned"
-                      type="button"
-                      class="btn btn-ghost btn-xs"
-                      @click="removeMutation.mutate(line.id)"
-                    >
-                      {{ t('sets.remove') }}
-                    </button>
-                  </div>
-                  <p v-if="isHandedOut || isClosed" class="mt-2 text-xs opacity-80">
-                    <template v-if="line.kind === 'stock'">
-                      {{ t('loans.outstandingStock', { count: line.outstandingQuantity }) }}
-                      <template v-if="line.returnedQuantity || line.lostQuantity">
-                        ·
-                        {{
-                          t('loans.returnedSoFar', {
-                            returned: line.returnedQuantity,
-                            lost: line.lostQuantity,
-                          })
-                        }}
-                      </template>
-                    </template>
-                    <template v-else-if="line.settled">
-                      <template v-if="line.lostQuantity">{{ t('loans.lineSettledLoss') }}</template>
-                      <template v-else>{{ t('loans.lineSettledReturned') }}</template>
-                    </template>
-                    <template v-else>{{ t('loans.outstandingPiece') }}</template>
-                  </p>
-                </li>
-              </ul>
-            </div>
-            <ul v-if="lineGroups.loose.length" class="space-y-2">
-              <li
-                v-for="line in lineGroups.loose"
-                :key="line.id"
-                class="rounded-lg bg-base-200/50 p-3"
-              >
-                <div class="flex justify-between gap-2">
-                  <span>
-                    <template v-if="line.kind === 'piece'">
-                      {{ line.pieceName }} · {{ line.materialTypeName }}
-                    </template>
-                    <template v-else>
-                      {{ line.materialTypeName }} × {{ line.quantity }}
-                    </template>
-                  </span>
-                  <button
-                    v-if="isPlanned"
-                    type="button"
-                    class="btn btn-ghost btn-xs"
-                    @click="removeMutation.mutate(line.id)"
-                  >
-                    {{ t('sets.remove') }}
-                  </button>
-                </div>
-                <p v-if="isHandedOut || isClosed" class="mt-2 text-xs opacity-80">
-                  <template v-if="line.kind === 'stock'">
-                    {{ t('loans.outstandingStock', { count: line.outstandingQuantity }) }}
-                    <template v-if="line.returnedQuantity || line.lostQuantity">
-                      ·
-                      {{
-                        t('loans.returnedSoFar', {
-                          returned: line.returnedQuantity,
-                          lost: line.lostQuantity,
-                        })
-                      }}
-                    </template>
-                  </template>
-                  <template v-else-if="line.settled">
-                    <template v-if="line.lostQuantity">{{ t('loans.lineSettledLoss') }}</template>
-                    <template v-else>{{ t('loans.lineSettledReturned') }}</template>
-                  </template>
-                  <template v-else>{{ t('loans.outstandingPiece') }}</template>
-                </p>
-              </li>
-            </ul>
-            <p v-if="!loan.lines.length" class="opacity-70">{{ t('loans.linesEmpty') }}</p>
-          </div>
-      </section>
+      <LoanPrimaryActions
+        v-if="loan.lines.length > 0"
+        :loan="loan"
+        :is-borrower="isLoanBorrower"
+        :needs-phone-before-request="needsPhoneBeforeRequest"
+        :phone-for-request="phoneForRequest"
+        :request-pending="requestMutation.isPending.value"
+        :action-message="requestActionError"
+        @update:phone-for-request="phoneForRequest = $event"
+        @request="requestMutation.mutate()"
+      />
 
-      <section v-if="isHandedOut && outstandingLines.length" class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
-        
-          <h2 class="app-page-title text-base">{{ t('loans.returnHeading') }}</h2>
-          <form class="space-y-4" @submit.prevent="returnMutation.mutate()">
-            <label class="form-control w-full max-w-xs">
-              <span class="label-text">{{ t('loans.returnRecordedOn') }}</span>
-              <input v-model="returnRecordedOn" type="date" class="input input-bordered" required />
-            </label>
-            <ul class="space-y-3 text-sm">
-              <li
-                v-for="line in outstandingLines"
-                :key="line.id"
-                class="rounded-lg bg-base-200/50 p-3 space-y-2"
-              >
-                <p class="font-medium">{{ lineLabel(line) }}</p>
-                <p v-if="line.kind === 'stock'" class="text-xs opacity-80">
-                  {{ t('loans.outstandingStock', { count: line.outstandingQuantity }) }}
-                </p>
-                <div class="flex flex-wrap items-center gap-2">
-                  <select v-model="returnOutcomes[line.id]" class="select select-bordered select-sm">
-                    <option disabled value="">{{ t('loans.pickReturnOutcome') }}</option>
-                    <option value="returned">{{ t('loans.outcomeReturned') }}</option>
-                    <option value="loss">{{ t('loans.outcomeLoss') }}</option>
-                  </select>
-                  <input
-                    v-if="line.kind === 'stock'"
-                    v-model="returnQuantities[line.id]"
-                    type="number"
-                    min="1"
-                    :max="line.outstandingQuantity"
-                    class="input input-bordered input-sm w-24"
-                    :placeholder="t('loans.returnQuantity')"
-                  />
-                </div>
-              </li>
-            </ul>
-            <button
-              type="submit"
-              class="btn btn-primary"
-              :disabled="returnMutation.isPending.value"
-            >
-              {{ t('loans.submitReturn') }}
-            </button>
-          </form>
-      </section>
+      <LoanDetailsCollapsible
+        :loan="loan"
+        :can-manage="canActAsManager"
+        :is-loan-borrower="isLoanBorrower"
+        :can-participate-in-line-workflow="canParticipateInLineWorkflow"
+        :is-closed-phase="isClosedPhase"
+        :is-permanent="isPermanent"
+        :edit-pickup-note="editPickupNote"
+        :edit-return-note="editReturnNote"
+        :patch-pending="patchMetaMutation.isPending.value"
+        @update:edit-pickup-note="editPickupNote = $event"
+        @update:edit-return-note="editReturnNote = $event"
+        @save-pickup-note="patchMetaMutation.mutate({ pickupNote: editPickupNote })"
+        @save-return-note="patchMetaMutation.mutate({ returnNote: editReturnNote })"
+        @photos-change="queryClient.invalidateQueries({ queryKey: ['loan', loanId] })"
+      />
 
-      <section v-if="loan.returns.length" class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
-        
-          <h2 class="app-page-title text-base">{{ t('loans.returnHistoryHeading') }}</h2>
-          <ul class="space-y-3 text-sm">
-            <li
-              v-for="ret in loan.returns"
-              :key="ret.id"
-              class="rounded-lg bg-base-200/50 p-3"
-            >
-              <p class="font-medium">{{ ret.recordedOn }}</p>
-              <ul class="mt-1 space-y-1 pl-2 text-xs opacity-90">
-                <li v-for="(entry, idx) in ret.lines" :key="idx">
-                  {{
-                    returnEntryLabel(
-                      loan.lines.find((l) => l.id === entry.loanLineId)!,
-                      entry.outcome,
-                      entry.quantity,
-                    )
-                  }}
-                </li>
-              </ul>
-            </li>
-          </ul>
-      </section>
-
-      <section v-if="isPlanned" class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
-        
-          <h2 class="app-page-title text-base">{{ t('loans.addLine') }}</h2>
-          <form class="flex flex-wrap gap-2" @submit.prevent="addSetMutation.mutate()">
-            <select v-model="addSetId" class="select select-bordered min-w-0 flex-1" required>
-              <option disabled value="">{{ t('loans.pickSet') }}</option>
-              <option v-for="s in sets" :key="s.id" :value="s.id">{{ s.name }}</option>
-            </select>
-            <button type="submit" class="btn btn-outline" :disabled="addSetMutation.isPending.value">
-              {{ t('loans.addSet') }}
-            </button>
-          </form>
-          <form
-            v-if="setsForOptionalAdd.length"
-            class="flex flex-wrap gap-2"
-            @submit.prevent="addOptionalSetMutation.mutate()"
-          >
-            <select
-              v-model="addOptionalSetId"
-              class="select select-bordered min-w-0 flex-1"
-              required
-            >
-              <option disabled value="">{{ t('loans.pickSetForOptionals') }}</option>
-              <option v-for="s in setsForOptionalAdd" :key="s.id" :value="s.id">
-                {{ s.name }}
-              </option>
-            </select>
-            <button
-              type="submit"
-              class="btn btn-outline"
-              :disabled="addOptionalSetMutation.isPending.value"
-            >
-              {{ t('loans.addSetOptionals') }}
-            </button>
-          </form>
-          <form class="flex flex-wrap gap-2" @submit.prevent="addPieceMutation.mutate()">
-            <select v-model="addPieceId" class="select select-bordered min-w-0 flex-1" required>
-              <option disabled value="">{{ t('loans.pickPiece') }}</option>
-              <option v-for="p in loanablePieces" :key="p.id" :value="p.id">
-                {{ p.name }} · {{ p.materialTypeName }}
-              </option>
-            </select>
-            <button type="submit" class="btn btn-outline" :disabled="addPieceMutation.isPending.value">
-              {{ t('loans.addPiece') }}
-            </button>
-          </form>
-          <form class="flex flex-wrap gap-2" @submit.prevent="addStockMutation.mutate()">
-            <select v-model="addStockTypeId" class="select select-bordered min-w-0 flex-1" required>
-              <option disabled value="">{{ t('loans.pickStockType') }}</option>
-              <option v-for="mt in stockTypes" :key="mt.id" :value="mt.id">{{ mt.name }}</option>
-            </select>
-            <input
-              v-model="addStockQty"
-              type="number"
-              min="1"
-              class="input input-bordered w-24"
-              required
-            />
-            <button type="submit" class="btn btn-outline" :disabled="addStockMutation.isPending.value">
-              {{ t('loans.addStock') }}
-            </button>
-          </form>
-      </section>
+      <ActionFeedbackBanner :message="globalActionError" @dismiss="actionError = null" />
     </template>
   </div>
 </template>
