@@ -1,0 +1,19 @@
+{% if loan_display_title %}{{ loan_display_title }}
+{% endif %}{% if action_url and action_label %}{{ action_label }}: {{ action_url }}
+
+{% endif %}{{ heading }}
+
+{% if workflow_trail %}{% for step in workflow_trail %}{{ step.label }}{% if not loop.last %} → {% endif %}{% endfor %}
+
+{% endif %}{% if items %}{{ items_heading }}
+{{ table_position_label }}	{{ table_status_label }}
+{% for item in items %}{{ item.title }}{% if item.material_subtitle %} ({{ item.material_subtitle }}){% endif %}{% if item.reason %} — {{ item.reason }}{% endif %}{% if item.changed %} ({{ line_changed_label }}){% endif %}	{{ item.status }}
+{% endfor %}
+{% endif %}{% if paragraphs %}{{ summary_heading }}
+{{ paragraphs | join(' ') }}
+
+{% endif %}{% if next_step_hint %}{{ next_heading }}
+{{ next_step_hint }}
+{% endif %}{% if action_url and action_label %}{{ action_label }}: {{ action_url }}
+
+{% endif %}

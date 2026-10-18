@@ -1,6 +1,13 @@
 # LaMathek
 
-Material inventory for VCP Hessen. Domain language is in [CONTEXT.md](CONTEXT.md). Product and architecture decisions are in [docs/software.md](docs/software.md) and [docs/adr/](docs/adr/).
+Material inventory for VCP Hessen.
+
+**Documentation**
+
+- [CONTEXT.md](CONTEXT.md) — domain glossary (terms; German headwords, English for code)
+- [docs/domain/README.md](docs/domain/README.md) — **product rules (Deutsch)** — start here for Verleih, workflow, permissions
+- [docs/software.md](docs/software.md) — index of domain records
+- [docs/adr/](docs/adr/) — technical ADRs (English)
 
 **Version:** [CalVer](https://calver.org/) `YYYY.MM.MICRO` (see [CHANGELOG.md](CHANGELOG.md)).
 

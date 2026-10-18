@@ -19,8 +19,6 @@ from lamathek.models.settings import InstallationSettings
 from lamathek.models.audit import AuditEvent
 from lamathek.models.user import User
 from lamathek.services.photos import photos_to_json
-
-
 def user_to_json(user: User) -> dict:
     return {
         "id": user.id,
@@ -274,37 +272,6 @@ def _origin_json(line: LoanLine) -> dict:
     }
 
 
-def _loan_open_workflow_step(loan: Loan) -> str | None:
-    from lamathek.models.loan import (
-        LINE_STATUS_CONFIRMED,
-        LINE_STATUS_PACKED,
-        LINE_STATUS_PICKED_UP,
-        LINE_STATUS_REQUESTED,
-        LINE_STATUS_RETURN_REPORTED,
-        LINE_STATUSES_TERMINAL,
-        LOAN_PHASE_ACTIVE,
-    )
-
-    if loan.phase != LOAN_PHASE_ACTIVE:
-        return None
-    open_statuses = {
-        line.status
-        for line in loan.lines
-        if line.status not in LINE_STATUSES_TERMINAL
-    }
-    if LINE_STATUS_REQUESTED in open_statuses:
-        return "review"
-    if LINE_STATUS_CONFIRMED in open_statuses:
-        return "pack"
-    if LINE_STATUS_PACKED in open_statuses:
-        return "handover"
-    if LINE_STATUS_PICKED_UP in open_statuses:
-        return "return"
-    if LINE_STATUS_RETURN_REPORTED in open_statuses:
-        return "restock"
-    return None
-
-
 def _loan_line_to_json(line: LoanLine) -> dict:
     origin = _origin_json(line)
     base = {
@@ -316,6 +283,7 @@ def _loan_line_to_json(line: LoanLine) -> dict:
         "splitFromLineId": line.split_from_line_id,
         "requestNotified": bool(line.request_notified),
         "returnedQuantity": line.returned_quantity,
+        "statusBeforeEnd": line.status_before_end,
         **origin,
     }
     if line.piece_id is not None and line.piece is not None:
@@ -393,23 +361,21 @@ def loan_detail_to_json(
     viewer: User | None = None,
     session: Session | None = None,
 ) -> dict:
-    from lamathek.models.loan import PHOTO_ROLE_LOAN, PHOTO_ROLE_PICKUP, PHOTO_ROLE_RETURN
+    from lamathek.models.loan import PHOTO_ROLE_PICKUP, PHOTO_ROLE_RETURN
 
-    loan_photos = [p for p in loan.photos if p.loan_photo_role in (None, PHOTO_ROLE_LOAN)]
     pickup_photos = [p for p in loan.photos if p.loan_photo_role == PHOTO_ROLE_PICKUP]
     return_photos = [p for p in loan.photos if p.loan_photo_role == PHOTO_ROLE_RETURN]
     return {
         **loan_to_json(
             loan, cover_photo_id=cover_photo_id, viewer=viewer, session=session
         ),
-        "photos": photos_to_json(loan_photos),
         "pickupPhotos": photos_to_json(pickup_photos),
         "returnPhotos": photos_to_json(return_photos),
         "lines": [_loan_line_to_json(line) for line in loan.lines],
+        "hasPendingMailChanges": any(line.mail_pending for line in loan.lines),
         "hasUnnotifiedRequestedLines": any(
             line.status == "requested" and not line.request_notified for line in loan.lines
         ),
-        "openWorkflowStep": _loan_open_workflow_step(loan),
     }
 
 

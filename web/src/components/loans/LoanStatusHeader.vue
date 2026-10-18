@@ -7,7 +7,14 @@ import { useLoanWorkflowUi } from '../../composables/useLoanWorkflowUi'
 import { loanDisplayName } from '../../utils/loanDisplayName'
 import LoanMetaGrid from './LoanMetaGrid.vue'
 import { LOAN_DETAIL_SECTION } from './loanDetailLayout'
-import { borrowerStepTones, managerStepTones, stepBadgeClass } from './loanWorkflowTones'
+import { borrowerStepTones, managerStepTones, stageButtonClass, stepBadgeClass } from './loanWorkflowTones'
+import {
+  isWorkflowLoanPhase,
+  loanWorkflowContextFromLoan,
+  resolveEffectiveWorkflowStep,
+} from '../../domain/loanWorkflowSteps'
+import LoanPhaseCloseCluster from './LoanPhaseCloseCluster.vue'
+import type { LoanPhaseRareActionId, LoanPhaseRareMenuItem } from '../../utils/loanPhaseRareActions'
 
 const props = defineProps<{
   loan: LoanDetail
@@ -16,27 +23,23 @@ const props = defineProps<{
   canEditBorrower: boolean
   permissionUsers: { id: number; name?: string | null; email?: string | null }[]
   isLoanBorrower: boolean
-  showDeleteShortcut: boolean
-  showCancelShortcut: boolean
-  showSkipPickupShortcut: boolean
-  showNotifyAddedShortcut: boolean
-  notifyAddedPending: boolean
+  rareMenuItems: LoanPhaseRareMenuItem[]
   shortcutPending: boolean
+  completePending: boolean
+  closeBlockedTitle: string
 }>()
 
 const emit = defineEmits<{
-  useAsBox: []
   metaSaved: []
-  shortcutDelete: []
-  shortcutCancel: []
-  shortcutSkipPickup: []
-  shortcutNotifyAdded: []
+  rareAction: [id: LoanPhaseRareActionId, payload?: { reason: string }]
+  completePhase: []
 }>()
 
 const { t } = useI18n()
 const loanRef = toRef(props, 'loan')
 const {
   workflowHintKey,
+  effectiveWorkflowStep,
   borrowerSteps,
   managerSteps,
   borrowerStepIndex,
@@ -79,29 +82,121 @@ function pillState(index: number): 'current' | 'past' | 'future' {
 
 const showWorkflowTrail = computed(() => props.loan.phase !== 'closed')
 
+const isManagerReviewStep = computed(
+  () =>
+    props.useManagerWorkflowSteps &&
+    props.canManage &&
+    props.loan.phase === 'review' &&
+    effectiveWorkflowStep.value === 'review',
+)
+
+const workflowHintDisplayKey = computed(() => {
+  if (isManagerReviewStep.value) return 'loans.workflowHint_requestedManager'
+  return workflowHintKey.value
+})
+
 const statusLineKey = computed(() => {
-  const { phase, kind, openWorkflowStep } = props.loan
+  const { phase, kind } = props.loan
+  const step = effectiveWorkflowStep.value
   if (phase === 'closed') {
     return kind === 'permanent' ? 'loans.statusLine_closedPermanent' : 'loans.statusLine_closedShort'
   }
   if (phase === 'draft') {
     return kind === 'permanent' ? 'loans.statusLine_draftPermanent' : 'loans.statusLine_draftShort'
   }
-  if (phase === 'active' && openWorkflowStep) {
+  if (isWorkflowLoanPhase(phase) && step) {
     const stepKeys: Record<string, string> = {
-      review: 'loans.statusLine_stepReview',
+      review: isManagerReviewStep.value
+        ? 'loans.statusLine_stepReviewManager'
+        : 'loans.statusLine_stepReview',
       pack: 'loans.statusLine_stepPack',
       handover: 'loans.statusLine_stepHandover',
       return: 'loans.statusLine_stepReturn',
       restock: 'loans.statusLine_stepRestock',
     }
-    const key = stepKeys[openWorkflowStep]
+    const key = stepKeys[step]
     if (key) return key
   }
   return kind === 'permanent' ? 'loans.statusLine_activePermanent' : 'loans.statusLine_activeShort'
 })
 
 const displayTitle = computed(() => loanDisplayName(props.loan) || t('loans.heading'))
+
+const phaseClose = computed(() => {
+  const loan = props.loan
+  const canReceipt = props.canManage || props.isLoanBorrower
+  if (loan.phase === 'closed') {
+    if (loan.hasPendingMailChanges && canReceipt) {
+      return { labelKey: 'loans.stepReportChanges', disabled: false, remaining: 0, needsLines: false }
+    }
+    return null
+  }
+  if (loan.phase === 'draft') {
+    if (!props.isLoanBorrower) return null
+    const hasLines = (loan.lines?.length ?? 0) > 0
+    return {
+      labelKey: 'loans.phaseCloseRequest',
+      disabled: !hasLines,
+      remaining: 0,
+      needsLines: !hasLines,
+    }
+  }
+  const step = resolveEffectiveWorkflowStep(loanWorkflowContextFromLoan(loan))
+  if (!step) return null
+  const managerOnly = step === 'review' || step === 'pack' || step === 'restock'
+  const allowed = managerOnly ? props.canManage : canReceipt
+  if (!allowed) return null
+  const openStatus: Record<string, string> = {
+    review: 'requested',
+    pack: 'confirmed',
+    handover: 'packed',
+    return: 'picked_up',
+    restock: 'return_reported',
+  }
+  const labelKey: Record<string, string> = {
+    review: 'loans.phaseCloseReview',
+    pack: 'loans.phaseClosePack',
+    handover: 'loans.phaseCloseHandover',
+    return: 'loans.phaseCloseReturn',
+    restock: 'loans.phaseCloseRestock',
+  }
+  const remaining = (loan.lines ?? []).filter((line) => line.status === openStatus[step]).length
+  return {
+    labelKey: labelKey[step] ?? 'loans.stepReportChanges',
+    disabled: remaining > 0,
+    remaining,
+    needsLines: false,
+  }
+})
+
+const phaseCloseDisabled = computed(() => {
+  if (!phaseClose.value) return false
+  return (
+    phaseClose.value.disabled ||
+    props.completePending ||
+    Boolean(props.closeBlockedTitle)
+  )
+})
+
+const closeHoverReason = computed(() => {
+  if (!phaseCloseDisabled.value) return ''
+  if (props.completePending) return t('loans.phaseClosePending')
+  if (props.closeBlockedTitle) return props.closeBlockedTitle
+  const offer = phaseClose.value
+  if (!offer) return ''
+  if (offer.needsLines) return t('loans.phaseCloseNeedsLines')
+  if (offer.remaining > 0) return t('loans.phaseIncomplete', { count: offer.remaining })
+  return ''
+})
+
+const closeButtonClass = computed(() => {
+  if (phaseCloseDisabled.value) {
+    return 'btn btn-sm border border-base-300 bg-base-200 text-base-content/45 shadow-none'
+  }
+  const tone = stepTones.value[stepIndex.value]
+  if (!tone || tone === 'luftgrau') return 'btn btn-sm btn-primary'
+  return stageButtonClass(tone, true)
+})
 
 </script>
 
@@ -112,14 +207,17 @@ const displayTitle = computed(() => loanDisplayName(props.loan) || t('loans.head
         <h1 class="app-page-title">{{ displayTitle }}</h1>
         <p class="text-sm font-medium text-base-content/90">{{ t(statusLineKey) }}</p>
       </div>
-      <button
-        v-if="loan.phase === 'draft' || loan.phase === 'active'"
-        type="button"
-        class="btn btn-outline btn-sm shrink-0"
-        @click="emit('useAsBox')"
-      >
-        {{ t('loans.thisLoanAsBox') }}
-      </button>
+      <LoanPhaseCloseCluster
+        :phase-close-label-key="phaseClose?.labelKey ?? null"
+        :close-button-class="closeButtonClass"
+        :phase-close-disabled="phaseCloseDisabled"
+        :close-hover-reason="closeHoverReason"
+        :complete-pending="completePending"
+        :rare-menu-items="rareMenuItems"
+        :shortcut-pending="shortcutPending"
+        @complete-phase="emit('completePhase')"
+        @rare-action="(id, payload) => emit('rareAction', id, payload)"
+      />
     </div>
 
     <div v-if="showWorkflowTrail" class="space-y-2">
@@ -148,54 +246,13 @@ const displayTitle = computed(() => loanDisplayName(props.loan) || t('loans.head
           </span>
         </li>
       </ol>
-      <p class="text-sm text-base-content/75">{{ t(workflowHintKey) }}</p>
-    </div>
-
-    <div
-      v-if="
-        showDeleteShortcut ||
-        showCancelShortcut ||
-        showSkipPickupShortcut ||
-        showNotifyAddedShortcut
-      "
-      class="flex flex-wrap gap-x-4 gap-y-1 border-t border-base-content/10 pt-3"
-    >
-      <button
-        v-if="showDeleteShortcut"
-        type="button"
-        class="link link-hover text-sm text-error no-underline hover:underline"
-        :disabled="shortcutPending"
-        @click="emit('shortcutDelete')"
-      >
-        {{ t('loans.shortcutDelete') }}
-      </button>
-      <button
-        v-if="showCancelShortcut"
-        type="button"
-        class="link link-hover text-sm no-underline hover:underline"
-        :disabled="shortcutPending"
-        @click="emit('shortcutCancel')"
-      >
-        {{ t('loans.shortcutCancel') }}
-      </button>
-      <button
-        v-if="showSkipPickupShortcut"
-        type="button"
-        class="link link-hover text-sm no-underline hover:underline"
-        :disabled="shortcutPending"
-        @click="emit('shortcutSkipPickup')"
-      >
-        {{ t('loans.shortcutSkipPickup') }}
-      </button>
-      <button
-        v-if="showNotifyAddedShortcut"
-        type="button"
-        class="link link-hover text-sm no-underline hover:underline"
-        :disabled="shortcutPending || notifyAddedPending"
-        @click="emit('shortcutNotifyAdded')"
-      >
-        {{ t('loans.shortcutNotifyAdded') }}
-      </button>
+      <p class="text-sm text-base-content/75">{{ t(workflowHintDisplayKey) }}</p>
+      <p v-if="phaseClose && phaseClose.remaining > 0" class="text-sm text-base-content/75">
+        {{ t('loans.phaseIncomplete', { count: phaseClose.remaining }) }}
+      </p>
+      <p v-else-if="phaseClose?.needsLines" class="text-sm text-base-content/75">
+        {{ t('loans.phaseCloseNeedsLines') }}
+      </p>
     </div>
 
     <LoanMetaGrid

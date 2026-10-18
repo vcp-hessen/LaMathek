@@ -1,0 +1,408 @@
+{
+  "mail": {
+    "htmlLang": "de",
+    "impressum": "Impressum",
+    "privacy": "Datenschutz",
+    "openLoan": "Verleih öffnen",
+    "positions": "Positionen",
+    "lineChanged": "in dieser Phase geändert",
+    "receipt": {
+      "subject": "{step}",
+      "heading": "{step} erledigt",
+      "body": "{name} hat die Positionen unten aktualisiert."
+    },
+    "section": {
+      "phase": "Verleihschritt",
+      "positions": "Positionen",
+      "summary": "Was ist passiert?",
+      "next": "Als Nächstes"
+    },
+    "table": {
+      "position": "Position",
+      "status": "Status"
+    },
+    "nextStep": {
+      "draft": "Anfrage senden, wenn alle Positionen in der Box sind.",
+      "review": {
+        "borrower": "Du hörst von den Materialwart*innen, sobald alles geprüft ist.",
+        "managers": "Prüfe die Positionen und gib zu oder lehne ab."
+      },
+      "pack": {
+        "borrower": "Du wirst informiert, sobald alles gepackt ist und du abholen kannst.",
+        "managers": "Bitte packe die bestätigten Positionen und schließe den Schritt ab, wenn du fertig bist."
+      },
+      "handover": {
+        "borrower": "Hole das Material ab oder melde, wenn du es abgeholt hast.",
+        "managers": "Übergib das Material oder halte die Abholung fest."
+      },
+      "return": {
+        "borrower": "Bringe das Material zurück und melde die Rückgabe.",
+        "managers": "Warte auf die Rückmeldung der Ausleihenden."
+      },
+      "restock": {
+        "borrower": "Die Materialwart*innen übernehmen die zurückgegebenen Positionen.",
+        "managers": "Übernimm die zurückgegebenen Positionen in den Bestand."
+      },
+      "closed": {
+        "borrower": "Der Verleih ist abgeschlossen.",
+        "managers": "Der Verleih ist abgeschlossen."
+      }
+    },
+    "stepReceipt": {
+      "review": {
+        "borrower": {
+          "subject": "Zusage",
+          "heading": "Material ist zugesagt",
+          "body": ["{actor} hat die genannten Positionen für deine Ausleihe bestätigt."]
+        },
+        "managers": {
+          "subject": "Freigabe erledigt",
+          "heading": "Jetzt packen",
+          "body": ["Die Freigabe ist abgeschlossen. Bitte packe die genannten Positionen."]
+        }
+      },
+      "pack": {
+        "borrower": {
+          "subject": "Gepackt",
+          "heading": "Material ist gepackt",
+          "body": ["{actor} hat die genannten Positionen gepackt. Du kannst sie abholen."]
+        },
+        "managers": {
+          "subject": "Packen erledigt",
+          "heading": "Bereit zur Abholung",
+          "body": ["Das Packen ist abgeschlossen. Die Ausleihenden können das Material abholen."]
+        }
+      },
+      "handover": {
+        "borrower": {
+          "subject": "Abholung",
+          "heading": "Material abgeholt",
+          "body": ["Die Abholung der genannten Positionen ist festgehalten."]
+        },
+        "managers": {
+          "subject": "Abholung erledigt",
+          "heading": "Rückgabe vorbereiten",
+          "body": ["Die Abholung ist abgeschlossen. Als Nächstes folgt die Rückgabe."]
+        }
+      },
+      "return": {
+        "borrower": {
+          "subject": "Rückgabe gemeldet",
+          "heading": "Rückgabe festgehalten",
+          "body": ["Deine Rückgabe der genannten Positionen ist festgehalten."]
+        },
+        "managers": {
+          "subject": "Rückgabe erledigt",
+          "heading": "Übernahme",
+          "body": ["Die Rückgabe ist abgeschlossen. Bitte übernimm die Positionen in den Bestand."]
+        }
+      },
+      "restock": {
+        "borrower": {
+          "subject": "Übernahme",
+          "heading": "Material übernommen",
+          "body": ["{actor} hat die genannten Positionen wieder in den Bestand übernommen."]
+        },
+        "managers": {
+          "subject": "Übernahme erledigt",
+          "heading": "Verleih abgeschlossen",
+          "body": ["Die Übernahme ist abgeschlossen. Der Verleih kann geschlossen werden, sobald alle Positionen erledigt sind."]
+        }
+      }
+    },
+    "subjectWithLoan": "{subject} · {loan_name}",
+    "fact": {
+      "inventory": "Inventar",
+      "group": "Gruppe",
+      "event": "Veranstaltung",
+      "borrower": "Ausleihende*r",
+      "contact": "Ansprechperson",
+      "pickup": "Abholung",
+      "return": "Rückgabe",
+      "date": "Datum",
+      "kind": "Art",
+      "loanPhase": "Verleihstatus",
+      "closedStep": "Abgeschlossene Phase",
+      "workStep": "Weiter bei"
+    },
+    "loanPhase": {
+      "draft": "Entwurf",
+      "closed": "Abgeschlossen"
+    },
+    "workflowStep": {
+      "request": "Anfrage",
+      "review": "Freigabe",
+      "pack": "Packen",
+      "handover": "Abholung",
+      "return": "Rückgabe",
+      "restock": "Übernahme"
+    },
+    "lineStatus": {
+      "draft": "Entwurf",
+      "requested": "Angefragt",
+      "confirmed": "Bestätigt",
+      "packed": "Gepackt",
+      "picked_up": "Abgeholt",
+      "return_reported": "Zurückgemeldet",
+      "restocked": "Übernommen",
+      "unavailable": "Nicht verfügbar",
+      "not_packed": "Nicht gepackt",
+      "not_picked_up": "Nicht abgeholt",
+      "not_returned": "Nicht zurückgebracht",
+      "withdrawn": "Zurückgezogen"
+    },
+    "permanent": "Dauerleihgabe",
+    "linePiece": "{name}",
+    "linePieceFromSet": "{name} (aus {set})",
+    "lineStock": "{name} × {quantity}",
+    "lineStockFromSet": "{name} × {quantity} (aus {set})",
+    "lineFallback": "Position {id}",
+    "reason": "Grund: {reason}",
+    "lineStatusLabel": "Status: {status}",
+    "loan": {
+      "fallback": {
+        "subject": "Verleih aktualisiert",
+        "heading": "Änderung am Verleih",
+        "body": ["Am Verleih gab es eine Änderung."]
+      },
+      "changes": {
+        "borrower": {
+          "subject": "Änderungen am Verleih",
+          "heading": "Änderungen mitgeteilt",
+          "body": [
+            "{actor} teilt dir Änderungen an deiner Ausleihe mit (Phase: {step})."
+          ]
+        },
+        "managers": {
+          "subject": "Änderungen am Verleih",
+          "heading": "Änderungen mitgeteilt",
+          "body": [
+            "{actor} teilt Änderungen an der Ausleihe mit (Phase: {step})."
+          ]
+        }
+      },
+      "request": {
+        "managers": {
+          "subject": "Neue Anfrage von {borrower}",
+          "heading": "Neue Anfrage",
+          "body": [
+            "{borrower} hat Material aus {inventory} angefragt.",
+            "Bitte prüfe die Positionen und sage zu oder lehne ab."
+          ]
+        },
+        "borrower": {
+          "subject": "Anfrage gesendet",
+          "heading": "Anfrage unterwegs",
+          "body": [
+            "Die Materialwart*innen von {inventory} haben deine Anfrage bekommen.",
+            "Du hörst von ihnen, sobald sie zu- oder absagen."
+          ]
+        },
+        "managersFromManager": {
+          "subject": "Anfrage für {borrower}",
+          "heading": "Anfrage angelegt",
+          "body": [
+            "{actor} hat für {borrower} eine Ausleihe bei {inventory} als Anfrage angelegt."
+          ]
+        },
+        "borrowerFromManager": {
+          "subject": "Ausleihe für dich",
+          "heading": "Eine Ausleihe wurde für dich angelegt",
+          "body": [
+            "{actor} hat bei {inventory} Material für dich angefragt und ist Ansprechperson.",
+            "Die genannten Positionen gelten, sobald sie bestätigt sind."
+          ]
+        }
+      },
+      "added": {
+        "managers": {
+          "subject": "Weitere Positionen angefragt",
+          "heading": "Nachträglich angefragt",
+          "body": [
+            "{borrower} hat weitere Positionen zur Ausleihe hinzugefügt.",
+            "Bitte prüfe sie. Sie sind noch nicht zugesagt."
+          ]
+        },
+        "borrower": {
+          "subject": "Weitere Positionen angefragt",
+          "heading": "Nachträglich angefragt",
+          "body": [
+            "Die weiteren Positionen sind angefragt.",
+            "Sie gelten erst, wenn eine Materialwart*in sie bestätigt."
+          ]
+        },
+        "managersFromManager": {
+          "subject": "Weitere Positionen angelegt",
+          "heading": "Nachträglich angefragt",
+          "body": [
+            "{actor} hat weitere Positionen zur Ausleihe von {borrower} gelegt.",
+            "Sie sind noch nicht zugesagt."
+          ]
+        },
+        "borrowerFromManager": {
+          "subject": "Weitere Positionen für dich",
+          "heading": "Nachträglich angefragt",
+          "body": [
+            "{actor} hat weitere Positionen zu deiner Ausleihe gelegt.",
+            "Sie gelten erst nach der Zusage."
+          ]
+        }
+      },
+      "confirm": {
+        "borrower": {
+          "subject": "Zusage",
+          "heading": "Material ist zugesagt",
+          "body": [
+            "{actor} hat die genannten Positionen für deine Ausleihe bestätigt."
+          ]
+        }
+      },
+      "decline": {
+        "borrower": {
+          "subject": "Nicht verfügbar",
+          "heading": "Positionen nicht verfügbar",
+          "body": [
+            "{actor} kann die genannten Positionen nicht herausgeben."
+          ]
+        }
+      },
+      "replace": {
+        "borrower": {
+          "subject": "Ersatz",
+          "heading": "Ersatz zugesagt",
+          "body": [
+            "{actor} hat eine Position ersetzt. Die neue ist zugesagt, die ursprüngliche ist nicht verfügbar."
+          ]
+        }
+      },
+      "withdraw": {
+        "managers": {
+          "subject": "Zurückgezogen",
+          "heading": "Positionen zurückgezogen",
+          "body": [
+            "{borrower} hat die genannten Positionen von der Ausleihe genommen. Das Material ist wieder frei."
+          ]
+        },
+        "borrower": {
+          "subject": "Zurückgezogen",
+          "heading": "Positionen zurückgezogen",
+          "body": [
+            "{actor} hat die genannten Positionen von deiner Ausleihe genommen."
+          ]
+        }
+      },
+      "pack": {
+        "borrower": {
+          "subject": "Gepackt",
+          "heading": "Material ist gepackt",
+          "body": ["{actor} hat die genannten Positionen gepackt. Du kannst sie abholen."]
+        }
+      },
+      "unpack": {
+        "borrower": {
+          "subject": "Packen rückgängig",
+          "heading": "Packen rückgängig",
+          "body": ["{actor} hat das Packen der genannten Positionen rückgängig gemacht."]
+        }
+      },
+      "not_packed": {
+        "borrower": {
+          "subject": "Nicht gepackt",
+          "heading": "Nicht gepackt",
+          "body": ["{actor} hat die genannten Positionen nicht gepackt. Sie gehen nicht mit."]
+        }
+      },
+      "pickup": {
+        "managers": {
+          "subject": "Abholung gemeldet",
+          "heading": "Als abgeholt gemeldet",
+          "body": ["{borrower} hat die genannten Positionen als abgeholt gemeldet."]
+        },
+        "borrower": {
+          "subject": "Als abgeholt markiert",
+          "heading": "Abholung festgehalten",
+          "body": ["{actor} hat die genannten Positionen als abgeholt markiert."]
+        }
+      },
+      "undo_pickup": {
+        "managers": {
+          "subject": "Abholung rückgängig",
+          "heading": "Abholung rückgängig",
+          "body": ["{borrower} hat die Abholung der genannten Positionen zurückgenommen."]
+        },
+        "borrower": {
+          "subject": "Abholung rückgängig",
+          "heading": "Abholung rückgängig",
+          "body": ["{actor} hat die Abholung der genannten Positionen zurückgenommen."]
+        }
+      },
+      "not_picked_up": {
+        "managers": {
+          "subject": "Nicht abgeholt",
+          "heading": "Nicht abgeholt",
+          "body": ["{borrower} holt die genannten Positionen nicht ab."]
+        },
+        "borrower": {
+          "subject": "Nicht abgeholt",
+          "heading": "Nicht abgeholt",
+          "body": ["{actor} hat festgehalten, dass die genannten Positionen nicht abgeholt wurden."]
+        }
+      },
+      "report_return": {
+        "managers": {
+          "subject": "Rückgabe gemeldet",
+          "heading": "Rückgabe gemeldet",
+          "body": [
+            "{borrower} hat die Rückgabe der genannten Positionen gemeldet.",
+            "Bitte prüfe das Material und übernimm es."
+          ]
+        },
+        "borrower": {
+          "subject": "Rückgabe festgehalten",
+          "heading": "Rückgabe festgehalten",
+          "body": ["{actor} hat die Rückgabe der genannten Positionen festgehalten."]
+        }
+      },
+      "restock": {
+        "borrower": {
+          "subject": "Übernommen",
+          "heading": "Wieder im Bestand",
+          "body": ["{actor} hat die genannten Positionen wieder in den Bestand übernommen."]
+        }
+      },
+      "loss": {
+        "borrower": {
+          "subject": "Verlust",
+          "heading": "Nicht zurückgebracht",
+          "body": [
+            "{actor} hat die genannten Positionen als Verlust verbucht. Sie sind aus dem Bestand geschrieben."
+          ]
+        }
+      },
+      "cancel": {
+        "managers": {
+          "subject": "Verleih abgebrochen",
+          "heading": "Verleih abgebrochen",
+          "body": ["{borrower} hat die Ausleihe abgebrochen, bevor etwas gepackt war."]
+        },
+        "borrower": {
+          "subject": "Verleih abgebrochen",
+          "heading": "Verleih abgebrochen",
+          "body": ["{actor} hat die Ausleihe abgebrochen, bevor etwas gepackt war."]
+        }
+      },
+      "skip_pickup": {
+        "managers": {
+          "subject": "Rückgabe ohne Abholung",
+          "heading": "Direkt zur Rückgabe",
+          "body": ["{borrower} meldet die genannten Positionen direkt als zurückgegeben, ohne Abholung."]
+        },
+        "borrower": {
+          "subject": "Rückgabe ohne Abholung",
+          "heading": "Direkt zur Rückgabe",
+          "body": ["{actor} hat die genannten Positionen direkt als zurückgegeben markiert, ohne Abholung."]
+        }
+      }
+    }
+  }
+}

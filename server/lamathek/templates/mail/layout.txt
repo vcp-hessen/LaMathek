@@ -1,10 +1,13 @@
-{{ installation_title }}
-{% if installation_subtitle %}{{ installation_subtitle }}{% endif %}
+{{ installation_title }}{% if loan_mail_header and loan_mail_header.inventory_name %} · {{ loan_mail_header.inventory_name }}{% endif %}
+{% if not loan_mail_header and installation_subtitle %}{{ installation_subtitle }}{% endif %}
+{% if loan_mail_header and loan_mail_header.meta_line %}{{ loan_mail_header.meta_line }}
+{% endif %}{% if loan_mail_header and loan_mail_header.dates_line %}{{ loan_mail_header.dates_line }}
+{% endif %}
 
 {% block mail_content %}{% endblock %}
 {% if footer_identity %}{{ footer_identity }}
 {% endif %}{% if contact_email or phone or website_raw %}{{ contact_email }}{% if contact_email and (phone or website_raw) %} · {% endif %}{{ phone }}{% if phone and website_raw %} · {% endif %}{{ website_raw }}
 {% endif %}{% if footer_meta %}{{ footer_meta }}
-{% endif %}{% if impressum_url %}Impressum: {{ impressum_url }}
-Datenschutz: {{ privacy_url }}
+{% endif %}{% if impressum_url %}{{ impressum_label|default('Impressum') }}: {{ impressum_url }}
+{{ privacy_label|default('Datenschutz') }}: {{ privacy_url }}
 {% endif %}

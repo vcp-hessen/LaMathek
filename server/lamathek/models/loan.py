@@ -15,11 +15,30 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from lamathek.db import Base
 
 LOAN_PHASE_DRAFT = "draft"
-LOAN_PHASE_ACTIVE = "active"
+LOAN_PHASE_REVIEW = "review"
+LOAN_PHASE_PACK = "pack"
+LOAN_PHASE_HANDOVER = "handover"
+LOAN_PHASE_RETURN = "return"
+LOAN_PHASE_RESTOCK = "restock"
 LOAN_PHASE_CLOSED = "closed"
-VALID_LOAN_PHASES = frozenset(
-    {LOAN_PHASE_DRAFT, LOAN_PHASE_ACTIVE, LOAN_PHASE_CLOSED}
+
+WORKFLOW_LOAN_PHASES = frozenset(
+    {
+        LOAN_PHASE_REVIEW,
+        LOAN_PHASE_PACK,
+        LOAN_PHASE_HANDOVER,
+        LOAN_PHASE_RETURN,
+        LOAN_PHASE_RESTOCK,
+    }
 )
+
+VALID_LOAN_PHASES = frozenset(
+    {LOAN_PHASE_DRAFT, *WORKFLOW_LOAN_PHASES, LOAN_PHASE_CLOSED}
+)
+
+
+def is_workflow_loan_phase(phase: str) -> bool:
+    return phase in WORKFLOW_LOAN_PHASES
 
 LOAN_KIND_SHORT = "short"
 LOAN_KIND_PERMANENT = "permanent"
@@ -81,12 +100,9 @@ VALID_ORIGIN_SET_ROLES = frozenset(
     {ORIGIN_SET_ROLE_ASSIGNMENT, ORIGIN_SET_ROLE_OPTIONAL}
 )
 
-PHOTO_ROLE_LOAN = "loan"
 PHOTO_ROLE_PICKUP = "pickup"
 PHOTO_ROLE_RETURN = "return"
-VALID_LOAN_PHOTO_ROLES = frozenset(
-    {PHOTO_ROLE_LOAN, PHOTO_ROLE_PICKUP, PHOTO_ROLE_RETURN}
-)
+VALID_LOAN_PHOTO_ROLES = frozenset({PHOTO_ROLE_PICKUP, PHOTO_ROLE_RETURN})
 
 
 class Group(Base):
@@ -113,7 +129,7 @@ class Loan(Base):
             name="ck_loan_kind",
         ),
         CheckConstraint(
-            "phase IN ('draft', 'active', 'closed')",
+            "phase IN ('draft', 'review', 'pack', 'handover', 'return', 'restock', 'closed')",
             name="ck_loan_phase",
         ),
     )
@@ -140,7 +156,6 @@ class Loan(Base):
     return_on: Mapped[date | None] = mapped_column(Date(), nullable=True)
     pickup_note: Mapped[str] = mapped_column(Text(), default="", server_default="")
     return_note: Mapped[str] = mapped_column(Text(), default="", server_default="")
-
     inventory: Mapped["Inventory"] = relationship(back_populates="loans")
     group: Mapped["Group"] = relationship()
     borrower_user: Mapped["User"] = relationship(foreign_keys=[borrower_user_id])
@@ -189,6 +204,7 @@ class LoanLine(Base):
     origin_set_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     origin_set_role: Mapped[str | None] = mapped_column(String(16), nullable=True)
     status: Mapped[str] = mapped_column(String(24), default=LINE_STATUS_DRAFT)
+    status_before_end: Mapped[str | None] = mapped_column(String(24), nullable=True)
     note: Mapped[str] = mapped_column(Text(), default="", server_default="")
     reason: Mapped[str] = mapped_column(Text(), default="", server_default="")
     replaces_line_id: Mapped[int | None] = mapped_column(
@@ -198,6 +214,9 @@ class LoanLine(Base):
         ForeignKey("loan_lines.id", ondelete="SET NULL"), nullable=True
     )
     request_notified: Mapped[bool] = mapped_column(
+        Boolean(), default=False, server_default="0"
+    )
+    mail_pending: Mapped[bool] = mapped_column(
         Boolean(), default=False, server_default="0"
     )
     returned_quantity: Mapped[int | None] = mapped_column(Integer, nullable=True)

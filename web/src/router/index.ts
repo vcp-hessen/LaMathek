@@ -104,6 +104,11 @@ export const router = createRouter({
       component: LoanDetailView,
     },
     {
+      path: '/inventories/:id/loans/:loanId/mail-preview',
+      name: 'loan-mail-preview',
+      component: () => import('../views/LoanMailPreviewView.vue'),
+    },
+    {
       path: '/inventories/:id/sets/:setId',
       name: 'set-detail',
       component: SetDetailView,

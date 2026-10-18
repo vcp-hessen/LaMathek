@@ -10,7 +10,8 @@ import SortHeaderButton from '../data-table/SortHeaderButton.vue'
 import { useClientTable } from '../data-table/useClientTable'
 import { localeSortRow } from '../data-table/localeSort'
 import LoanLineRowActionsMenu from './LoanLineRowActionsMenu.vue'
-import { lineRowReasonEditable, type LineRowActionId } from './loanLineRowActions'
+import type { LineRowActionId } from './loanLineRowActions'
+import type { LoanWorkflowContext } from '../../domain/loanWorkflowSteps'
 
 const props = defineProps<{
   lines: LoanLine[]
@@ -21,11 +22,7 @@ const props = defineProps<{
   canParticipate: boolean
   confirmAllowed: boolean
   confirmBlockedTitle: string
-  lineReasonDrafts: Record<number, string>
-  reasonErrorLineIds: number[]
-  suppressReasonInputs?: boolean
-  sharedReasonMissing?: boolean
-  pendingReasonAction?: string | null
+  workflow: LoanWorkflowContext
 }>()
 
 const emit = defineEmits<{
@@ -34,7 +31,6 @@ const emit = defineEmits<{
   deselectLines: [ids: number[]]
   removeLine: [lineId: number]
   rowAction: [payload: { id: LineRowActionId; lineId: number }]
-  'update:lineReasonDrafts': [value: Record<number, string>]
 }>()
 
 const { t } = useI18n()
@@ -227,38 +223,6 @@ function onRowKeydown(event: KeyboardEvent, line: LoanLine) {
   }
 }
 
-const rowActionOptions = computed(() => ({
-  canManage: props.canManage,
-  isLoanBorrower: props.isLoanBorrower,
-  canParticipate: props.canParticipate,
-  confirmAllowed: props.confirmAllowed,
-}))
-
-function reasonEditable(line: LoanLine): boolean {
-  if (props.suppressReasonInputs) return false
-  return lineRowReasonEditable(line, rowActionOptions.value)
-}
-
-function showSharedReasonError(lineId: number): boolean {
-  return (
-    props.sharedReasonMissing === true &&
-    props.pendingReasonAction != null &&
-    props.selectedLineIds.includes(lineId)
-  )
-}
-
-function reasonDraft(lineId: number): string {
-  return props.lineReasonDrafts[lineId] ?? ''
-}
-
-function setReasonDraft(lineId: number, value: string) {
-  emit('update:lineReasonDrafts', { ...props.lineReasonDrafts, [lineId]: value })
-}
-
-function reasonHasError(lineId: number): boolean {
-  return props.reasonErrorLineIds.includes(lineId)
-}
-
 function reasonDisplay(line: LoanLine): string {
   const parts: string[] = []
   if (line.reason.trim()) parts.push(line.reason.trim())
@@ -428,20 +392,8 @@ function openLineTarget(line: LoanLine, event: MouseEvent) {
               {{ lineSetLabel(row.original) }}
             </td>
             <td class="hidden sm:table-cell">{{ lineStatusLabel(row.original.status) }}</td>
-            <td class="hidden lg:table-cell min-w-[8rem] max-w-[14rem]" @click.stop>
-              <input
-                v-if="reasonEditable(row.original)"
-                :value="reasonDraft(row.original.id)"
-                type="text"
-                class="input input-bordered input-xs w-full min-w-0"
-                :class="{ 'input-error': reasonHasError(row.original.id) }"
-                :placeholder="t('loans.reasonRequiredPlaceholder')"
-                :aria-label="t('loans.reason')"
-                :aria-invalid="reasonHasError(row.original.id) || undefined"
-                @input="setReasonDraft(row.original.id, ($event.target as HTMLInputElement).value)"
-                @keydown.stop
-              />
-              <span v-else class="block truncate text-xs opacity-80">
+            <td class="hidden lg:table-cell min-w-[8rem] max-w-[14rem]">
+              <span class="block truncate text-xs opacity-80">
                 {{ reasonDisplay(row.original) || '—' }}
               </span>
             </td>
@@ -452,10 +404,8 @@ function openLineTarget(line: LoanLine, event: MouseEvent) {
                 :is-loan-borrower="isLoanBorrower"
                 :can-participate="canParticipate"
                 :confirm-allowed="confirmAllowed"
+                :workflow="workflow"
                 :confirm-blocked-title="confirmBlockedTitle"
-                :show-reason-error="
-                  showSharedReasonError(row.original.id) || reasonHasError(row.original.id)
-                "
                 @action="emit('rowAction', $event)"
               />
             </td>

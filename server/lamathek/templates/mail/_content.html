@@ -1,6 +1,6 @@
 <h1
   style="
-    margin: 0 0 16px;
+    margin: 0 0 12px;
     padding-left: 12px;
     border-left: 4px solid #fecf16;
     font-size: 18px;
@@ -11,9 +11,90 @@
 >
   {{ heading }}
 </h1>
-{% for paragraph in paragraphs %}
-<p style="margin: 0 0 12px; color: #1a1a1a;">{{ paragraph }}</p>
+{% if workflow_trail %}
+<table
+  role="presentation"
+  cellpadding="0"
+  cellspacing="0"
+  border="0"
+  width="100%"
+  style="margin: 0 0 16px; border-collapse: collapse;"
+>
+  <tr>
+    <td
+      style="
+        padding: 12px 14px;
+        background-color: #f4f7fa;
+        border: 1px solid #c3d1e0;
+        border-radius: 10px;
+      "
+    >
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+        <tr>
+          <td style="line-height: 1.5; padding-bottom: 0;">
+            {% for step in workflow_trail %}
+            <span
+              style="
+                display: inline-block;
+                margin: 0 2px 6px 0;
+                padding: 4px 10px;
+                border-radius: 9999px;
+                font-size: 12px;
+                font-weight: {% if step.closed_here %}600{% else %}500{% endif %};
+                line-height: 1.25;
+                white-space: nowrap;
+                {% if step.state == 'current' %}
+                background-color: #004287;
+                color: #ffffff;
+                border: 2px solid {% if step.closed_here %}#fecf16{% else %}#004287{% endif %};
+                {% elif step.state == 'done' %}
+                background-color: #e8eef4;
+                color: #004287;
+                border: 1px solid {% if step.closed_here %}#fecf16{% else %}#c3d1e0{% endif %};
+                {% else %}
+                background-color: #ffffff;
+                color: #6b7c8f;
+                border: 1px solid #c3d1e0;
+                {% endif %}
+              "
+              >{{ step.label }}</span
+            >{% if not loop.last %}<span style="color: #a8b8c9; font-size: 12px; margin: 0 4px 6px 0;">→</span>{% endif %}
+            {% endfor %}
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+{% endif %}
+{% if items %}
+<p style="margin: 0 0 8px; font-weight: 500; color: #004287;">{{ items_heading }}</p>
+<ul style="margin: 0 0 16px; padding-left: 18px;">
+  {% for item in items %}
+  <li style="margin: 0 0 6px;">
+    <span style="{% if item.changed %}font-weight: 600; color: #004287;{% endif %}">{{ item.title }}</span>
+    {% if item.changed and line_changed_label %}<span style="color: #004287;"> · {{ line_changed_label }}</span>{% endif %}
+    {% if item.detail %}<br /><span style="color: #1a1a1a;">{{ item.detail }}</span>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% for paragraph in paragraphs|default([]) %}
+<p style="margin: 0 0 10px; font-size: 14px; line-height: 1.45; color: #1a1a1a;">{{ paragraph }}</p>
 {% endfor %}
+{% for line in summary_lines|default([]) %}
+<p style="margin: 0 0 4px; font-size: 13px; line-height: 1.4; color: #4a5568;">{{ line }}</p>
+{% endfor %}
+{% if facts %}
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 4px 0 16px;">
+  {% for fact in facts %}
+  <tr>
+    <td style="padding: 2px 16px 2px 0; color: #004287; vertical-align: top; white-space: nowrap;">{{ fact.label }}</td>
+    <td style="padding: 2px 0; color: #1a1a1a; vertical-align: top;">{{ fact.value }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
 {% if action_url and action_label %}
 <p style="margin: 20px 0 0;">
   <a

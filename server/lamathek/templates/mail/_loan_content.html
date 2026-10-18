@@ -1,0 +1,167 @@
+{% if loan_display_title or action_url %}
+<table
+  role="presentation"
+  cellpadding="0"
+  cellspacing="0"
+  border="0"
+  width="100%"
+  style="margin: 0 0 16px;"
+>
+  <tr>
+    <td valign="top" style="padding-right: 12px;">
+      {% if loan_display_title %}
+      <h1
+        style="
+          margin: 0;
+          font-size: 20px;
+          font-weight: 500;
+          line-height: 1.3;
+          color: #004287;
+        "
+      >
+        {{ loan_display_title }}
+      </h1>
+      {% endif %}
+    </td>
+    {% if action_url and action_label %}
+    <td valign="top" align="right" style="white-space: nowrap;">
+      <a
+        href="{{ action_url }}"
+        style="font-size: 13px; font-weight: 500; color: #004287; text-decoration: underline;"
+        >{{ action_label }}</a
+      >
+    </td>
+    {% endif %}
+  </tr>
+</table>
+{% endif %}
+<p
+  style="
+    margin: 0 0 16px;
+    padding-left: 12px;
+    border-left: 4px solid #fecf16;
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: #1a1a1a;
+  "
+>
+  {{ heading }}
+</p>
+{% if workflow_trail %}
+<p style="margin: 0 0 6px; font-size: 12px; font-weight: 500; color: #004287;">{{ phase_heading }}</p>
+<p style="margin: 0 0 16px; line-height: 1.6;">
+  {% for step in workflow_trail %}
+  <span
+    style="
+      display: inline-block;
+      margin: 0 2px 4px 0;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: {% if step.closed_here %}600{% else %}500{% endif %};
+      line-height: 1.25;
+      white-space: nowrap;
+      {% if step.state == 'current' %}
+      background-color: #004287;
+      color: #ffffff;
+      border: 2px solid {% if step.closed_here %}#fecf16{% else %}#004287{% endif %};
+      {% elif step.state == 'done' %}
+      background-color: #e8eef4;
+      color: #004287;
+      border: 1px solid {% if step.closed_here %}#fecf16{% else %}#c3d1e0{% endif %};
+      {% else %}
+      background-color: #ffffff;
+      color: #6b7c8f;
+      border: 1px solid #c3d1e0;
+      {% endif %}
+    "
+    >{{ step.label }}</span
+  >{% if not loop.last %}<span style="color: #a8b8c9; font-size: 12px; margin: 0 3px 4px 0;">→</span>{% endif %}
+  {% endfor %}
+</p>
+{% endif %}
+{% if items %}
+<p style="margin: 0 0 8px; font-weight: 500; color: #004287;">{{ items_heading }}</p>
+<table
+  role="presentation"
+  cellpadding="0"
+  cellspacing="0"
+  border="0"
+  width="100%"
+  style="margin: 0 0 20px; border-collapse: collapse; font-size: 14px;"
+>
+  <tr>
+    <th
+      align="left"
+      style="padding: 6px 8px; border-bottom: 2px solid #c3d1e0; color: #004287; font-weight: 500;"
+    >
+      {{ table_position_label }}
+    </th>
+    <th
+      align="left"
+      style="padding: 6px 8px; border-bottom: 2px solid #c3d1e0; color: #004287; font-weight: 500;"
+    >
+      {{ table_status_label }}
+    </th>
+  </tr>
+  {% for item in items %}
+  <tr>
+    <td
+      valign="top"
+      style="padding: 8px; border-bottom: 1px solid #e8eef4; color: #1a1a1a; {% if item.changed %}font-weight: 600; color: #004287;{% endif %}"
+    >
+      {{ item.title }}{% if item.changed and line_changed_label %}<span style="font-weight: 500; color: #004287;"> · {{ line_changed_label }}</span>{% endif %}
+      {% if item.material_subtitle %}<br /><span style="font-size: 12px; color: #4a5568;">{{ item.material_subtitle }}</span>{% endif %}
+      {% if item.reason %}<br /><span style="font-size: 12px; color: #4a5568;">{{ item.reason }}</span>{% endif %}
+    </td>
+    <td valign="top" style="padding: 8px; border-bottom: 1px solid #e8eef4; color: #1a1a1a;">
+      {{ item.status }}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+{% if paragraphs %}
+<p style="margin: 0 0 8px; font-weight: 500; color: #004287;">{{ summary_heading }}</p>
+<p style="margin: 0 0 10px; font-size: 14px; line-height: 1.5; color: #1a1a1a;">{{ paragraphs | join(' ') }}</p>
+{% endif %}
+{% if next_step_hint or (action_url and action_label) %}
+{% if next_step_hint %}
+<p style="margin: 20px 0 8px; font-weight: 500; color: #004287;">{{ next_heading }}</p>
+{% endif %}
+<table
+  role="presentation"
+  cellpadding="0"
+  cellspacing="0"
+  border="0"
+  width="100%"
+  style="margin: 0 0 0;"
+>
+  <tr>
+    {% if next_step_hint %}
+    <td valign="middle" style="padding-right: 16px;">
+      <p style="margin: 0; font-size: 14px; line-height: 1.45; color: #1a1a1a;">{{ next_step_hint }}</p>
+    </td>
+    {% endif %}
+    {% if action_url and action_label %}
+    <td valign="middle" align="right" style="white-space: nowrap; width: 1%;">
+      <a
+        href="{{ action_url }}"
+        style="
+          display: inline-block;
+          background-color: #004287;
+          color: #ffffff;
+          text-decoration: none;
+          padding: 11px 20px;
+          border-radius: 8px;
+          font-weight: 500;
+          border-bottom: 3px solid #fecf16;
+        "
+        >{{ action_label }}</a
+      >
+    </td>
+    {% endif %}
+  </tr>
+</table>
+{% endif %}

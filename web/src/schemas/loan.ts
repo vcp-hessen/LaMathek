@@ -3,7 +3,15 @@ import { photoMetaSchema } from './photo'
 
 export const loanKindSchema = z.enum(['short', 'permanent'])
 
-export const loanPhaseSchema = z.enum(['draft', 'active', 'closed'])
+export const loanPhaseSchema = z.enum([
+  'draft',
+  'review',
+  'pack',
+  'handover',
+  'return',
+  'restock',
+  'closed',
+])
 
 export const loanLineStatusSchema = z.enum([
   'draft',
@@ -29,6 +37,7 @@ const loanLineOriginSchema = z.object({
 const loanLineCommonSchema = {
   requestNotified: z.boolean().optional(),
   returnedQuantity: z.number().nullable().optional(),
+  statusBeforeEnd: loanLineStatusSchema.nullable().optional(),
 }
 
 export const loanLineSchema = z.discriminatedUnion('kind', [
@@ -89,15 +98,11 @@ export const loanSchema = z.object({
 })
 
 export const loanDetailSchema = loanSchema.extend({
-  photos: z.array(photoMetaSchema).optional(),
   pickupPhotos: z.array(photoMetaSchema).optional(),
   returnPhotos: z.array(photoMetaSchema).optional(),
   lines: z.array(loanLineSchema),
   hasUnnotifiedRequestedLines: z.boolean().optional(),
-  openWorkflowStep: z
-    .enum(['review', 'pack', 'handover', 'return', 'restock'])
-    .nullable()
-    .optional(),
+  hasPendingMailChanges: z.boolean().optional(),
 })
 
 export const groupSchema = z.object({ id: z.number(), name: z.string() })

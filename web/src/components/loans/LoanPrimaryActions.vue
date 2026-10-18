@@ -3,7 +3,6 @@ import { useI18n } from 'vue-i18n'
 import type { LoanDetail } from '../../schemas/loan'
 import UiIcon from '../UiIcon.vue'
 import { LOAN_DETAIL_SECTION } from './loanDetailLayout'
-import { stageButtonClass } from './loanWorkflowTones'
 
 defineProps<{
   loan: LoanDetail
@@ -53,15 +52,6 @@ const { t } = useI18n()
         />
         <span class="text-xs opacity-60">{{ t('loans.phoneProfileHint') }}</span>
       </label>
-      <div class="flex justify-end pt-1">
-        <button
-          type="submit"
-          :class="stageButtonClass('blau', true)"
-          :disabled="requestPending || !loan.lines.length"
-        >
-          {{ t('loans.actionRequest') }}
-        </button>
-      </div>
     </form>
   </section>
 </template>

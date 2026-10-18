@@ -13,6 +13,7 @@ import { useClientTable } from '../components/data-table/useClientTable'
 import PhotoThumbnail from '../components/PhotoThumbnail.vue'
 import type { Loan } from '../schemas/loan'
 import { loanDisplayName } from '../utils/loanDisplayName'
+import { loanPhaseLabelKey } from '../utils/loanPhaseLabel'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -22,10 +23,8 @@ const { data: loans, isLoading } = useQuery({
   queryFn: fetchMyLoans,
 })
 
-function phaseLabel(phase: string) {
-  if (phase === 'active') return t('loans.phaseActive')
-  if (phase === 'closed') return t('loans.phaseClosed')
-  return t('loans.phaseDraft')
+function phaseLabel(phase: Loan['phase']) {
+  return t(loanPhaseLabelKey(phase))
 }
 
 function kindLabel(kind: string) {

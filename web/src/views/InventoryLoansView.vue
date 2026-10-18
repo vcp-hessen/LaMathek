@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { useMutation, useQuery } from '@tanstack/vue-query'
+import { useQuery } from '@tanstack/vue-query'
 import type { ColumnDef } from '@tanstack/vue-table'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useInventoryCanManage } from '../composables/useInventoryCanManage'
 import { useI18n } from 'vue-i18n'
-import { createLoan, fetchBorrowers, fetchLoans } from '../api/loans'
-import { fetchMe } from '../api/me'
+import { fetchLoans } from '../api/loans'
 import { useCreateMinimalLoan } from '../composables/useCreateMinimalLoan'
 import { loanCanHoldLines, useActiveBox } from '../composables/useActiveBox'
 import { useApiErrorMessage } from '../composables/useApiErrorMessage'
@@ -19,6 +18,7 @@ import { useClientTable } from '../components/data-table/useClientTable'
 import PhotoThumbnail from '../components/PhotoThumbnail.vue'
 import type { Loan } from '../schemas/loan'
 import { loanDisplayName } from '../utils/loanDisplayName'
+import { loanPhaseLabelKey } from '../utils/loanPhaseLabel'
 
 const props = defineProps<{ inventoryId: number }>()
 
@@ -59,37 +59,9 @@ const { data: loans, isLoading } = useQuery({
 
 const { setActiveLoan } = useActiveBox(() => props.inventoryId)
 const createMutation = useCreateMinimalLoan(props.inventoryId)
-const otherBorrowerId = ref('')
 
-const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
-
-const { data: borrowers } = useQuery({
-  queryKey: ['borrowers'],
-  queryFn: fetchBorrowers,
-  enabled: () => canManage.value,
-})
-
-const createForOtherMutation = useMutation({
-  mutationFn: () =>
-    createLoan(props.inventoryId, {
-      groupName: '—',
-      borrowerUserId: Number(otherBorrowerId.value),
-      kind: 'short',
-    }),
-  onSuccess: async (loan) => {
-    formError.value = null
-    otherBorrowerId.value = ''
-    await router.push(`/inventories/${props.inventoryId}/loans/${loan.id}`)
-  },
-  onError: (error) => {
-    formError.value = messageFor(error)
-  },
-})
-
-function phaseLabel(phase: string) {
-  if (phase === 'active') return t('loans.phaseActive')
-  if (phase === 'closed') return t('loans.phaseClosed')
-  return t('loans.phaseDraft')
+function phaseLabel(phase: Loan['phase']) {
+  return t(loanPhaseLabelKey(phase))
 }
 
 function kindLabel(kind: string) {
@@ -164,13 +136,9 @@ const {
 
 async function onNewLoan() {
   formError.value = null
-  const otherId = otherBorrowerId.value.trim()
-  if (canManage.value && otherId && Number(otherId) !== me.value?.id) {
-    createForOtherMutation.mutate()
-    return
-  }
   try {
     const loan = await createMutation.mutateAsync()
+    setActiveLoan(loan.id)
     await router.push(`/inventories/${props.inventoryId}/loans/${loan.id}`)
   } catch (error) {
     formError.value = messageFor(error)
@@ -207,26 +175,15 @@ function formatDate(value: string | null) {
   <div class="app-page space-y-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <h1 class="text-2xl font-bold">{{ t('loans.heading') }}</h1>
-      <div class="flex flex-wrap items-end gap-2">
-        <label v-if="canManage" class="flex min-w-48 flex-col gap-1">
-          <span class="text-xs opacity-80">{{ t('loans.borrower') }}</span>
-          <select v-model="otherBorrowerId" class="select select-bordered select-sm">
-            <option value="">{{ t('loans.borrowerSelf') }}</option>
-            <option v-for="person in borrowers ?? []" :key="person.id" :value="String(person.id)">
-              {{ person.name || person.email }}
-            </option>
-          </select>
-        </label>
-        <button
-          v-if="canCreate"
-          type="button"
-          class="btn btn-primary"
-          :disabled="createMutation.isPending.value || createForOtherMutation.isPending.value"
-          @click="onNewLoan"
-        >
-          {{ t('loans.newDraft') }}
-        </button>
-      </div>
+      <button
+        v-if="canCreate"
+        type="button"
+        class="btn btn-primary"
+        :disabled="createMutation.isPending.value"
+        @click="onNewLoan"
+      >
+        {{ t('loans.newDraft') }}
+      </button>
     </div>
     <p v-if="formError" class="text-sm text-error">{{ formError }}</p>
     <p class="text-sm opacity-70">

@@ -1,4 +1,5 @@
 import type { LoanLine } from '../../schemas/loan'
+import type { WorkflowStep } from '../../domain/loanWorkflowSteps'
 
 const REVIEW_STATUSES = new Set(['draft', 'requested'])
 const PACK_STATUSES = new Set(['confirmed'])
@@ -49,7 +50,17 @@ export type LineActionContext =
       undoPickupCount: number
     }
 
-export function deriveLineActionContext(selected: LoanLine[]): LineActionContext {
+function stepMatchesKind(
+  effectiveStep: WorkflowStep | null,
+  kind: 'review' | 'pack' | 'handover' | 'return',
+): boolean {
+  return effectiveStep === kind
+}
+
+export function deriveLineActionContext(
+  selected: LoanLine[],
+  effectiveStep: WorkflowStep | null = null,
+): LineActionContext {
   if (selected.length === 0) {
     return { kind: 'hint', hint: 'select' }
   }
@@ -57,6 +68,9 @@ export function deriveLineActionContext(selected: LoanLine[]): LineActionContext
   const statuses = new Set(selected.map((line) => line.status))
 
   if (isSubset(statuses, REVIEW_STATUSES)) {
+    if (effectiveStep != null && !stepMatchesKind(effectiveStep, 'review')) {
+      return { kind: 'hint', hint: 'wrong_step' }
+    }
     const draftCount = selected.filter((l) => l.status === 'draft').length
     const requestedCount = selected.filter((l) => l.status === 'requested').length
     return {
@@ -70,6 +84,9 @@ export function deriveLineActionContext(selected: LoanLine[]): LineActionContext
   }
 
   if (isSubset(statuses, PACK_STATUSES)) {
+    if (effectiveStep != null && !stepMatchesKind(effectiveStep, 'pack')) {
+      return { kind: 'hint', hint: 'wrong_step' }
+    }
     return {
       kind: 'pack',
       count: selected.length,
@@ -79,6 +96,9 @@ export function deriveLineActionContext(selected: LoanLine[]): LineActionContext
   }
 
   if (isSubset(statuses, HANDOVER_STATUSES)) {
+    if (effectiveStep != null && !stepMatchesKind(effectiveStep, 'handover')) {
+      return { kind: 'hint', hint: 'wrong_step' }
+    }
     return {
       kind: 'handover',
       pickupCount: selected.length,
@@ -89,6 +109,9 @@ export function deriveLineActionContext(selected: LoanLine[]): LineActionContext
   }
 
   if (isSubset(statuses, RETURN_STATUSES)) {
+    if (effectiveStep != null && !stepMatchesKind(effectiveStep, 'return')) {
+      return { kind: 'hint', hint: 'wrong_step' }
+    }
     const pickedUpCount = selected.filter((l) => l.status === 'picked_up').length
     const returnReportedCount = selected.filter((l) => l.status === 'return_reported').length
     return {

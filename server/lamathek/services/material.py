@@ -706,3 +706,21 @@ def apply_stock_loss(session: Session, material_type_id: int, quantity: int) -> 
             session.delete(lot)
     if remaining > 0:
         raise ValueError("invalid_loss")
+
+
+def restore_stock_quantity(session: Session, material_type_id: int, quantity: int) -> None:
+    if quantity <= 0:
+        raise ValueError("invalid_quantity")
+    lot = session.scalar(
+        select(StockLot)
+        .where(
+            StockLot.material_type_id == material_type_id,
+            StockLot.status == ITEM_STATUS_ACTIVE,
+        )
+        .order_by(StockLot.id.desc())
+        .limit(1)
+    )
+    if lot is not None:
+        lot.quantity += quantity
+        return
+    session.add(StockLot(material_type_id=material_type_id, quantity=quantity))

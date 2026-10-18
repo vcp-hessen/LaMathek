@@ -13,9 +13,10 @@ from lamathek.models.loan import (
     LINE_STATUSES_BLOCKING,
     LOAN_KIND_PERMANENT,
     LOAN_KIND_SHORT,
-    LOAN_PHASE_ACTIVE,
     LOAN_PHASE_CLOSED,
     LOAN_PHASE_DRAFT,
+    LOAN_PHASE_REVIEW,
+    is_workflow_loan_phase,
     ORIGIN_SET_ROLE_ASSIGNMENT,
     ORIGIN_SET_ROLE_OPTIONAL,
     VALID_LOAN_KINDS,
@@ -34,6 +35,7 @@ from lamathek.models.set import (
 from lamathek.models.user import User
 from lamathek.services.damages import piece_has_open_severe_damage
 from lamathek.services.inventories import user_can_manage_inventory
+from lamathek.services.loan_workflow_steps import assert_line_action_allowed
 def new_line_status_for_loan(loan: Loan) -> str:
     if loan.phase == LOAN_PHASE_DRAFT:
         return LINE_STATUS_DRAFT
@@ -85,7 +87,11 @@ def list_loans_for_manager(
 ) -> list[Loan]:
     visible = Loan.phase != LOAN_PHASE_DRAFT
     if viewer_user_id is not None:
-        visible = or_(visible, Loan.borrower_user_id == viewer_user_id)
+        visible = or_(
+            visible,
+            Loan.borrower_user_id == viewer_user_id,
+            Loan.contact_user_id == viewer_user_id,
+        )
     return list(
         session.scalars(
             _loan_query()
@@ -209,7 +215,7 @@ def create_loan(
         borrower_user_id=borrower_user_id,
         contact_user_id=actor.id if for_other and actor is not None else None,
         event_id=event.id if event else None,
-        phase=LOAN_PHASE_ACTIVE if for_other else LOAN_PHASE_DRAFT,
+        phase=LOAN_PHASE_DRAFT,
         kind=kind,
         wish_pickup_on=pickup_on,
         wish_return_on=return_on,
@@ -325,11 +331,14 @@ def update_loan(
         loan.event_id = None
     elif event_name is not None and event_name.strip() and meta_editable:
         loan.event = get_or_create_event(session, event_name)
-    if loan.phase == LOAN_PHASE_DRAFT:
-        if update_wish_pickup_on:
-            loan.wish_pickup_on = wish_pickup_on
-        if update_wish_return_on and effective_kind != LOAN_KIND_PERMANENT:
-            loan.wish_return_on = wish_return_on
+    if update_wish_pickup_on or update_wish_return_on:
+        if loan.phase == LOAN_PHASE_DRAFT or manager_edit:
+            if update_wish_pickup_on:
+                loan.wish_pickup_on = wish_pickup_on
+            if update_wish_return_on and effective_kind != LOAN_KIND_PERMANENT:
+                loan.wish_return_on = wish_return_on
+        elif update_wish_pickup_on or update_wish_return_on:
+            raise ValueError("invalid_loan_state")
     if manager_edit:
         if update_pickup_on:
             loan.pickup_on = pickup_on
@@ -547,7 +556,7 @@ def _origin_fields(material_set: MaterialSet, role: str) -> dict:
 
 
 def _loan_editable_for_lines(loan: Loan) -> bool:
-    return loan.phase in (LOAN_PHASE_DRAFT, LOAN_PHASE_ACTIVE)
+    return loan.phase == LOAN_PHASE_DRAFT or is_workflow_loan_phase(loan.phase)
 
 
 def _piece_line_on_loan(session: Session, loan_id: int, piece_id: int) -> LoanLine | None:
@@ -565,6 +574,7 @@ def _reopen_withdrawn_piece(
     line.status = status
     line.reason = ""
     line.request_notified = False
+    line.mail_pending = False
     if origin is not None:
         line.origin_set_id = origin["origin_set_id"]
         line.origin_set_name = origin["origin_set_name"]
@@ -629,6 +639,7 @@ def _place_set_stock(
         withdrawn.quantity = quantity
         withdrawn.reason = ""
         withdrawn.request_notified = False
+        withdrawn.mail_pending = False
         return
     session.add(
         LoanLine(
@@ -755,6 +766,22 @@ def add_stock_line(session: Session, loan: Loan, material_type_id: int, quantity
         existing.quantity = quantity
         session.commit()
         return existing
+    withdrawn = session.scalar(
+        select(LoanLine).where(
+            LoanLine.loan_id == loan.id,
+            LoanLine.material_type_id == material_type_id,
+            LoanLine.origin_set_id.is_(None),
+            LoanLine.status == LINE_STATUS_WITHDRAWN,
+        )
+    )
+    if withdrawn is not None:
+        withdrawn.status = status
+        withdrawn.quantity = quantity
+        withdrawn.reason = ""
+        withdrawn.request_notified = False
+        withdrawn.mail_pending = False
+        session.commit()
+        return withdrawn
     line = LoanLine(
         loan_id=loan.id,
         material_type_id=material_type_id,
@@ -765,6 +792,28 @@ def add_stock_line(session: Session, loan: Loan, material_type_id: int, quantity
     session.commit()
     session.refresh(line)
     return line
+
+
+def restore_withdrawn_line(session: Session, loan: Loan, line_id: int) -> Loan:
+    line = session.get(LoanLine, line_id)
+    if line is None or line.loan_id != loan.id:
+        raise ValueError("invalid_line")
+    if line.status != LINE_STATUS_WITHDRAWN:
+        raise ValueError("invalid_line_status")
+    assert_line_action_allowed(loan, line, "restore")
+    if line.piece_id is not None:
+        add_piece_line(session, loan, line.piece_id)
+        return loan_by_id(session, loan.id)  # type: ignore[return-value]
+    if line.material_type_id is None or line.quantity is None:
+        raise ValueError("invalid_line")
+    if not _loan_editable_for_lines(loan):
+        raise ValueError("loan_not_editable")
+    line.status = new_line_status_for_loan(loan)
+    line.reason = ""
+    line.request_notified = False
+    line.mail_pending = False
+    session.commit()
+    return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
 
 def remove_line(session: Session, loan: Loan, line_id: int) -> None:

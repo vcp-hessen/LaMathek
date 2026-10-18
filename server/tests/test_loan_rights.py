@@ -6,6 +6,7 @@ from lamathek.services.users import upsert_user_from_oidc, user_by_id
 from loan_helpers import (
     add_piece_line,
     borrower_id,
+    complete_workflow_step,
     confirm_all_lines,
     create_loan,
     manager_id,
@@ -95,14 +96,14 @@ def test_create_for_other_starts_active_with_manager_as_contact():
         )
         assert created.status_code == 201
         body = created.get_json()
-        assert body["phase"] == "active"
+        assert body["phase"] == "draft"
         assert body["contactUserId"] == mgr
         assert body["wishPickupOn"] == pickup.isoformat()
 
         _login(client, "borrower")
         seen = client.get(f"/api/loans/{body['id']}")
         assert seen.status_code == 200
-        assert seen.get_json()["phase"] == "active"
+        assert seen.get_json()["phase"] == "draft"
     finally:
         tmp.cleanup()
 
@@ -122,7 +123,9 @@ def test_pickup_and_return_for_borrower_and_manager_not_stranger():
         assert submit_request(client, loan_id).status_code == 200
         _login(client, "mgr")
         confirm_all_lines(client, loan_id, mgr, [line_id])
+        complete_workflow_step(client, loan_id)
         pack_lines(client, loan_id, [line_id])
+        complete_workflow_step(client, loan_id)
 
         _login(client, "stranger")
         assert pickup_lines(client, loan_id, [line_id]).status_code == 403
@@ -130,6 +133,7 @@ def test_pickup_and_return_for_borrower_and_manager_not_stranger():
         _login(client, "borrower")
         picked = pickup_lines(client, loan_id, [line_id])
         assert picked.status_code == 200
+        complete_workflow_step(client, loan_id)
 
         _login(client, "stranger")
         reported = client.post(

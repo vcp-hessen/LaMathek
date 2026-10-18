@@ -18,11 +18,12 @@ from lamathek.models.loan import (
     LINE_STATUSES_TERMINAL,
     LOAN_KIND_PERMANENT,
     LOAN_KIND_SHORT,
-    LOAN_PHASE_ACTIVE,
     LOAN_PHASE_CLOSED,
     LOAN_PHASE_DRAFT,
+    LOAN_PHASE_REVIEW,
     Loan,
     LoanLine,
+    is_workflow_loan_phase,
 )
 from lamathek.models.material import MaterialType
 from lamathek.models.user import User
@@ -34,6 +35,13 @@ from lamathek.services.loans import (
     loan_by_id,
 )
 from lamathek.services.loan_notifications import notify_loan_action
+from lamathek.services.loan_workflow_steps import (
+    assert_line_action_allowed,
+    assert_loan_workflow_action,
+    open_workflow_step_from_lines,
+    sync_loan_phase_after_line_change,
+    workflow_phase_for_gating,
+)
 
 
 def line_is_terminal(line: LoanLine, *, consumable: bool = False) -> bool:
@@ -49,16 +57,41 @@ def _material_type_consumable(session: Session, line: LoanLine) -> bool:
     return bool(mt and mt.consumable)
 
 
-def refresh_loan_phase(session: Session, loan: Loan) -> None:
+def advance_loan_phase(session: Session, loan: Loan) -> None:
     if loan.phase == LOAN_PHASE_DRAFT:
         return
+    if any(line.mail_pending for line in loan.lines):
+        return
     if not loan.lines:
+        loan.phase = LOAN_PHASE_CLOSED
         return
     for line in loan.lines:
         consumable = _material_type_consumable(session, line)
         if not line_is_terminal(line, consumable=consumable):
+            next_step = open_workflow_step_from_lines(loan)
+            if next_step:
+                loan.phase = next_step
+            elif loan.phase == LOAN_PHASE_CLOSED:
+                pass
+            return
+    loan.phase = LOAN_PHASE_CLOSED
+
+
+def refresh_loan_phase(session: Session, loan: Loan) -> None:
+    if loan.phase == LOAN_PHASE_DRAFT:
+        return
+    if not loan.lines:
+        loan.phase = LOAN_PHASE_CLOSED
+        return
+    for line in loan.lines:
+        consumable = _material_type_consumable(session, line)
+        if not line_is_terminal(line, consumable=consumable):
+            if any(line.mail_pending for line in loan.lines):
+                return
             if loan.phase == LOAN_PHASE_CLOSED:
-                loan.phase = LOAN_PHASE_ACTIVE
+                next_step = open_workflow_step_from_lines(loan)
+                if next_step:
+                    loan.phase = next_step
             return
     loan.phase = LOAN_PHASE_CLOSED
 
@@ -97,6 +130,41 @@ def _lines_for_loan(session: Session, loan: Loan, line_ids: list[int]) -> list[L
     return result
 
 
+_STEP_OPEN_STATUS = {
+    "review": LINE_STATUS_REQUESTED,
+    "pack": LINE_STATUS_CONFIRMED,
+    "handover": LINE_STATUS_PACKED,
+    "return": LINE_STATUS_PICKED_UP,
+    "restock": LINE_STATUS_RETURN_REPORTED,
+}
+
+_STEP_DONE_STATUS = {
+    "review": LINE_STATUS_CONFIRMED,
+    "pack": LINE_STATUS_PACKED,
+    "handover": LINE_STATUS_PICKED_UP,
+    "return": LINE_STATUS_RETURN_REPORTED,
+    "restock": LINE_STATUS_RESTOCKED,
+}
+
+_STEP_MAIL_ACTION = {
+    "review": "confirm",
+    "pack": "pack",
+    "handover": "pickup",
+    "return": "report_return",
+    "restock": "restock",
+}
+
+
+def _queue_mail(loan: Loan, lines: list[LoanLine]) -> None:
+    for line in lines:
+        line.mail_pending = True
+
+
+def _clear_mail(lines: list[LoanLine]) -> None:
+    for line in lines:
+        line.mail_pending = False
+
+
 def _actor_is_borrower_or_manager(session: Session, actor: User, loan: Loan) -> bool:
     if user_is_borrower(actor, loan):
         return True
@@ -130,9 +198,17 @@ def submit_loan_request(
             line.status = LINE_STATUS_REQUESTED
             line.request_notified = True
             notified_ids.append(line.id)
-    loan.phase = LOAN_PHASE_ACTIVE
-    session.commit()
-    notify_loan_action(session, loan, "request", actor=actor, line_ids=notified_ids)
+    loan.phase = LOAN_PHASE_REVIEW
+    notified_lines = [line for line in loan.lines if line.id in notified_ids]
+    _queue_mail(loan, notified_lines)
+    session.flush()
+    _complete_step_receipt(
+        session,
+        loan,
+        actor=actor,
+        action="request",
+        line_ids=notified_ids,
+    )
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
 
@@ -161,6 +237,7 @@ def confirm_lines(
     )
     lines = _lines_for_loan(session, loan, line_ids)
     for line in lines:
+        assert_line_action_allowed(loan, line, "confirm")
         if line.status != LINE_STATUS_REQUESTED:
             raise ValueError("invalid_line_status")
         if line.piece_id is not None:
@@ -176,9 +253,9 @@ def confirm_lines(
             )
         line.status = LINE_STATUS_CONFIRMED
     if loan.phase == LOAN_PHASE_DRAFT:
-        loan.phase = LOAN_PHASE_ACTIVE
+        loan.phase = LOAN_PHASE_REVIEW
+    _queue_mail(loan, lines)
     session.commit()
-    notify_loan_action(session, loan, "confirm", actor=actor, line_ids=line_ids)
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
 
@@ -202,13 +279,15 @@ def decline_lines(
             raise ValueError("invalid_line")
         if line.status not in (LINE_STATUS_REQUESTED, LINE_STATUS_CONFIRMED):
             raise ValueError("invalid_line_status")
+        assert_line_action_allowed(loan, line, "decline")
+        line.status_before_end = line.status
         line.status = LINE_STATUS_UNAVAILABLE
         line.reason = reason.strip()
+        line.mail_pending = True
         line_ids.append(line_id)
     session.commit()
     refresh_loan_phase(session, loan)
     session.commit()
-    notify_loan_action(session, loan, "decline", actor=actor, line_ids=line_ids)
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
 
@@ -228,15 +307,19 @@ def replace_line(
         raise ValueError("invalid_line")
     if original.status not in (LINE_STATUS_REQUESTED, LINE_STATUS_CONFIRMED):
         raise ValueError("invalid_line_status")
+    assert_line_action_allowed(loan, original, "replace")
     if not reason.strip():
         raise ValueError("reason_required")
+    original.status_before_end = original.status
     original.status = LINE_STATUS_UNAVAILABLE
     original.reason = reason.strip()
+    original.mail_pending = True
 
     new_line = LoanLine(
         loan_id=loan.id,
         status=LINE_STATUS_CONFIRMED,
         replaces_line_id=original.id,
+        mail_pending=True,
         origin_set_id=original.origin_set_id,
         origin_set_name=original.origin_set_name,
         origin_set_role=original.origin_set_role,
@@ -260,13 +343,6 @@ def replace_line(
         raise ValueError("invalid_replacement")
     session.add(new_line)
     session.commit()
-    notify_loan_action(
-        session,
-        loan,
-        "replace",
-        actor=actor,
-        line_ids=[original.id, new_line.id],
-    )
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
 
@@ -285,11 +361,12 @@ def withdraw_lines(
     for line in lines:
         if line.status not in (LINE_STATUS_REQUESTED, LINE_STATUS_CONFIRMED):
             raise ValueError("invalid_line_status")
+        assert_line_action_allowed(loan, line, "withdraw")
         line.status = LINE_STATUS_WITHDRAWN
+        line.mail_pending = True
     session.commit()
     refresh_loan_phase(session, loan)
     session.commit()
-    notify_loan_action(session, loan, "withdraw", actor=actor, line_ids=line_ids)
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
 
@@ -304,11 +381,12 @@ def pack_lines(
         raise ValueError("forbidden")
     lines = _lines_for_loan(session, loan, line_ids)
     for line in lines:
+        assert_line_action_allowed(loan, line, "pack")
         if line.status != LINE_STATUS_CONFIRMED:
             raise ValueError("invalid_line_status")
         line.status = LINE_STATUS_PACKED
+    _queue_mail(loan, lines)
     session.commit()
-    notify_loan_action(session, loan, "pack", actor=actor, line_ids=line_ids)
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
 
@@ -323,11 +401,13 @@ def unpack_lines(
         raise ValueError("forbidden")
     lines = _lines_for_loan(session, loan, line_ids)
     for line in lines:
+        assert_line_action_allowed(loan, line, "unpack")
         if line.status != LINE_STATUS_PACKED:
             raise ValueError("invalid_line_status")
         line.status = LINE_STATUS_CONFIRMED
+    _queue_mail(loan, lines)
+    sync_loan_phase_after_line_change(loan)
     session.commit()
-    notify_loan_action(session, loan, "unpack", actor=actor, line_ids=line_ids)
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
 
@@ -349,13 +429,15 @@ def mark_not_packed(
         line = session.get(LoanLine, line_id)
         if line is None or line.loan_id != loan.id or line.status != LINE_STATUS_PACKED:
             raise ValueError("invalid_line_status")
+        assert_line_action_allowed(loan, line, "mark_not_packed")
+        line.status_before_end = line.status
         line.status = LINE_STATUS_NOT_PACKED
         line.reason = reason.strip()
+        line.mail_pending = True
         line_ids.append(line_id)
     session.commit()
     refresh_loan_phase(session, loan)
     session.commit()
-    notify_loan_action(session, loan, "not_packed", actor=actor, line_ids=line_ids)
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
 
@@ -370,11 +452,12 @@ def pickup_lines(
         raise ValueError("forbidden")
     lines = _lines_for_loan(session, loan, line_ids)
     for line in lines:
+        assert_line_action_allowed(loan, line, "pickup")
         if line.status != LINE_STATUS_PACKED:
             raise ValueError("invalid_line_status")
         line.status = LINE_STATUS_PICKED_UP
+    _queue_mail(loan, lines)
     session.commit()
-    notify_loan_action(session, loan, "pickup", actor=actor, line_ids=line_ids)
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
 
@@ -389,11 +472,12 @@ def undo_pickup_lines(
         raise ValueError("forbidden")
     lines = _lines_for_loan(session, loan, line_ids)
     for line in lines:
+        assert_line_action_allowed(loan, line, "undo_pickup")
         if line.status != LINE_STATUS_PICKED_UP:
             raise ValueError("invalid_line_status")
         line.status = LINE_STATUS_PACKED
+    _queue_mail(loan, lines)
     session.commit()
-    notify_loan_action(session, loan, "undo_pickup", actor=actor, line_ids=line_ids)
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
 
@@ -415,13 +499,15 @@ def mark_not_picked_up(
         line = session.get(LoanLine, line_id)
         if line is None or line.loan_id != loan.id or line.status != LINE_STATUS_PACKED:
             raise ValueError("invalid_line_status")
+        assert_line_action_allowed(loan, line, "mark_not_picked_up")
+        line.status_before_end = line.status
         line.status = LINE_STATUS_NOT_PICKED_UP
         line.reason = reason.strip()
+        line.mail_pending = True
         line_ids.append(line_id)
     session.commit()
     refresh_loan_phase(session, loan)
     session.commit()
-    notify_loan_action(session, loan, "not_picked_up", actor=actor, line_ids=line_ids)
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
 
@@ -436,11 +522,12 @@ def report_return_lines(
         raise ValueError("forbidden")
     lines = _lines_for_loan(session, loan, line_ids)
     for line in lines:
+        assert_line_action_allowed(loan, line, "report_return")
         if line.status != LINE_STATUS_PICKED_UP:
             raise ValueError("invalid_line_status")
         line.status = LINE_STATUS_RETURN_REPORTED
+    _queue_mail(loan, lines)
     session.commit()
-    notify_loan_action(session, loan, "report_return", actor=actor, line_ids=line_ids)
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
 
@@ -478,6 +565,7 @@ def restock_lines(
             raise ValueError("invalid_line")
         if line.status != LINE_STATUS_RETURN_REPORTED:
             raise ValueError("invalid_line_status")
+        assert_line_action_allowed(loan, line, "restock")
         if line.piece_id is not None:
             line.status = LINE_STATUS_RESTOCKED
             line_ids.append(line_id)
@@ -494,6 +582,7 @@ def restock_lines(
             if returned == 0:
                 reason = _reason_from_entry(entry)
                 apply_stock_loss(session, line.material_type_id, line.quantity)
+                line.status_before_end = line.status
                 line.status = LINE_STATUS_NOT_RETURNED
                 line.reason = reason
                 line.returned_quantity = 0
@@ -513,6 +602,7 @@ def restock_lines(
         if returned == 0:
             reason = _reason_from_entry(entry)
             apply_stock_loss(session, line.material_type_id, line.quantity)
+            line.status_before_end = line.status
             line.status = LINE_STATUS_NOT_RETURNED
             line.reason = reason
             line.returned_quantity = 0
@@ -528,8 +618,10 @@ def restock_lines(
             material_type_id=line.material_type_id,
             quantity=missing,
             status=LINE_STATUS_NOT_RETURNED,
+            status_before_end=LINE_STATUS_RETURN_REPORTED,
             reason=reason,
             split_from_line_id=line.id,
+            mail_pending=True,
         )
         _copy_line_origin(line, lost_line)
         apply_stock_loss(session, line.material_type_id, missing)
@@ -537,10 +629,12 @@ def restock_lines(
         session.flush()
         line_ids.append(line_id)
         line_ids.append(lost_line.id)
+    for line in loan.lines:
+        if line.id in line_ids:
+            line.mail_pending = True
     session.commit()
     refresh_loan_phase(session, loan)
     session.commit()
-    notify_loan_action(session, loan, "restock", actor=actor, line_ids=line_ids)
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
 
@@ -569,17 +663,19 @@ def record_loss_lines(
             LINE_STATUS_RETURN_REPORTED,
         ):
             raise ValueError("invalid_line_status")
+        assert_line_action_allowed(loan, line, "record_loss")
         reason = _reason_from_entry(entry)
         if line.material_type_id is not None and line.quantity is not None:
             qty = quantity if isinstance(quantity, int) else line.quantity
             apply_stock_loss(session, line.material_type_id, qty)
+        line.status_before_end = line.status
         line.status = LINE_STATUS_NOT_RETURNED
         line.reason = reason
+        line.mail_pending = True
         line_ids.append(line_id)
     session.commit()
     refresh_loan_phase(session, loan)
     session.commit()
-    notify_loan_action(session, loan, "loss", actor=actor, line_ids=line_ids)
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
 
@@ -642,16 +738,34 @@ def hand_draft_to_borrower(
         raise ValueError("invalid_borrower")
     loan.borrower_user_id = borrower_user_id
     loan.contact_user_id = actor.id
-    loan.phase = LOAN_PHASE_ACTIVE
+    if loan.pickup_on is None and loan.wish_pickup_on is not None:
+        loan.pickup_on = loan.wish_pickup_on
+    if (
+        loan.return_on is None
+        and loan.wish_return_on is not None
+        and loan.kind != LOAN_KIND_PERMANENT
+    ):
+        loan.return_on = loan.wish_return_on
+    loan.phase = LOAN_PHASE_REVIEW
     line_ids: list[int] = []
     for line in loan.lines:
         if line.status == LINE_STATUS_DRAFT:
             line.status = LINE_STATUS_REQUESTED
             line.request_notified = True
             line_ids.append(line.id)
-    session.commit()
+    notified_lines = [line for line in loan.lines if line.id in line_ids]
+    _queue_mail(loan, notified_lines)
+    session.flush()
     if line_ids:
-        notify_loan_action(session, loan, "request", actor=actor, line_ids=line_ids)
+        _complete_step_receipt(
+            session,
+            loan,
+            actor=actor,
+            action="request",
+            line_ids=line_ids,
+        )
+    else:
+        session.commit()
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
 
@@ -660,22 +774,95 @@ def notify_added_lines(session: Session, loan: Loan, *, actor: User) -> Loan:
         raise ValueError("forbidden")
     if loan.phase == LOAN_PHASE_DRAFT:
         raise ValueError("invalid_loan_state")
-    line_ids = [
-        line.id
+    lines_to_notify = [
+        line
         for line in loan.lines
         if line.status == LINE_STATUS_REQUESTED and not line.request_notified
     ]
-    if not line_ids:
+    if not lines_to_notify:
         raise ValueError("empty_notify")
-    for line in loan.lines:
-        if line.id in line_ids:
-            line.request_notified = True
+    for line in lines_to_notify:
+        line.request_notified = True
+    _queue_mail(loan, lines_to_notify)
     session.commit()
-    notify_loan_action(session, loan, "request", actor=actor, line_ids=line_ids)
+    return loan_by_id(session, loan.id)  # type: ignore[return-value]
+
+
+def _phase_for_complete(loan: Loan) -> str | None:
+    phase = workflow_phase_for_gating(loan)
+    if phase is not None:
+        return phase
+    if loan.phase == LOAN_PHASE_CLOSED and any(line.mail_pending for line in loan.lines):
+        return open_workflow_step_from_lines(loan)
+    return None
+
+
+def _receipt_action(step: str | None, pending: list[LoanLine]) -> str:
+    if step is None:
+        return "changes"
+    done = _STEP_DONE_STATUS[step]
+    if pending and all(line.status == done for line in pending):
+        return _STEP_MAIL_ACTION[step]
+    return "changes"
+
+
+def _complete_step_receipt(
+    session: Session,
+    loan: Loan,
+    *,
+    actor: User,
+    action: str,
+    line_ids: list[int],
+) -> None:
+    mail_step = loan.phase if is_workflow_loan_phase(loan.phase) else None
+    notify_loan_action(
+        session,
+        loan,
+        action,
+        actor=actor,
+        line_ids=line_ids,
+        mail_step=mail_step,
+    )
+    pending = [line for line in loan.lines if line.mail_pending]
+    _clear_mail(pending)
+    advance_loan_phase(session, loan)
+    session.commit()
+
+
+def complete_loan_step(session: Session, loan: Loan, *, actor: User) -> Loan:
+    step = _phase_for_complete(loan)
+    can_manage = user_can_manage_inventory(session, actor, loan.inventory)
+    can_share = _actor_is_borrower_or_manager(session, actor, loan)
+    if step in {"review", "pack", "restock"}:
+        if not can_manage:
+            raise ValueError("forbidden")
+    elif not can_share:
+        raise ValueError("forbidden")
+
+    if step is not None and step in _STEP_OPEN_STATUS:
+        open_status = _STEP_OPEN_STATUS[step]
+        if any(line.status == open_status for line in loan.lines):
+            raise ValueError("step_incomplete")
+
+    pending = [line for line in loan.lines if line.mail_pending]
+    if not pending:
+        raise ValueError("empty_step")
+
+    _complete_step_receipt(
+        session,
+        loan,
+        actor=actor,
+        action=_receipt_action(step, pending),
+        line_ids=[line.id for line in pending],
+    )
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
 
 def delete_unreleased_loan(session: Session, loan: Loan, *, actor: User) -> None:
+    if actor.is_superuser:
+        session.delete(loan)
+        session.commit()
+        return
     _require_borrower(actor, loan)
     if loan.phase != LOAN_PHASE_DRAFT:
         raise ValueError("invalid_loan_state")
@@ -686,7 +873,7 @@ def delete_unreleased_loan(session: Session, loan: Loan, *, actor: User) -> None
 def cancel_unpacked_loan(session: Session, loan: Loan, *, actor: User) -> Loan:
     if not _actor_is_borrower_or_manager(session, actor, loan):
         raise ValueError("forbidden")
-    if loan.phase != LOAN_PHASE_ACTIVE:
+    if not is_workflow_loan_phase(loan.phase):
         raise ValueError("invalid_loan_state")
     if any(line.status in _CANCEL_FORBIDDEN_LINE_STATUSES for line in loan.lines):
         raise ValueError("invalid_loan_state")
@@ -694,6 +881,7 @@ def cancel_unpacked_loan(session: Session, loan: Loan, *, actor: User) -> Loan:
     for line in loan.lines:
         if line.status in _CANCEL_WITHDRAW_LINE_STATUSES:
             line.status = LINE_STATUS_WITHDRAWN
+            line.mail_pending = True
             withdrawn_ids.append(line.id)
     if not loan.lines:
         loan.phase = LOAN_PHASE_CLOSED
@@ -703,8 +891,12 @@ def cancel_unpacked_loan(session: Session, loan: Loan, *, actor: User) -> Loan:
         loan.phase = LOAN_PHASE_CLOSED
     session.commit()
     if withdrawn_ids:
-        notify_loan_action(
-            session, loan, "cancel", actor=actor, line_ids=withdrawn_ids
+        _complete_step_receipt(
+            session,
+            loan,
+            actor=actor,
+            action="cancel",
+            line_ids=withdrawn_ids,
         )
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
@@ -712,6 +904,7 @@ def cancel_unpacked_loan(session: Session, loan: Loan, *, actor: User) -> Loan:
 def skip_pickup_to_return(session: Session, loan: Loan, *, actor: User) -> Loan:
     if not _actor_is_borrower_or_manager(session, actor, loan):
         raise ValueError("forbidden")
+    assert_loan_workflow_action(loan, "skip_pickup")
     if not any(line.status == LINE_STATUS_PACKED for line in loan.lines):
         raise ValueError("invalid_loan_state")
     if any(line.status in _SKIP_PICKUP_BLOCK_EARLY for line in loan.lines):
@@ -722,10 +915,18 @@ def skip_pickup_to_return(session: Session, loan: Loan, *, actor: User) -> Loan:
     for line in loan.lines:
         if line.status == LINE_STATUS_PACKED:
             line.status = LINE_STATUS_RETURN_REPORTED
+            line.mail_pending = True
             line_ids.append(line.id)
     session.commit()
-    notify_loan_action(
-        session, loan, "skip_pickup", actor=actor, line_ids=line_ids
-    )
+    refresh_loan_phase(session, loan)
+    session.commit()
+    if line_ids:
+        _complete_step_receipt(
+            session,
+            loan,
+            actor=actor,
+            action="skip_pickup",
+            line_ids=line_ids,
+        )
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 

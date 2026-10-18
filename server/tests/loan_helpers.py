@@ -114,6 +114,10 @@ def confirm_all_lines(client, loan_id: int, contact_user_id: int, line_ids: list
     )
 
 
+def complete_workflow_step(client, loan_id: int):
+    return client.post(f"/api/loans/{loan_id}/actions/complete-step")
+
+
 def pack_lines(client, loan_id: int, line_ids: list[int]):
     return client.post(
         f"/api/loans/{loan_id}/actions/pack",
@@ -140,5 +144,7 @@ def confirm_pickup_restock(
     submit_request(client, loan_id)
     _login(client, "mgr" if as_manager else "borrower")
     confirm_all_lines(client, loan_id, mgr_id, line_ids)
+    complete_workflow_step(client, loan_id)
     pack_lines(client, loan_id, line_ids)
+    complete_workflow_step(client, loan_id)
     pickup_lines(client, loan_id, line_ids)

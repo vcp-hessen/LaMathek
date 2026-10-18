@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   addLoanPieceLine,
@@ -13,6 +13,7 @@ import {
 import { useActiveBox } from '../../composables/useActiveBox'
 import type { LoanLine } from '../../schemas/loan'
 import { useApiErrorMessage } from '../../composables/useApiErrorMessage'
+import UiIcon from '../UiIcon.vue'
 import WlzIcon from '../WlzIcon.vue'
 
 const OPEN_LINE_STATUSES = new Set<string>([
@@ -42,7 +43,11 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
-const { messageFor } = useApiErrorMessage()
+const { boxActionFeedback } = useApiErrorMessage()
+
+const errorDetail = ref<string | null>(null)
+const errorHint = ref<string | null>(null)
+const errorAlertId = `add-to-box-error-${Math.random().toString(36).slice(2)}`
 
 const { activeLoanId, activeLoanDetail, canAddLines } = useActiveBox(() => props.inventoryId)
 
@@ -101,7 +106,7 @@ const disabled = computed(
     (inBox.value && removableLines.value.length === 0),
 )
 
-const title = computed(() => {
+const actionTitle = computed(() => {
   const action =
     activeLoanId.value == null
       ? t('loans.selectBoxFirst')
@@ -112,6 +117,19 @@ const title = computed(() => {
           : t('loans.addToBox')
   return props.label ? `${action} (${props.label})` : action
 })
+
+const buttonTitle = computed(() => {
+  if (errorHint.value) {
+    return `${actionTitle.value} — ${errorHint.value}`
+  }
+  return actionTitle.value
+})
+
+function dismissError() {
+  errorDetail.value = null
+  errorHint.value = null
+  mutation.reset()
+}
 
 async function addToBox(loanId: number) {
   if (props.pieceId != null) return addLoanPieceLine(loanId, props.pieceId)
@@ -145,18 +163,20 @@ const mutation = useMutation({
     if (inBox.value && removableLines.value.length > 0) return removeFromBox(loanId)
     return addToBox(loanId)
   },
-  onSuccess: async (_data, _vars, _ctx) => {
+  onSuccess: async () => {
+    errorDetail.value = null
+    errorHint.value = null
     const loanId = activeLoanId.value
     if (loanId != null) {
       await queryClient.invalidateQueries({ queryKey: ['loan', loanId] })
     }
     await queryClient.invalidateQueries({ queryKey: ['loans', props.inventoryId] })
   },
-})
-
-const feedback = computed(() => {
-  if (mutation.isError.value) return messageFor(mutation.error.value)
-  return null
+  onError: (error) => {
+    const feedback = boxActionFeedback(error)
+    errorHint.value = feedback.hint
+    errorDetail.value = feedback.banner
+  },
 })
 
 const btnClass = computed(() => {
@@ -164,24 +184,41 @@ const btnClass = computed(() => {
   const tone = inBox.value
     ? 'border-transparent bg-vcp-feuergelb text-vcp-erdbraun hover:bg-vcp-feuergelb/80'
     : 'btn-ghost text-vcp-blau hover:bg-vcp-blau/10'
-  return ['btn gap-1', size, tone].join(' ')
+  const errorRing = errorDetail.value ? 'ring-2 ring-error/60 ring-offset-1 ring-offset-base-100' : ''
+  return ['btn gap-1', size, tone, errorRing].join(' ')
 })
 </script>
 
 <template>
-  <div class="inline-flex flex-col items-start gap-0.5">
+  <div class="inline-flex max-w-full flex-col items-end gap-1">
     <button
       type="button"
       :class="btnClass"
       :disabled="disabled || mutation.isPending.value"
-      :title="title"
+      :title="buttonTitle"
+      :aria-describedby="errorDetail ? errorAlertId : undefined"
       @click.stop="mutation.mutate()"
     >
       <WlzIcon :glyph="inBox ? 'full' : 'empty'" size-class="text-sm" tooltip="" />
-      <span v-if="showLabel !== false" class="hidden sm:inline">{{ title }}</span>
+      <span v-if="showLabel !== false" class="hidden sm:inline">{{ actionTitle }}</span>
     </button>
-    <p v-if="feedback" class="text-xs" :class="mutation.isError.value ? 'text-error' : 'opacity-70'">
-      {{ feedback }}
-    </p>
+    <div
+      v-if="errorDetail"
+      :id="errorAlertId"
+      role="alert"
+      class="w-max max-w-[min(18rem,calc(100vw-2rem))] rounded-md border border-error/40 bg-base-100 px-2.5 py-2 text-left text-xs leading-snug text-error shadow-sm"
+    >
+      <div class="flex items-start gap-2">
+        <p class="min-w-0 flex-1 whitespace-pre-line">{{ errorDetail }}</p>
+        <button
+          type="button"
+          class="btn btn-ghost btn-xs btn-square shrink-0 -mr-1 -mt-0.5 text-error"
+          :aria-label="t('feedback.dismiss')"
+          @click.stop="dismissError"
+        >
+          <UiIcon name="x" size-class="size-3.5" />
+        </button>
+      </div>
+    </div>
   </div>
 </template>

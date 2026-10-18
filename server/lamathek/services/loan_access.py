@@ -14,10 +14,14 @@ def user_is_borrower(user: User, loan: Loan) -> bool:
 
 
 def user_can_view_loan(session: Session, user: User, loan: Loan) -> bool:
+    if user.is_superuser:
+        return True
     if user_is_borrower(user, loan):
         return True
     if user_can_manage_inventory(session, user, loan.inventory):
-        return loan.phase != LOAN_PHASE_DRAFT
+        if loan.phase != LOAN_PHASE_DRAFT:
+            return True
+        return loan.contact_user_id == user.id
     return False
 
 

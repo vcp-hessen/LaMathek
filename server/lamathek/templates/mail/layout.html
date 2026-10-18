@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="{{ html_lang|default('de') }}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -70,9 +70,9 @@
                           color: #ffffff;
                         "
                       >
-                        {{ installation_title }}
+                        {{ installation_title }}{% if loan_mail_header and loan_mail_header.inventory_name %} · {{ loan_mail_header.inventory_name }}{% endif %}
                       </p>
-                      {% if installation_subtitle %}
+                      {% if not loan_mail_header and installation_subtitle %}
                       <p
                         style="
                           margin: 6px 0 0;
@@ -82,6 +82,30 @@
                         "
                       >
                         {{ installation_subtitle }}
+                      </p>
+                      {% endif %}
+                      {% if loan_mail_header and loan_mail_header.meta_line %}
+                      <p
+                        style="
+                          margin: 8px 0 0;
+                          font-size: 12px;
+                          line-height: 1.45;
+                          color: #a8b8c9;
+                        "
+                      >
+                        {{ loan_mail_header.meta_line }}
+                      </p>
+                      {% endif %}
+                      {% if loan_mail_header and loan_mail_header.dates_line %}
+                      <p
+                        style="
+                          margin: 4px 0 0;
+                          font-size: 12px;
+                          line-height: 1.45;
+                          color: #a8b8c9;
+                        "
+                      >
+                        {{ loan_mail_header.dates_line }}
                       </p>
                       {% endif %}
                     </td>
@@ -151,9 +175,9 @@
                 {% endif %}
                 {% if impressum_url %}
                 <p style="margin: 6px 0 0;">
-                  <a href="{{ impressum_url }}" style="color: #004287; text-decoration: none;">Impressum</a>
+                  <a href="{{ impressum_url }}" style="color: #004287; text-decoration: none;">{{ impressum_label|default('Impressum') }}</a>
                   <span style="color: #a8b8c9;"> · </span>
-                  <a href="{{ privacy_url }}" style="color: #004287; text-decoration: none;">Datenschutz</a>
+                  <a href="{{ privacy_url }}" style="color: #004287; text-decoration: none;">{{ privacy_label|default('Datenschutz') }}</a>
                 </p>
                 {% endif %}
               </td>

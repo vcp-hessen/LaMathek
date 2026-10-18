@@ -81,16 +81,16 @@ def _smtp_from_header() -> str:
     raw = str(_cfg("SMTP_FROM", "") or "").strip()
     if not raw:
         return ""
-    name, addr = email.utils.parseaddr(raw)
+    _name, addr = email.utils.parseaddr(raw)
     if not addr:
-        return raw
-    if name:
         return raw
     session = get_session()
     settings = get_installation_settings(session)
     title = (settings.title or "").strip()
     if title:
         return email.utils.formataddr((title, addr))
+    if _name:
+        return email.utils.formataddr((_name, addr))
     return addr
 
 

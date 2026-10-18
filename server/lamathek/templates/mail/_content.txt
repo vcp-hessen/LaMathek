@@ -1,7 +1,16 @@
 {{ heading }}
 
-{% for paragraph in paragraphs %}{{ paragraph }}
+{% if workflow_trail %}{% for step in workflow_trail %}{{ step.label }}{% if not loop.last %} → {% endif %}{% endfor %}
 
-{% endfor %}{% if action_url and action_label %}{{ action_label }}: {{ action_url }}
+{% endif %}{% if items %}{{ items_heading }}
+{% for item in items %}- {% if item.changed %}* {% endif %}{{ item.title }}{% if item.changed and line_changed_label %} ({{ line_changed_label }}){% endif %}
+{% if item.detail %}  {{ item.detail }}
+{% endif %}{% endfor %}
+{% endif %}{% for paragraph in paragraphs|default([]) %}{{ paragraph }}
+
+{% endfor %}{% for line in summary_lines|default([]) %}{{ line }}
+{% endfor %}{% if facts %}{% for fact in facts %}{{ fact.label }}: {{ fact.value }}
+{% endfor %}
+{% endif %}{% if action_url and action_label %}{{ action_label }}: {{ action_url }}
 
 {% endif %}

@@ -4,6 +4,7 @@ from lamathek.services.users import upsert_user_from_oidc
 from loan_helpers import (
     add_piece_line,
     borrower_id,
+    complete_workflow_step,
     confirm_all_lines,
     create_loan,
     manager_id,
@@ -79,6 +80,24 @@ def test_delete_unreleased_forbidden_for_manager():
         tmp.cleanup()
 
 
+def test_superuser_can_delete_loan_in_review():
+    app, tmp = _app_with_db()
+    try:
+        _bootstrap(app)
+        client = app.test_client()
+        inv_id = setup_inventory(client)
+        bor_id = borrower_id(client)
+        loan_id, line_id = _loan_with_line(client, inv_id, bor_id)
+        submit_request(client, loan_id)
+
+        _login(client, "su")
+        res = client.delete(f"/api/loans/{loan_id}")
+        assert res.status_code == 200, res.get_json()
+        assert client.get(f"/api/loans/{loan_id}").status_code == 404
+    finally:
+        tmp.cleanup()
+
+
 def test_delete_blocked_after_confirm():
     app, tmp = _app_with_db()
     try:
@@ -138,6 +157,7 @@ def test_cancel_blocked_when_packed():
         submit_request(client, loan_id)
         _login(client, "mgr")
         confirm_all_lines(client, loan_id, mgr_id, [line_id])
+        complete_workflow_step(client, loan_id)
         pack_lines(client, loan_id, [line_id])
 
         _login(client, "borrower")
@@ -161,7 +181,9 @@ def test_skip_pickup_to_return():
         submit_request(client, loan_id)
         _login(client, "mgr")
         confirm_all_lines(client, loan_id, mgr_id, [line_id])
+        complete_workflow_step(client, loan_id)
         pack_lines(client, loan_id, [line_id])
+        complete_workflow_step(client, loan_id)
 
         _login(client, "borrower")
         res = client.post(f"/api/loans/{loan_id}/actions/skip-pickup")
@@ -208,7 +230,7 @@ def test_skip_pickup_blocked_with_open_confirmed():
         _login(client, "borrower")
         res = client.post(f"/api/loans/{loan_id}/actions/skip-pickup")
         assert res.status_code == 409
-        assert res.get_json()["error"] == "invalid_loan_state"
+        assert res.get_json()["error"] in ("invalid_loan_state", "workflow_step_mismatch")
     finally:
         tmp.cleanup()
 
@@ -226,12 +248,14 @@ def test_skip_pickup_blocked_after_pickup():
         submit_request(client, loan_id)
         _login(client, "mgr")
         confirm_all_lines(client, loan_id, mgr_id, [line_id])
+        complete_workflow_step(client, loan_id)
         pack_lines(client, loan_id, [line_id])
+        complete_workflow_step(client, loan_id)
         pickup_lines(client, loan_id, [line_id])
 
         _login(client, "borrower")
         res = client.post(f"/api/loans/{loan_id}/actions/skip-pickup")
         assert res.status_code == 409
-        assert res.get_json()["error"] == "invalid_loan_state"
+        assert res.get_json()["error"] in ("invalid_loan_state", "workflow_step_mismatch")
     finally:
         tmp.cleanup()

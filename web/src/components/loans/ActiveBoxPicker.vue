@@ -9,6 +9,7 @@ import { useApiErrorMessage } from '../../composables/useApiErrorMessage'
 import { isInventoryWorkspaceRoute } from '../../utils/inventoryWorkspaceRoutes'
 import type { Loan } from '../../schemas/loan'
 import { loanDisplayName } from '../../utils/loanDisplayName'
+import { loanPhaseLabelKey } from '../../utils/loanPhaseLabel'
 import UiIcon from '../UiIcon.vue'
 import WlzIcon from '../WlzIcon.vue'
 
@@ -77,10 +78,8 @@ onUnmounted(() => {
   document.removeEventListener('keydown', closeOnEscape)
 })
 
-function phaseLabel(phase: string) {
-  if (phase === 'active') return t('loans.phaseActive')
-  if (phase === 'closed') return t('loans.phaseClosed')
-  return t('loans.phaseDraft')
+function phaseLabel(phase: Loan['phase']) {
+  return t(loanPhaseLabelKey(phase))
 }
 
 function selectLoan(loanId: number) {

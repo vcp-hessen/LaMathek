@@ -8,6 +8,8 @@ import type { LoanDetail } from '../../schemas/loan'
 import { useApiErrorMessage } from '../../composables/useApiErrorMessage'
 import NamedOptionCombobox from '../NamedOptionCombobox.vue'
 import LoanDateField from './LoanDateField.vue'
+import LoanDetailDisclosure from './LoanDetailDisclosure.vue'
+import { loanMetaSectionOpen } from '../../utils/loanDetailSectionOpen'
 
 type LoanDateFieldExpose = InstanceType<typeof LoanDateField> & {
   focusAndShowPicker: (options?: { anchorDate?: string }) => void
@@ -90,7 +92,20 @@ const borrowerOptions = computed(() => {
 })
 
 const isDraft = computed(() => props.loan.phase === 'draft')
+const isLegacyManagerDraftForOther = computed(
+  () =>
+    props.canManage &&
+    isDraft.value &&
+    me.value != null &&
+    props.loan.contactUserId === me.value.id &&
+    props.loan.borrowerUserId !== me.value.id,
+)
 const canChangeBorrower = computed(() => props.canManage && isDraft.value)
+const borrowerHandoffPending = computed(() => {
+  if (!canChangeBorrower.value || me.value == null) return false
+  const selected = Number(borrowerUserId.value)
+  return selected !== props.loan.borrowerUserId && selected !== me.value.id
+})
 const isClosed = computed(() => props.loan.phase === 'closed')
 const canEditManager = computed(() => props.canManage && !isClosed.value && !isDraft.value)
 const canEditLoanBlock = computed(
@@ -98,6 +113,17 @@ const canEditLoanBlock = computed(
 )
 const canEditLoanMeta = computed(() => canEditLoanBlock.value || canEditManager.value)
 const isPermanent = computed(() => loanKind.value === 'permanent')
+const canEditWishDates = computed(() => {
+  if (isPermanent.value || isClosed.value) return false
+  if (isDraft.value) return props.isLoanBorrower || props.canManage
+  return canEditManager.value
+})
+const showWishDatesReadonly = computed(
+  () =>
+    !isPermanent.value &&
+    !canEditWishDates.value &&
+    Boolean(props.loan.wishPickupOn || props.loan.wishReturnOn),
+)
 
 const { data: groups } = useQuery({
   queryKey: ['groups'],
@@ -117,6 +143,22 @@ const showManagerBlock = computed(
   () => props.canManage && !isClosed.value && !isDraft.value,
 )
 
+const metaDetailsOpen = computed(() => loanMetaSectionOpen(props.loan.phase))
+
+const metaSummaryParts = computed(() => {
+  const parts: string[] = []
+  const group = displayGroup.value
+  if (group) parts.push(group)
+  if (props.loan.eventName?.trim()) parts.push(props.loan.eventName.trim())
+  const pickup = props.loan.wishPickupOn ?? props.loan.pickupOn
+  const returnDate = props.loan.wishReturnOn ?? props.loan.returnOn
+  if (pickup) parts.push(t('loans.pickupOnWish') + ': ' + pickup)
+  if (returnDate && props.loan.kind !== 'permanent') {
+    parts.push(t('loans.returnOnWish') + ': ' + returnDate)
+  }
+  return parts.join(' · ')
+})
+
 function buildLoanPayload(): Record<string, unknown> {
   if (!canEditLoanMeta.value) return {}
   const payload: Record<string, unknown> = {
@@ -131,13 +173,28 @@ function buildLoanPayload(): Record<string, unknown> {
   } else {
     payload.clearEvent = true
   }
-  if (isDraft.value && props.isLoanBorrower) {
+  if (canEditWishDates.value) {
     payload.wishPickupOn = wishPickupOn.value || null
     if (!isPermanent.value) {
       payload.wishReturnOn = wishReturnOn.value || null
     }
   }
+  if (isDraft.value && isLegacyManagerDraftForOther.value) {
+    payload.pickupOn = wishPickupOn.value || null
+    if (!isPermanent.value) {
+      payload.returnOn = wishReturnOn.value || null
+    }
+  }
   return payload
+}
+
+function selectedBorrowerId(): number {
+  return Number(borrowerUserId.value)
+}
+
+function willHandDraftToBorrower(newBorrowerId: number): boolean {
+  if (!isDraft.value || me.value == null) return false
+  return props.loan.borrowerUserId === me.value.id && newBorrowerId !== me.value.id
 }
 
 function buildCarePayload(): Record<string, unknown> {
@@ -171,7 +228,7 @@ function validateDatePair(pickup: string, returnDate: string): boolean {
 
 function validateDatesBeforeSave() {
   if (isPermanent.value) return true
-  if (isDraft.value && canEditLoanBlock.value) {
+  if (canEditWishDates.value && (isDraft.value || canEditManager.value)) {
     if (!validateDatePair(wishPickupOn.value.trim(), wishReturnOn.value.trim())) {
       return false
     }
@@ -184,28 +241,17 @@ function validateDatesBeforeSave() {
   return true
 }
 
-const borrowerMutation = useMutation({
-  mutationFn: () =>
-    patchLoan(props.loan.id, { borrowerUserId: Number(borrowerUserId.value) }),
-  onSuccess: () => {
-    error.value = null
-    emit('saved')
-  },
-  onError: (err) => {
-    borrowerUserId.value = String(props.loan.borrowerUserId)
-    error.value = messageFor(err)
-  },
-})
-
-function onBorrowerChange() {
-  if (Number(borrowerUserId.value) === props.loan.borrowerUserId) return
-  borrowerMutation.mutate()
-}
-
 const saveMutation = useMutation({
   mutationFn: async () => {
     if (!validateDatesBeforeSave()) {
       return Promise.reject(new Error('dates_invalid'))
+    }
+    const newBorrowerId = selectedBorrowerId()
+    if (
+      willHandDraftToBorrower(newBorrowerId) &&
+      !window.confirm(t('loans.confirmHandoffBorrower'))
+    ) {
+      return Promise.reject(new Error('handoff_cancelled'))
     }
     const loanPayload = buildLoanPayload()
     const carePayload = buildCarePayload()
@@ -216,6 +262,9 @@ const saveMutation = useMutation({
     if (Object.keys(carePayload).length > 0) {
       latest = await patchLoan(props.loan.id, carePayload)
     }
+    if (canChangeBorrower.value && newBorrowerId !== props.loan.borrowerUserId) {
+      latest = await patchLoan(props.loan.id, { borrowerUserId: newBorrowerId })
+    }
     return latest
   },
   onSuccess: () => {
@@ -223,6 +272,8 @@ const saveMutation = useMutation({
     emit('saved')
   },
   onError: (err) => {
+    if (err instanceof Error && err.message === 'handoff_cancelled') return
+    if (err instanceof Error && err.message === 'dates_invalid') return
     error.value = messageFor(err)
   },
 })
@@ -236,8 +287,15 @@ function onContactChange() {
 </script>
 
 <template>
-  <div class="space-y-3 text-sm">
-    <div class="rounded-lg border border-base-300/60 bg-base-200/20 p-3">
+  <LoanDetailDisclosure
+    class="text-sm"
+    :open="metaDetailsOpen"
+    :title="t('loans.metaSectionDetails')"
+    :subtitle="metaSummaryParts || null"
+    title-variant="meta"
+  >
+    <div class="space-y-4">
+    <div>
       <p class="mb-2 text-xs font-medium uppercase tracking-wide opacity-60">
         {{ t('loans.metaSectionLoan') }}
       </p>
@@ -283,13 +341,12 @@ function onContactChange() {
         </div>
         <div class="flex min-w-0 flex-col gap-1">
           <dt class="text-xs opacity-80">{{ t('loans.borrower') }}</dt>
-          <dd class="m-0">
+          <dd class="m-0 flex min-w-0 flex-col gap-1">
             <select
               v-if="canChangeBorrower"
               v-model="borrowerUserId"
               class="select select-bordered select-sm w-full"
-              :disabled="borrowerMutation.isPending.value"
-              @change="onBorrowerChange"
+              :disabled="saveMutation.isPending.value"
             >
               <option v-for="person in borrowerOptions" :key="person.id" :value="String(person.id)">
                 {{ person.name || person.email }}
@@ -305,24 +362,22 @@ function onContactChange() {
             />
           </dd>
         </div>
-        <template v-if="!isPermanent && isDraft">
+        <template v-if="canEditWishDates">
           <div class="flex min-w-0 flex-col gap-1">
             <dt class="text-xs opacity-80">{{ t('loans.pickupOnWish') }}</dt>
             <dd class="m-0">
               <LoanDateField
                 v-model="wishPickupOn"
-                :disabled="!isDraft"
                 @committed="afterWishPickupCommitted"
               />
             </dd>
           </div>
-          <div class="flex min-w-0 flex-col gap-1">
+          <div v-if="!isPermanent" class="flex min-w-0 flex-col gap-1">
             <dt class="text-xs opacity-80">{{ t('loans.returnOnWish') }}</dt>
             <dd class="m-0">
               <LoanDateField
                 ref="wishReturnField"
                 v-model="wishReturnOn"
-                :disabled="!isDraft"
                 :min="wishPickupOn || undefined"
               />
             </dd>
@@ -346,30 +401,24 @@ function onContactChange() {
             />
           </dd>
         </div>
-        <template v-if="!isPermanent">
+        <template v-if="showWishDatesReadonly">
           <div class="flex min-w-0 flex-col gap-1">
             <dt class="text-xs opacity-80">{{ t('loans.pickupOnWish') }}</dt>
             <dd class="m-0">
-              <LoanDateField :model-value="loan.wishPickupOn ?? loan.pickupOn ?? ''" disabled />
+              <LoanDateField :model-value="loan.wishPickupOn ?? ''" disabled />
             </dd>
           </div>
           <div class="flex min-w-0 flex-col gap-1">
             <dt class="text-xs opacity-80">{{ t('loans.returnOnWish') }}</dt>
             <dd class="m-0">
-              <LoanDateField
-                :model-value="loan.wishReturnOn ?? loan.returnOn ?? ''"
-                disabled
-              />
+              <LoanDateField :model-value="loan.wishReturnOn ?? ''" disabled />
             </dd>
           </div>
         </template>
       </dl>
     </div>
 
-    <div
-      v-if="showManagerBlock"
-      class="rounded-lg border border-base-300/60 bg-base-200/20 p-3"
-    >
+    <div v-if="showManagerBlock" class="border-t border-base-300/40 pt-4">
       <p class="mb-2 text-xs font-medium uppercase tracking-wide opacity-60">
         {{ t('loans.metaSectionCare') }}
       </p>
@@ -413,10 +462,7 @@ function onContactChange() {
         </template>
       </dl>
     </div>
-    <div
-      v-else-if="loan.contactUserName"
-      class="rounded-lg border border-base-300/60 bg-base-200/20 p-3"
-    >
+    <div v-else-if="loan.contactUserName" class="border-t border-base-300/40 pt-4">
       <p class="mb-2 text-xs font-medium uppercase tracking-wide opacity-60">
         {{ t('loans.metaSectionCare') }}
       </p>
@@ -444,10 +490,19 @@ function onContactChange() {
 
     <template v-if="canEditLoanBlock || canEditManager">
       <p v-if="error" class="text-sm text-error">{{ error }}</p>
-      <div class="flex justify-end">
+      <div
+        class="flex w-full flex-wrap items-center gap-x-3 gap-y-2"
+        :class="borrowerHandoffPending ? 'justify-between' : 'justify-end'"
+      >
+        <p
+          v-if="borrowerHandoffPending"
+          class="min-w-0 flex-1 text-xs leading-snug opacity-80"
+        >
+          {{ t('loans.borrowerHandoffOnSave') }}
+        </p>
         <button
           type="button"
-          class="btn btn-primary btn-sm"
+          class="btn btn-primary btn-sm shrink-0"
           :disabled="saveMutation.isPending.value"
           @click="saveMutation.mutate()"
         >
@@ -455,5 +510,6 @@ function onContactChange() {
         </button>
       </div>
     </template>
-  </div>
+    </div>
+  </LoanDetailDisclosure>
 </template>

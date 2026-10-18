@@ -25,7 +25,9 @@ export function useLoanParticipantRoles(
   )
 
   const canEditBorrowerStammdaten = computed(
-    () => loan.value?.phase === 'draft' && isLoanBorrower.value,
+    () =>
+      loan.value?.phase === 'draft' &&
+      (isLoanBorrower.value || canManageInventory.value === true),
   )
 
   const canParticipateInLineWorkflow = computed(

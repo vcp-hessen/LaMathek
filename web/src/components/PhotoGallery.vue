@@ -93,18 +93,25 @@ async function setCover(photoId: number) {
 
 <template>
   <div class="space-y-3">
-    <div v-if="!readonly" class="flex flex-wrap items-center gap-2">
-      <label class="btn btn-outline btn-sm">
-        <input
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-          class="hidden"
-          :disabled="uploading"
-          @change="onPickFile"
-        />
-        {{ uploading ? t('photos.uploading') : t('photos.add') }}
-      </label>
-      <p v-if="error" class="text-sm text-error">{{ error }}</p>
+    <div
+      v-if="!readonly || $slots.toolbarTrailing"
+      class="flex w-full flex-wrap items-center gap-2"
+      :class="$slots.toolbarTrailing ? 'justify-between gap-y-2' : ''"
+    >
+      <div v-if="!readonly" class="flex flex-wrap items-center gap-2">
+        <label class="btn btn-outline btn-sm">
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+            class="hidden"
+            :disabled="uploading"
+            @change="onPickFile"
+          />
+          {{ uploading ? t('photos.uploading') : t('photos.add') }}
+        </label>
+        <p v-if="error" class="text-sm text-error">{{ error }}</p>
+      </div>
+      <slot name="toolbarTrailing" />
     </div>
     <div v-if="sorted.length" class="flex flex-wrap gap-2">
       <div

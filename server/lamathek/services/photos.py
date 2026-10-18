@@ -105,7 +105,12 @@ def add_photo(
     elif inventory_id is not None:
         photo.sort_order = _next_sort_order(session, Photo.inventory_id == inventory_id)
     elif loan_id is not None:
-        photo.sort_order = _next_sort_order(session, Photo.loan_id == loan_id)
+        if loan_photo_role not in ("pickup", "return"):
+            raise ValueError("invalid_role")
+        photo.sort_order = _next_sort_order(
+            session,
+            (Photo.loan_id == loan_id) & (Photo.loan_photo_role == loan_photo_role),
+        )
 
     session.add(photo)
     session.flush()
@@ -159,7 +164,9 @@ def _sibling_filter(photo: Photo):
     if photo.inventory_id is not None:
         return Photo.inventory_id == photo.inventory_id
     if photo.loan_id is not None:
-        return Photo.loan_id == photo.loan_id
+        return (Photo.loan_id == photo.loan_id) & (
+            Photo.loan_photo_role == photo.loan_photo_role
+        )
     return None
 
 
@@ -240,8 +247,33 @@ def cover_photo_id_for_inventory(session: Session, inventory_id: int) -> int | N
 
 
 def cover_photo_ids_for_loans(session: Session, loan_ids: list[int]) -> dict[int, int | None]:
-    found = first_photo_ids_for_column(session, Photo.loan_id, loan_ids)
-    return {loan_id: found.get(loan_id) for loan_id in loan_ids}
+    from lamathek.models.loan import PHOTO_ROLE_PICKUP, PHOTO_ROLE_RETURN
+
+    if not loan_ids:
+        return {}
+    result: dict[int, int | None] = {loan_id: None for loan_id in loan_ids}
+    for role in (PHOTO_ROLE_PICKUP, PHOTO_ROLE_RETURN):
+        row_number = func.row_number().over(
+            partition_by=Photo.loan_id,
+            order_by=(Photo.sort_order, Photo.id),
+        )
+        ranked = (
+            select(
+                Photo.loan_id.label("loan_id"),
+                Photo.id.label("photo_id"),
+                row_number.label("rn"),
+            )
+            .where(Photo.loan_id.in_(loan_ids), Photo.loan_photo_role == role)
+            .subquery()
+        )
+        rows = session.execute(
+            select(ranked.c.loan_id, ranked.c.photo_id).where(ranked.c.rn == 1)
+        ).all()
+        for loan_id, photo_id in rows:
+            lid = int(loan_id)
+            if result.get(lid) is None:
+                result[lid] = int(photo_id)
+    return result
 
 
 def cover_photo_ids_for_inventories(

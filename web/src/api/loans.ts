@@ -128,10 +128,40 @@ export async function addLoanStockLine(
   return loanDetailSchema.parse(response.data)
 }
 
+export async function restoreLoanLine(loanId: number, lineId: number): Promise<LoanDetail> {
+  const response = await api.post(`/api/loans/${loanId}/lines/${lineId}/restore`)
+  return loanDetailSchema.parse(response.data)
+}
+
 export async function removeLoanLine(loanId: number, lineId: number): Promise<void> {
   await api.delete(`/api/loans/${loanId}/lines/${lineId}`)
 }
 
 export async function deleteLoan(loanId: number): Promise<void> {
   await api.delete(`/api/loans/${loanId}`)
+}
+
+export type LoanMailPreview = {
+  subject: string
+  text: string
+  html: string
+}
+
+export async function fetchLoanMailPreview(
+  loanId: number,
+  params: {
+    action: string
+    audience: string
+    variant?: string
+    mailStep?: string
+  },
+): Promise<LoanMailPreview> {
+  const query: Record<string, string> = {
+    action: params.action,
+    audience: params.audience,
+  }
+  if (params.variant) query.variant = params.variant
+  if (params.mailStep) query.mailStep = params.mailStep
+  const response = await api.get(`/api/loans/${loanId}/mail-preview`, { params: query })
+  return response.data as LoanMailPreview
 }

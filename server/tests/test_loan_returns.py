@@ -5,6 +5,7 @@ from conftest import app_with_db as _app_with_db, login as _login
 from loan_helpers import (
     add_piece_line,
     borrower_id,
+    complete_workflow_step,
     confirm_all_lines,
     create_loan,
     manager_id,
@@ -49,12 +50,16 @@ def test_restock_closes_line():
         lines = client.get(f"/api/loans/{loan_id}").get_json()["lines"]
         line_ids = [line["id"] for line in lines]
         confirm_all_lines(client, loan_id, mgr_id, line_ids)
+        complete_workflow_step(client, loan_id)
         pack_lines(client, loan_id, line_ids)
+        complete_workflow_step(client, loan_id)
         pickup_lines(client, loan_id, line_ids)
+        complete_workflow_step(client, loan_id)
         client.post(
             f"/api/loans/{loan_id}/actions/report-return",
             json={"lineIds": line_ids},
         )
+        complete_workflow_step(client, loan_id)
         restock = client.post(
             f"/api/loans/{loan_id}/actions/restock",
             json={"lineIds": line_ids},

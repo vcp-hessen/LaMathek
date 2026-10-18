@@ -6,7 +6,7 @@ import { useActiveLoanStore } from '../stores/activeLoan'
 import { useInventoryQueryKey } from './useInventoryQueryKey'
 
 export function loanCanHoldLines(phase: Loan['phase']): boolean {
-  return phase === 'draft' || phase === 'active'
+  return phase === 'draft' || phase === 'review' || phase === 'pack' || phase === 'handover' || phase === 'return' || phase === 'restock'
 }
 
 export function useActiveBox(inventoryId: MaybeRefOrGetter<number>) {

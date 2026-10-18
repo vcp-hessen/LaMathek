@@ -1,0 +1,15 @@
+---
+description: Produktregeln in docs/domain lesen und pflegen
+alwaysApply: true
+---
+
+# Domänen-Dokumentation
+
+Bei Features oder Fixes zu **Verleih**, **Berechtigungen**, **Workflow-Phasen**, **Mail-Receipts**, **Verfügbarkeit** oder **Material/ Sets**:
+
+1. **Begriffe** aus [CONTEXT.md](../../CONTEXT.md) — nicht neu definieren.
+2. **Regeln** aus [docs/domain/README.md](../../docs/domain/README.md) und dem passenden `docs/domain/D*.md` Record lesen.
+3. Verhalten geändert → denselben D-Record aktualisieren (Deutsch); bei Grundsatzwechsel `status: superseded` und neuen Record.
+4. **Technik** (Framework, Storage) → [docs/adr/](../../docs/adr/), nicht in Domain-Dateien.
+
+Index: [docs/software.md](../../docs/software.md).

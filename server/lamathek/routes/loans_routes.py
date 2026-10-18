@@ -1,5 +1,8 @@
 from flask import Blueprint, jsonify, request
 
+from lamathek.models.loan import LINE_STATUS_DRAFT, is_workflow_loan_phase
+from lamathek.services.mail_templates import preview_loan_action_mail
+
 from lamathek.access import require_login
 from lamathek.db import get_session
 from lamathek.models.user import User
@@ -19,6 +22,7 @@ from lamathek.services.loan_access import (
 )
 from lamathek.services.loan_workflow import (
     cancel_unpacked_loan,
+    complete_loan_step,
     confirm_lines,
     decline_lines,
     hand_draft_to_borrower,
@@ -38,6 +42,7 @@ from lamathek.services.loan_workflow import (
     unpack_lines,
     withdraw_lines,
 )
+from lamathek.services.loan_line_restore import restore_loan_line as reopen_loan_line
 from lamathek.services.loans import (
     add_piece_line,
     add_set_assignment_lines,
@@ -81,6 +86,9 @@ def _loan_status(code: str) -> int:
         "invalid_loan_state",
         "borrower_phone_required",
         "empty_notify",
+        "step_incomplete",
+        "workflow_step_mismatch",
+        "replacement_blocks_reopen",
     ):
         status = 409
     if code in ("invalid_permanent_fields", "invalid_date_range", "invalid_scope"):
@@ -370,6 +378,45 @@ def delete_loan(user, loan_id: int):
     return jsonify({"ok": True})
 
 
+@loans_bp.get("/loans/<int:loan_id>/mail-preview")
+@require_login
+def loan_mail_preview(user, loan_id: int):
+    session = get_session()
+    loan, err = _require_loan_access(session, user, loan_id)
+    if err:
+        return err
+    if not user_can_manage_inventory(session, user, loan.inventory):
+        return jsonify({"error": "forbidden"}), 403
+    action = request.args.get("action", "request")
+    if not isinstance(action, str) or not action.strip():
+        return jsonify({"error": "invalid_action"}), 400
+    audience = request.args.get("audience", "borrower")
+    if audience not in ("borrower", "managers"):
+        return jsonify({"error": "invalid_audience"}), 400
+    variant = request.args.get("variant", "")
+    if variant is not None and not isinstance(variant, str):
+        return jsonify({"error": "invalid_variant"}), 400
+    mail_step = request.args.get("mailStep")
+    if mail_step is not None and not isinstance(mail_step, str):
+        return jsonify({"error": "invalid_mail_step"}), 400
+    if mail_step == "":
+        mail_step = None
+    if mail_step is None and is_workflow_loan_phase(loan.phase):
+        mail_step = loan.phase
+    line_ids = [line.id for line in loan.lines if line.status != LINE_STATUS_DRAFT]
+    payload = preview_loan_action_mail(
+        session,
+        loan,
+        action.strip(),
+        line_ids,
+        actor=user,
+        audience=audience,
+        variant=variant.strip(),
+        mail_step=mail_step,
+    )
+    return jsonify(payload)
+
+
 @loans_bp.get("/loans/<int:loan_id>")
 @require_login
 def get_loan(user, loan_id: int):
@@ -395,20 +442,36 @@ def patch_loan(user, loan_id: int):
     is_inventory_manager = user_can_manage_inventory(session, user, loan.inventory)
     is_borrower = user.id == loan.borrower_user_id
     manager_powers = is_inventory_manager and loan.phase != "draft"
-    can_edit_shared = is_borrower or manager_powers
+    manager_draft_for_other = (
+        is_inventory_manager
+        and loan.phase == "draft"
+        and loan.contact_user_id == user.id
+    )
+    can_edit_shared = is_borrower or manager_powers or manager_draft_for_other
     body = request.get_json(silent=True) or {}
     kwargs: dict = {}
+
+    def can_edit_draft_meta() -> bool:
+        return (
+            (loan.phase == "draft" and is_borrower)
+            or manager_powers
+            or manager_draft_for_other
+        )
+
+    def mark_manager_edit() -> None:
+        if manager_powers or manager_draft_for_other:
+            kwargs["manager_edit"] = True
+
     if can_edit_shared:
         kwargs["allow_shared_meta"] = True
     if "groupName" in body:
         name = body["groupName"]
         if not isinstance(name, str) or not name.strip():
             return jsonify({"error": "invalid_group"}), 400
-        if not ((loan.phase == "draft" and is_borrower) or manager_powers):
+        if not can_edit_draft_meta():
             return jsonify({"error": "invalid_loan_state"}), 409
         kwargs["group_name"] = name
-        if manager_powers:
-            kwargs["manager_edit"] = True
+        mark_manager_edit()
     if "borrowerUserId" in body:
         borrower_user_id = body["borrowerUserId"]
         if not isinstance(borrower_user_id, int):
@@ -416,30 +479,55 @@ def patch_loan(user, loan_id: int):
         if not is_inventory_manager or loan.phase != "draft":
             return jsonify({"error": "forbidden"}), 403
         try:
-            loan = hand_draft_to_borrower(
-                session, loan, borrower_user_id=borrower_user_id, actor=user
-            )
+            if borrower_user_id == loan.borrower_user_id:
+                pass
+            elif (
+                loan.contact_user_id == user.id
+                and loan.borrower_user_id != user.id
+            ):
+                loan = update_loan(
+                    session,
+                    loan,
+                    borrower_user_id=borrower_user_id,
+                    manager_edit=True,
+                    allow_shared_meta=True,
+                )
+            elif loan.borrower_user_id == user.id and borrower_user_id != user.id:
+                loan = hand_draft_to_borrower(
+                    session, loan, borrower_user_id=borrower_user_id, actor=user
+                )
+            else:
+                loan = update_loan(
+                    session,
+                    loan,
+                    borrower_user_id=borrower_user_id,
+                    manager_edit=True,
+                    allow_shared_meta=True,
+                )
         except ValueError as exc:
             return _loan_error(exc)
         return jsonify(loan_detail_to_json(loan, viewer=user, session=session))
     if body.get("clearEvent") is True:
-        if not ((loan.phase == "draft" and is_borrower) or manager_powers):
+        if not can_edit_draft_meta():
             return jsonify({"error": "invalid_loan_state"}), 409
         kwargs["clear_event"] = True
-        if manager_powers:
-            kwargs["manager_edit"] = True
+        mark_manager_edit()
     elif "eventName" in body:
         event_name = body["eventName"]
         if event_name is not None and not isinstance(event_name, str):
             return jsonify({"error": "invalid_event"}), 400
-        if not ((loan.phase == "draft" and is_borrower) or manager_powers):
+        if not can_edit_draft_meta():
             return jsonify({"error": "invalid_loan_state"}), 409
         kwargs["event_name"] = event_name
-        if manager_powers:
-            kwargs["manager_edit"] = True
+        mark_manager_edit()
     if "wishPickupOn" in body or "wishReturnOn" in body:
-        if loan.phase != "draft" or not is_borrower:
+        if loan.phase == "draft":
+            if not is_borrower and not can_edit_draft_meta():
+                return jsonify({"error": "invalid_loan_state"}), 409
+        elif not manager_powers:
             return jsonify({"error": "invalid_loan_state"}), 409
+        else:
+            kwargs["manager_edit"] = True
     if "wishPickupOn" in body:
         try:
             kwargs["wish_pickup_on"] = parse_date(body.get("wishPickupOn"))
@@ -453,7 +541,7 @@ def patch_loan(user, loan_id: int):
         except ValueError:
             return jsonify({"error": "invalid_date"}), 400
     if "pickupOn" in body or "returnOn" in body:
-        if not manager_powers:
+        if not manager_powers and not manager_draft_for_other:
             return jsonify({"error": "forbidden"}), 403
     if "pickupOn" in body:
         try:
@@ -470,15 +558,14 @@ def patch_loan(user, loan_id: int):
         except ValueError:
             return jsonify({"error": "invalid_date"}), 400
     if "kind" in body:
-        if not ((loan.phase == "draft" and is_borrower) or manager_powers):
+        if not can_edit_draft_meta():
             return jsonify({"error": "invalid_loan_state"}), 409
-        if manager_powers:
-            kwargs["manager_edit"] = True
+        mark_manager_edit()
         kind = body["kind"]
         if not isinstance(kind, str):
             return jsonify({"error": "invalid_kind"}), 400
         kwargs["kind"] = kind
-    if "contactUserId" in body and manager_powers:
+    if "contactUserId" in body and (manager_powers or manager_draft_for_other):
         cid = body["contactUserId"]
         if cid is not None and not isinstance(cid, int):
             return jsonify({"error": "invalid_contact"}), 400
@@ -638,6 +725,15 @@ def loan_action_request(user, loan_id: int):
 
 
 @loans_bp.post("/loans/<int:loan_id>/actions/notify-added")
+@loans_bp.post("/loans/<int:loan_id>/actions/complete-step")
+@require_login
+def loan_action_complete_step(user, loan_id: int):
+    def _handle_complete(session, loan, _body, user):
+        return complete_loan_step(session, loan, actor=user)
+
+    return _action_invoke(user, loan_id, _handle_complete)
+
+
 @require_login
 def loan_action_notify_added(user, loan_id: int):
     def _handle_notify(session, loan, _body, user):
@@ -786,6 +882,30 @@ def post_loan_line(user, loan_id: int):
 
 
 @loans_bp.delete("/loans/<int:loan_id>/lines/<int:line_id>")
+@loans_bp.post("/loans/<int:loan_id>/lines/<int:line_id>/restore")
+@require_login
+def restore_loan_line(user, loan_id: int, line_id: int):
+    session = get_session()
+    loan, err = _require_loan_access(session, user, loan_id)
+    if err:
+        return err
+    line = next((ln for ln in loan.lines if ln.id == line_id), None)
+    if line is None:
+        return jsonify({"error": "invalid_line"}), 409
+    if line.status == "withdrawn":
+        if loan.borrower_user_id != user.id and not user_can_manage_inventory(
+            session, user, loan.inventory
+        ):
+            return jsonify({"error": "forbidden"}), 403
+    elif not user_can_manage_inventory(session, user, loan.inventory):
+        return jsonify({"error": "forbidden"}), 403
+    try:
+        loan = reopen_loan_line(session, loan, line_id, actor=user)
+    except ValueError as exc:
+        return _loan_error(exc)
+    return jsonify(loan_detail_to_json(loan, viewer=user, session=session))
+
+
 @require_login
 def delete_loan_line(user, loan_id: int, line_id: int):
     session = get_session()

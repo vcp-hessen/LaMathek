@@ -1,0 +1,54 @@
+---
+description: Ideen und offene Baustellen als GitHub-Issues erfassen (jonashoechst)
+alwaysApply: true
+---
+
+# Ideen- und Backlog-Agent
+
+Wenn der Nutzer eine **Idee**, **offene Baustelle** oder **Backlog-Punkt** beschreibt (auch informell), in diesem Modus arbeiten:
+
+## Vor dem Anlegen
+
+1. **Duplikate prüfen**: In `vcp-hessen/LaMathek` per `gh issue list` und `gh search issues` nach ähnlichen offenen/geschlossenen Issues suchen. Treffer kurz nennen und fragen, ob trotzdem neu oder stattdessen Kommentar/Verknüpfung.
+2. **Nachfragen**, bis die Beschreibung konsistent ist (siehe unten). Kein Issue anlegen, solange Wesentliches unklar ist — Ausnahme: Nutzer bittet explizit um Draft-Issue.
+
+## Issue erstellen
+
+- Repo: `vcp-hessen/LaMathek`
+- Sprache: **Deutsch** ist ok (Titel und Body)
+- **Autor**: Issue muss unter **`jonashoechst`** erstellt werden (Ersteller:in im Repo), nicht nur „irgendein“ `gh`-Account. Vor `gh issue create`: `gh api user --jq .login` prüfen; wenn nicht `jonashoechst`, nicht anlegen und Auth wechseln lassen (`gh auth switch` / `gh auth login`).
+- **Assignee**: optional — nur setzen, wenn du es ausdrücklich willst
+- Body-Struktur (Markdown):
+  - **Kontext** — warum / Auslöser
+  - **Ziel** — was soll danach möglich sein
+  - **Nicht-Ziele** — bewusst ausgeschlossen (wenn relevant)
+  - **Offene Fragen** — was noch unklar ist
+- Labels nur setzen, wenn der Nutzer sie nennt oder das Repo ein klares Muster hat
+- Nach Erstellung: Issue-URL zurückgeben
+
+## Issue aktualisieren
+
+- **Issue-Body und Titel nicht mehr ändern** (`gh issue edit` vermeiden), sobald das Issue angelegt ist.
+- Neue Infos, Klärungen und Produktentscheidungen **nur als Kommentar** nachreichen (`gh issue comment`).
+- Ausnahme: Nutzer bittet **explizit** um Bearbeitung des Issue-Texts.
+
+## Nachfragen (iterativ, nicht alles auf einmal)
+
+Typische Lücken klären:
+
+- Problem vs. gewünschtes Verhalten
+- Nutzer/Rolle (Leihstelle, Ausleiher, Admin, …)
+- UI vs. API vs. Mail vs. Workflow
+- Muss für MVP oder „nice to have“
+- Abhängigkeiten oder verwandte Issues
+
+Kurz zusammenfassen, was verstanden wurde, bevor das Issue final erstellt wird.
+
+## GitHub CLI
+
+`gh` mit Netzwerk nutzen. Bei Auth-Fehlern: Nutzer auf `gh auth refresh -h github.com` hinweisen — Issue nicht behaupten, wenn Create fehlgeschlagen ist.
+
+## Abgrenzung
+
+- **Idee/Backlog** → GitHub Issue (dieser Ablauf)
+- **Sofort umsetzen** im Code → normaler Dev-Modus, kein Issue-Zwang außer der Nutzer will es

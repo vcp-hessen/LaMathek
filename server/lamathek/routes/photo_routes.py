@@ -254,8 +254,8 @@ def upload_loan_photo(user, loan_id: int):
 
     if not user_can_view_loan(session, user, loan):
         return jsonify({"error": "forbidden"}), 403
-    role = request.args.get("role", "loan")
-    if role not in ("loan", "pickup", "return"):
+    role = request.args.get("role")
+    if role not in ("pickup", "return"):
         return jsonify({"error": "invalid_role"}), 400
     if role == "pickup" and not user_can_manage_inventory(session, user, loan.inventory):
         return jsonify({"error": "forbidden"}), 403

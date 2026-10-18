@@ -1,6 +1,17 @@
 # LaMathek
 
-LaMathek is the record of material held by VCP Hessen. Headwords are the German terms. The English word on each term is the name for code and for the English locale.
+LaMathek is the record of material held by VCP Hessen. Headwords are the German terms. The English word on each term is the name for the code and for the English locale.
+
+## Documentation
+
+| What | Where |
+|------|--------|
+| **Terms** (this file) | Definitions only — not workflow rules |
+| **Product rules** | [docs/domain/README.md](docs/domain/README.md) (German, D0001–D0013) |
+| **Index** | [docs/software.md](docs/software.md) |
+| **Technical stack** | [docs/adr/](docs/adr/) |
+
+When contributing: new or changed **terms** → update CONTEXT. New or changed **behavior** → update the matching `docs/domain/D*.md` record (and tests if applicable). Do not duplicate rules in CONTEXT.
 
 ## Language
 
@@ -120,7 +131,7 @@ _English_: damage
 _Avoid_: Defekt, Zustand, condition
 
 **Foto**:
-An image file stored beside the database, linked to an Einzelteil, Mengenposten, Set, Materialart, Schaden, Inventar, Verleih, Abholinformation, or Rückgabeinformation. The first Foto in sort order is the cover image; Einzelteil and Mengenposten lists may show the Materialart reference Foto when they have none of their own.
+An image file stored beside the database, linked to an Einzelteil, Mengenposten, Set, Materialart, Schaden, Inventar, Abholinformation, or Rückgabeinformation on a Verleih. The first Foto in sort order is the cover image where applicable; Einzelteil and Mengenposten lists may show the Materialart reference Foto when they have none of their own. Verleih list thumbnails use Abhol- or Rückgabe-Fotos when present.
 _English_: photo
 _Avoid_: Bild, Anhang, attachment
 

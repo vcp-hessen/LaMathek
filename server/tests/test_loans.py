@@ -5,6 +5,7 @@ from conftest import app_with_db as _app_with_db, login as _login
 from loan_helpers import (
     add_piece_line,
     borrower_id,
+    complete_workflow_step,
     confirm_all_lines,
     create_loan,
     manager_id,
@@ -157,7 +158,10 @@ def test_workflow_pickup_requires_pack():
         confirm_all_lines(client, loan_id, mgr_id, line_ids)
         bad = pickup_lines(client, loan_id, line_ids)
         assert bad.status_code == 409
+        assert bad.get_json()["error"] == "workflow_step_mismatch"
+        complete_workflow_step(client, loan_id)
         pack_lines(client, loan_id, line_ids)
+        complete_workflow_step(client, loan_id)
         assert pickup_lines(client, loan_id, line_ids).status_code == 200
     finally:
         tmp.cleanup()

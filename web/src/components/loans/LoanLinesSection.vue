@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, withDefaults } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import type { LoanDetail } from '../../schemas/loan'
@@ -7,25 +7,34 @@ import UiIcon from '../UiIcon.vue'
 import LoanLinesDataTable from './LoanLinesDataTable.vue'
 import { LOAN_DETAIL_SECTION } from './loanDetailLayout'
 import { deriveLineActionContext } from './loanLineActionContext'
+import {
+  loanWorkflowContextFromLoan,
+  resolveEffectiveWorkflowStep,
+} from '../../domain/loanWorkflowSteps'
 import type { LineRowActionId } from './loanLineRowActions'
 import { stageButtonClass } from './loanWorkflowTones'
 import type { WorkflowTone } from './loanWorkflowTones'
 
 type ReasonAction = 'decline' | 'notPacked' | 'notPickedUp' | 'recordLoss'
 
-const props = defineProps<{
-  loan: LoanDetail
-  inventoryId: number
-  canManage: boolean
-  isLoanBorrower: boolean
-  canParticipateInLineWorkflow: boolean
-  selectedLineIds: number[]
-  confirmPending: boolean
-  declinePending: boolean
-  actionPending: boolean
-  entryActionPending: boolean
-  actionMessage: string | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    loan: LoanDetail
+    inventoryId: number
+    canManage: boolean
+    isLoanBorrower: boolean
+    canParticipateInLineWorkflow: boolean
+    selectedLineIds: number[]
+    confirmPending: boolean
+    declinePending: boolean
+    actionPending: boolean
+    entryActionPending: boolean
+    actionMessage: string | null
+    /** Omit outer section chrome when wrapped by parent (e.g. with pickup/return). */
+    nested?: boolean
+  }>(),
+  { nested: false },
+)
 
 const emit = defineEmits<{
   selectLines: [ids: number[]]
@@ -43,6 +52,7 @@ const emit = defineEmits<{
   reportReturn: [lineIds?: number[]]
   restock: [entries: { lineId: number; returnedQuantity?: number; reason?: string }[]]
   recordLoss: [entries: { lineId: number; reason: string }[]]
+  restore: [lineId: number]
   removeLine: [lineId: number]
 }>()
 
@@ -54,7 +64,13 @@ const selectedLines = computed(() =>
   loanLines.value.filter((line) => props.selectedLineIds.includes(line.id)),
 )
 
-const actionContext = computed(() => deriveLineActionContext(selectedLines.value))
+const workflowContext = computed(() => loanWorkflowContextFromLoan(props.loan))
+
+const effectiveWorkflowStep = computed(() => resolveEffectiveWorkflowStep(workflowContext.value))
+
+const actionContext = computed(() =>
+  deriveLineActionContext(selectedLines.value, effectiveWorkflowStep.value),
+)
 
 const showLineToolbar = computed(
   () => props.canParticipateInLineWorkflow && (props.loan.lines?.length ?? 0) > 0,
@@ -85,8 +101,6 @@ const confirmTitle = computed(() => {
 const pendingReasonAction = ref<ReasonAction | null>(null)
 const sharedReasonDraft = ref('')
 const sharedReasonMissing = ref(false)
-const lineReasonDrafts = ref<Record<number, string>>({})
-const reasonErrorLineIds = ref<number[]>([])
 const restockQuantityDrafts = ref<Record<number, number>>({})
 const restockReasonDraft = ref('')
 const restockReasonMissing = ref(false)
@@ -205,7 +219,6 @@ watch(
       const ids = lineIdsForReasonAction(pendingReasonAction.value)
       if (!ids.length) cancelReason()
     }
-    reasonErrorLineIds.value = []
   },
 )
 
@@ -216,14 +229,12 @@ function actionBtnClass(tone: Exclude<WorkflowTone, 'luftgrau'>, solid: boolean)
 function openReason(action: ReasonAction) {
   pendingReasonAction.value = action
   sharedReasonMissing.value = false
-  reasonErrorLineIds.value = []
 }
 
 function cancelReason() {
   pendingReasonAction.value = null
   sharedReasonDraft.value = ''
   sharedReasonMissing.value = false
-  reasonErrorLineIds.value = []
 }
 
 function lineIdsForReasonAction(action: ReasonAction): number[] {
@@ -246,13 +257,7 @@ watch(sharedReasonDraft, () => {
   if (sharedReasonDraft.value.trim()) sharedReasonMissing.value = false
 })
 
-function clearReasonDrafts(lineIds: number[]) {
-  const next = { ...lineReasonDrafts.value }
-  for (const id of lineIds) delete next[id]
-  lineReasonDrafts.value = next
-}
-
-function entriesWithSharedReason(lineIds: number[]): { lineId: number; reason: string }[] {
+function entriesWithReason(lineIds: number[]): { lineId: number; reason: string }[] {
   const reason = sharedReasonDraft.value.trim()
   return lineIds.map((lineId) => ({ lineId, reason }))
 }
@@ -262,20 +267,18 @@ function submitSharedReason() {
   if (!action) return
   const lineIds = lineIdsForReasonAction(action)
   if (!lineIds.length) return
-  if (!sharedReasonDraft.value.trim()) {
+  const entries = entriesWithReason(lineIds)
+  if (entries.some((entry) => !entry.reason)) {
     sharedReasonMissing.value = true
     return
   }
-  const entries = entriesWithSharedReason(lineIds)
   pendingReasonAction.value = null
   sharedReasonDraft.value = ''
   sharedReasonMissing.value = false
-  reasonErrorLineIds.value = []
   if (action === 'decline') emit('decline', entries)
   else if (action === 'notPacked') emit('notPacked', entries)
   else if (action === 'notPickedUp') emit('notPickedUp', entries)
   else emit('recordLoss', entries)
-  clearReasonDrafts(lineIds)
 }
 
 function rowReasonActionId(id: LineRowActionId): ReasonAction | null {
@@ -286,39 +289,18 @@ function rowReasonActionId(id: LineRowActionId): ReasonAction | null {
   return null
 }
 
-function emitReasonAction(action: ReasonAction, lineIds: number[]) {
-  const reason = sharedReasonDraft.value.trim()
-  if (!reason) {
-    openReason(action)
-    sharedReasonMissing.value = true
-    return
-  }
-  const entries = entriesWithSharedReason(lineIds)
-  pendingReasonAction.value = null
-  sharedReasonDraft.value = ''
-  sharedReasonMissing.value = false
-  if (action === 'decline') emit('decline', entries)
-  else if (action === 'notPacked') emit('notPacked', entries)
-  else if (action === 'notPickedUp') emit('notPickedUp', entries)
-  else emit('recordLoss', entries)
-  clearReasonDrafts(lineIds)
-}
-
 function handleRowAction({ id, lineId }: { id: LineRowActionId; lineId: number }) {
   const lineIds = [lineId]
   const reasonAction = rowReasonActionId(id)
   if (reasonAction) {
-    if (pendingReasonAction.value !== reasonAction) {
-      openReason(reasonAction)
-      if (!props.selectedLineIds.includes(lineId)) {
-        emit('selectLines', [lineId])
-      }
-      return
-    }
     if (!props.selectedLineIds.includes(lineId)) {
       emit('selectLines', [lineId])
     }
-    emitReasonAction(reasonAction, lineIds)
+    if (pendingReasonAction.value === reasonAction) {
+      submitSharedReason()
+      return
+    }
+    openReason(reasonAction)
     return
   }
   switch (id) {
@@ -349,6 +331,9 @@ function handleRowAction({ id, lineId }: { id: LineRowActionId; lineId: number }
     case 'restock':
       emitRestock(lineIds)
       break
+    case 'restore':
+      emit('restore', lineId)
+      break
   }
 }
 
@@ -362,7 +347,7 @@ function countLabel(key: string, count: number): string {
 </script>
 
 <template>
-  <section :class="LOAN_DETAIL_SECTION">
+  <component :is="nested ? 'div' : 'section'" :class="nested ? 'space-y-4' : LOAN_DETAIL_SECTION">
     <h2 class="app-page-title text-base">{{ t('loans.linesHeading') }}</h2>
 
     <div class="space-y-4 text-sm">
@@ -376,12 +361,7 @@ function countLabel(key: string, count: number): string {
         :can-participate="canParticipateInLineWorkflow"
         :confirm-allowed="!confirmDisabled"
         :confirm-blocked-title="confirmTitle"
-        :line-reason-drafts="lineReasonDrafts"
-        :reason-error-line-ids="reasonErrorLineIds"
-        :suppress-reason-inputs="pendingReasonAction != null"
-        :shared-reason-missing="sharedReasonMissing"
-        :pending-reason-action="pendingReasonAction"
-        @update:line-reason-drafts="lineReasonDrafts = $event"
+        :workflow="workflowContext"
         @toggle-line="(id, checked) => emit('toggleLine', id, checked)"
         @select-lines="(ids) => emit('selectLines', ids)"
         @deselect-lines="(ids) => emit('deselectLines', ids)"
@@ -409,9 +389,11 @@ function countLabel(key: string, count: number): string {
           {{
             actionContext.hint === 'select'
               ? t('loans.lineActionsSelectRows')
-              : actionContext.hint === 'mixed'
-                ? t('loans.lineActionsMixedStatus')
-                : t('loans.lineActionsNoAction')
+              : actionContext.hint === 'wrong_step'
+                ? t('loans.actionBlockedWrongStep')
+                : actionContext.hint === 'mixed'
+                  ? t('loans.lineActionsMixedStatus')
+                  : t('loans.lineActionsNoAction')
           }}
         </p>
       </template>
@@ -562,19 +544,15 @@ function countLabel(key: string, count: number): string {
               />
             </label>
           </div>
-          <label
+          <input
             v-if="needsRestockPartialReason || needsRestockZeroConsumableReason"
-            class="flex min-w-0 flex-col gap-1"
-          >
-            <span class="text-xs font-medium opacity-80">{{ t('loans.reason') }}</span>
-            <textarea
-              v-model="restockReasonDraft"
-              class="textarea textarea-bordered textarea-sm w-full min-h-[3rem]"
-              :class="{ 'textarea-error': restockReasonMissing }"
-              rows="2"
-              :placeholder="t('loans.reasonRequiredPlaceholder')"
-            />
-          </label>
+            v-model="restockReasonDraft"
+            type="text"
+            class="input input-bordered input-sm w-full"
+            :class="{ 'input-error': restockReasonMissing }"
+            :placeholder="t('loans.reasonRequiredPlaceholder')"
+            :aria-label="t('loans.reason')"
+          />
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <template v-if="canManage">
@@ -632,46 +610,41 @@ function countLabel(key: string, count: number): string {
 
       <div
         v-if="pendingReasonAction"
-        class="flex flex-col gap-2 border-t border-base-200 pt-3"
+        class="flex flex-wrap items-center gap-2 border-t border-base-200 pt-3"
       >
-        <label class="flex min-w-0 flex-col gap-1">
-          <span class="text-xs font-medium opacity-80">{{ t('loans.reason') }}</span>
-          <span class="text-xs opacity-70">{{ t('loans.lineReasonBulkHint') }}</span>
-          <textarea
-            v-model="sharedReasonDraft"
-            class="textarea textarea-bordered textarea-sm w-full min-h-[4rem]"
-            :class="{ 'textarea-error': sharedReasonMissing }"
-            rows="2"
-            :placeholder="t('loans.reasonRequiredPlaceholder')"
-            :aria-invalid="sharedReasonMissing || undefined"
-            @keydown.stop
-          />
-        </label>
-        <div class="flex flex-wrap items-center justify-end gap-2">
-          <p
-            v-if="sharedReasonMissing"
-            role="alert"
-            class="min-w-0 flex-1 text-xs text-error"
-          >
-            {{ t('loans.lineReasonMissingShort') }}
-          </p>
-          <button
-            type="button"
-            class="btn btn-ghost btn-sm"
-            :disabled="reasonPending"
-            @click="cancelReason()"
-          >
-            {{ t('destructive.cancel') }}
-          </button>
-          <button
-            type="button"
-            class="btn btn-primary btn-sm"
-            :disabled="reasonPending"
-            @click="submitSharedReason()"
-          >
-            {{ t('loans.reasonSubmit') }}
-          </button>
-        </div>
+        <input
+          v-model="sharedReasonDraft"
+          type="text"
+          class="input input-bordered input-sm min-w-[12rem] flex-1"
+          :class="{ 'input-error': sharedReasonMissing }"
+          :placeholder="t('loans.reasonRequiredPlaceholder')"
+          :aria-label="t('loans.reason')"
+          :aria-invalid="sharedReasonMissing || undefined"
+          @keydown.enter.prevent="submitSharedReason()"
+        />
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          :disabled="reasonPending"
+          @click="submitSharedReason()"
+        >
+          {{ t('loans.reasonSubmit') }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm"
+          :disabled="reasonPending"
+          @click="cancelReason()"
+        >
+          {{ t('destructive.cancel') }}
+        </button>
+        <p
+          v-if="sharedReasonMissing"
+          role="alert"
+          class="basis-full text-xs text-error"
+        >
+          {{ t('loans.lineReasonMissingShort') }}
+        </p>
       </div>
 
       <div
@@ -680,8 +653,8 @@ function countLabel(key: string, count: number): string {
         class="flex items-start gap-2 rounded-md border border-[#e94653]/50 bg-[#f9c5c9] px-2.5 py-2 text-sm leading-snug"
       >
         <UiIcon name="loss" size-class="size-5 shrink-0 text-[#e94653]" />
-        <p class="min-w-0 flex-1">{{ actionMessage }}</p>
+        <p class="min-w-0 flex-1 whitespace-pre-line">{{ actionMessage }}</p>
       </div>
     </div>
-  </section>
+  </component>
 </template>

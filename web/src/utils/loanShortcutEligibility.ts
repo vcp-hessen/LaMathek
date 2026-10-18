@@ -1,4 +1,5 @@
 import type { LoanLine } from '../schemas/loan'
+import type { WorkflowStep } from '../domain/loanWorkflowSteps'
 
 const PRE_CONFIRM = new Set(['draft', 'requested'])
 const CANCEL_FORBIDDEN = new Set(['packed', 'picked_up', 'return_reported'])
@@ -17,7 +18,11 @@ export function canCancelUnpackedLoan(lines: LoanLine[]): boolean {
   )
 }
 
-export function canSkipPickupToReturn(lines: LoanLine[]): boolean {
+export function canSkipPickupToReturn(
+  lines: LoanLine[],
+  effectiveWorkflowStep: WorkflowStep | null,
+): boolean {
+  if (effectiveWorkflowStep !== 'handover') return false
   if (!lines.some((line) => line.status === 'packed')) return false
   if (lines.some((line) => SKIP_BLOCK_EARLY.has(line.status))) return false
   if (lines.some((line) => SKIP_BLOCK_LATE.has(line.status))) return false

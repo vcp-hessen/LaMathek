@@ -1,35 +1,47 @@
 <script setup lang="ts">
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { fetchInventoryPermissions } from '../api/inventories'
 import { fetchMe, patchMePhone } from '../api/me'
-import { deleteLoan, fetchLoan, loanAction, patchLoan, removeLoanLine } from '../api/loans'
+import {
+  deleteLoan,
+  fetchLoan,
+  loanAction,
+  patchLoan,
+  removeLoanLine,
+  restoreLoanLine,
+} from '../api/loans'
 import LoanDetailsCollapsible from '../components/loans/LoanDetailsCollapsible.vue'
 import LoanLinesSection from '../components/loans/LoanLinesSection.vue'
 import LoanPrimaryActions from '../components/loans/LoanPrimaryActions.vue'
 import ActionFeedbackBanner from '../components/ActionFeedbackBanner.vue'
 import LoanStatusHeader from '../components/loans/LoanStatusHeader.vue'
+import { LOAN_DETAIL_SECTION } from '../components/loans/loanDetailLayout'
 import { useActiveBox } from '../composables/useActiveBox'
 import { useApiErrorMessage } from '../composables/useApiErrorMessage'
 import { useInventoryCanManage } from '../composables/useInventoryCanManage'
 import { useLoanParticipantRoles } from '../composables/useLoanParticipantRoles'
 import {
-  canCancelUnpackedLoan,
-  canDeleteUnreleasedLoan,
-  canSkipPickupToReturn,
-} from '../utils/loanShortcutEligibility'
+  buildLoanPhaseRareMenuItems,
+  canCancelForLoan,
+  canDeleteLoan,
+  canSkipPickupForLoan,
+  type LoanPhaseRareActionId,
+} from '../utils/loanPhaseRareActions'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const queryClient = useQueryClient()
-const { messageFor } = useApiErrorMessage()
+const { loanActionMessageFor } = useApiErrorMessage()
 const actionError = ref<string | null>(null)
+const actionErrorMultiline = ref(false)
 
 function onMutationError(error: unknown) {
-  actionError.value = messageFor(error)
+  actionError.value = loanActionMessageFor(error)
+  actionErrorMultiline.value = actionError.value?.includes('\n') ?? false
 }
 
 const inventoryId = computed(() => Number(route.params.id))
@@ -250,6 +262,15 @@ const entryActionMutation = useMutation({
   onError: onMutationError,
 })
 
+const restoreMutation = useMutation({
+  mutationFn: (lineId: number) => restoreLoanLine(loanId.value, lineId),
+  onSuccess: async () => {
+    actionError.value = null
+    await invalidate()
+  },
+  onError: onMutationError,
+})
+
 const removeMutation = useMutation({
   mutationFn: (lineId: number) => removeLoanLine(loanId.value, lineId),
   onSuccess: async () => {
@@ -259,40 +280,25 @@ const removeMutation = useMutation({
   onError: onMutationError,
 })
 
-const loanLines = computed(() => loan.value?.lines ?? [])
+const rareMenuItems = computed(() => {
+  if (!loan.value) return []
+  return buildLoanPhaseRareMenuItems(loan.value, {
+    isLoanBorrower: isLoanBorrower.value,
+    canParticipate: canParticipateInLineWorkflow.value,
+    showDelete: canDeleteLoan(loan.value, {
+      isLoanBorrower: isLoanBorrower.value,
+      isSuperuser: me.value?.isSuperuser === true,
+    }),
+    showCancel: canCancelForLoan(loan.value, canParticipateInLineWorkflow.value),
+    showSkipPickup: canSkipPickupForLoan(loan.value, canParticipateInLineWorkflow.value),
+  })
+})
 
-const showDeleteShortcut = computed(
-  () =>
-    isLoanBorrower.value &&
-    loan.value != null &&
-    canDeleteUnreleasedLoan(loanLines.value, loan.value.phase),
-)
-
-const showCancelShortcut = computed(
-  () =>
-    canParticipateInLineWorkflow.value &&
-    loan.value?.phase === 'active' &&
-    canCancelUnpackedLoan(loanLines.value),
-)
-
-const showSkipPickupShortcut = computed(
-  () =>
-    canParticipateInLineWorkflow.value &&
-    loan.value?.phase !== 'closed' &&
-    canSkipPickupToReturn(loanLines.value),
-)
-
-const showNotifyAddedShortcut = computed(
-  () =>
-    canParticipateInLineWorkflow.value &&
-    loan.value?.phase === 'active' &&
-    loan.value?.hasUnnotifiedRequestedLines === true,
-)
-
-const notifyAddedMutation = useMutation({
-  mutationFn: () => loanAction(loanId.value, 'notify-added'),
+const completeStepMutation = useMutation({
+  mutationFn: () => loanAction(loanId.value, 'complete-step'),
   onSuccess: async () => {
     actionError.value = null
+    selectedLineIds.value = []
     await invalidate()
   },
   onError: onMutationError,
@@ -333,11 +339,16 @@ const shortcutPending = computed(
   () =>
     deleteLoanMutation.isPending.value ||
     cancelLoanMutation.isPending.value ||
-    skipPickupMutation.isPending.value,
+    skipPickupMutation.isPending.value ||
+    entryActionMutation.isPending.value,
 )
 
 function onShortcutDelete() {
-  if (!window.confirm(t('loans.shortcutDeleteConfirm'))) return
+  const confirmKey =
+    me.value?.isSuperuser === true
+      ? 'loans.shortcutDeleteSuperuserConfirm'
+      : 'loans.shortcutDeleteConfirm'
+  if (!window.confirm(t(confirmKey))) return
   deleteLoanMutation.mutate()
 }
 
@@ -349,6 +360,47 @@ function onShortcutCancel() {
 function onShortcutSkipPickup() {
   if (!window.confirm(t('loans.shortcutSkipPickupConfirm'))) return
   skipPickupMutation.mutate()
+}
+
+function onRareAction(id: LoanPhaseRareActionId, payload?: { reason: string }) {
+  if (id === 'delete') {
+    onShortcutDelete()
+    return
+  }
+  if (id === 'cancel') {
+    onShortcutCancel()
+    return
+  }
+  if (id === 'skipPickup') {
+    onShortcutSkipPickup()
+    return
+  }
+  if (id === 'notPickedUpAll') {
+    const item = rareMenuItems.value.find((row) => row.id === id)
+    const reason = payload?.reason?.trim()
+    if (!item?.lineIds?.length || !reason) return
+    entryActionMutation.mutate({
+      action: 'mark-not-picked-up',
+      entries: item.lineIds.map((lineId) => ({ lineId, reason })),
+    })
+  }
+}
+
+const closeBlockedTitle = computed(() => {
+  if (loan.value?.phase !== 'draft' || !isLoanBorrower.value) return ''
+  if (needsPhoneBeforeRequest.value && !phoneForRequest.value.trim()) return t('loans.phoneRequired')
+  const pickupOn = loan.value.wishPickupOn ?? loan.value.pickupOn
+  const returnOn = loan.value.wishReturnOn ?? loan.value.returnOn
+  if (!pickupOn || (!isPermanent.value && !returnOn)) return t('loans.requestDatesRequired')
+  return ''
+})
+
+function onCompletePhase() {
+  if (loan.value?.phase === 'draft') {
+    requestMutation.mutate()
+    return
+  }
+  completeStepMutation.mutate()
 }
 
 const needsPhoneBeforeRequest = computed(
@@ -390,109 +442,125 @@ const globalActionError = computed(() => {
         :can-edit-borrower="canEditBorrowerStammdaten"
         :permission-users="permissionUsers ?? []"
         :is-loan-borrower="isLoanBorrower"
-        :show-delete-shortcut="showDeleteShortcut"
-        :show-cancel-shortcut="showCancelShortcut"
-        :show-skip-pickup-shortcut="showSkipPickupShortcut"
-        :show-notify-added-shortcut="showNotifyAddedShortcut"
-        :notify-added-pending="notifyAddedMutation.isPending.value"
+        :rare-menu-items="rareMenuItems"
         :shortcut-pending="shortcutPending"
-        @use-as-box="setActiveLoan(loan.id)"
+        :complete-pending="requestMutation.isPending.value || completeStepMutation.isPending.value"
+        :close-blocked-title="closeBlockedTitle"
         @meta-saved="invalidate()"
-        @shortcut-delete="onShortcutDelete"
-        @shortcut-cancel="onShortcutCancel"
-        @shortcut-skip-pickup="onShortcutSkipPickup"
-        @shortcut-notify-added="notifyAddedMutation.mutate()"
+        @rare-action="onRareAction"
+        @complete-phase="onCompletePhase"
       />
 
-      <LoanLinesSection
-        :loan="loan"
-        :inventory-id="inventoryId"
-        :can-manage="canActAsManager"
-        :is-loan-borrower="isLoanBorrower"
-        :can-participate-in-line-workflow="canParticipateInLineWorkflow"
-        :selected-line-ids="selectedLineIds"
-        :confirm-pending="confirmMutation.isPending.value"
-        :decline-pending="declineMutation.isPending.value"
-        :action-pending="actionMutation.isPending.value"
-        :entry-action-pending="entryActionMutation.isPending.value"
-        :action-message="materialActionError"
-        @select-lines="selectLines"
-        @deselect-lines="deselectLines"
-        @toggle-line="toggleLine"
-        @confirm="(lineIds) => confirmMutation.mutate(lineIds)"
-        @decline="(entries) => declineMutation.mutate(entries)"
-        @withdraw="
-          (lineIds) =>
-            actionMutation.mutate({
-              action: 'withdraw',
-              lineIds: lineIdsForAction(lineIds, 'requested', 'confirmed'),
-            })
-        "
-        @pack="
-          (lineIds) =>
-            actionMutation.mutate({
-              action: 'pack',
-              lineIds: lineIdsForAction(lineIds, 'confirmed'),
-            })
-        "
-        @unpack="
-          (lineIds) =>
-            actionMutation.mutate({
-              action: 'unpack',
-              lineIds: lineIdsForAction(lineIds, 'packed'),
-            })
-        "
-        @not-packed="
-          (entries) =>
-            entryActionMutation.mutate({
-              action: 'mark-not-packed',
-              entries,
-            })
-        "
-        @pickup="
-          (lineIds) =>
-            actionMutation.mutate({
-              action: 'pickup',
-              lineIds: lineIdsForAction(lineIds, 'packed'),
-            })
-        "
-        @undo-pickup="
-          (lineIds) =>
-            actionMutation.mutate({
-              action: 'undo-pickup',
-              lineIds: lineIdsForAction(lineIds, 'picked_up'),
-            })
-        "
-        @not-picked-up="
-          (entries) =>
-            entryActionMutation.mutate({
-              action: 'mark-not-picked-up',
-              entries,
-            })
-        "
-        @report-return="
-          (lineIds) =>
-            actionMutation.mutate({
-              action: 'report-return',
-              lineIds: lineIdsForAction(lineIds, 'picked_up'),
-            })
-        "
-        @restock="
-          (entries) =>
-            entryActionMutation.mutate({
-              action: 'restock',
-              entries,
-            })
-        "
-        @record-loss="
-          (entries) =>
-            entryActionMutation.mutate({
-              action: 'record-loss',
-              entries,
-            })
-        "
-        @remove-line="removeMutation.mutate($event)"
-      />
+      <section :class="LOAN_DETAIL_SECTION">
+        <LoanLinesSection
+          nested
+          :loan="loan"
+          :inventory-id="inventoryId"
+          :can-manage="canActAsManager"
+          :is-loan-borrower="isLoanBorrower"
+          :can-participate-in-line-workflow="canParticipateInLineWorkflow"
+          :selected-line-ids="selectedLineIds"
+          :confirm-pending="confirmMutation.isPending.value"
+          :decline-pending="declineMutation.isPending.value"
+          :action-pending="actionMutation.isPending.value || restoreMutation.isPending.value"
+          :entry-action-pending="entryActionMutation.isPending.value"
+          :action-message="materialActionError"
+          @select-lines="selectLines"
+          @deselect-lines="deselectLines"
+          @toggle-line="toggleLine"
+          @confirm="(lineIds) => confirmMutation.mutate(lineIds)"
+          @decline="(entries) => declineMutation.mutate(entries)"
+          @withdraw="
+            (lineIds) =>
+              actionMutation.mutate({
+                action: 'withdraw',
+                lineIds: lineIdsForAction(lineIds, 'requested', 'confirmed'),
+              })
+          "
+          @pack="
+            (lineIds) =>
+              actionMutation.mutate({
+                action: 'pack',
+                lineIds: lineIdsForAction(lineIds, 'confirmed'),
+              })
+          "
+          @unpack="
+            (lineIds) =>
+              actionMutation.mutate({
+                action: 'unpack',
+                lineIds: lineIdsForAction(lineIds, 'packed'),
+              })
+          "
+          @not-packed="
+            (entries) =>
+              entryActionMutation.mutate({
+                action: 'mark-not-packed',
+                entries,
+              })
+          "
+          @pickup="
+            (lineIds) =>
+              actionMutation.mutate({
+                action: 'pickup',
+                lineIds: lineIdsForAction(lineIds, 'packed'),
+              })
+          "
+          @undo-pickup="
+            (lineIds) =>
+              actionMutation.mutate({
+                action: 'undo-pickup',
+                lineIds: lineIdsForAction(lineIds, 'picked_up'),
+              })
+          "
+          @not-picked-up="
+            (entries) =>
+              entryActionMutation.mutate({
+                action: 'mark-not-picked-up',
+                entries,
+              })
+          "
+          @report-return="
+            (lineIds) =>
+              actionMutation.mutate({
+                action: 'report-return',
+                lineIds: lineIdsForAction(lineIds, 'picked_up'),
+              })
+          "
+          @restock="
+            (entries) =>
+              entryActionMutation.mutate({
+                action: 'restock',
+                entries,
+              })
+          "
+          @record-loss="
+            (entries) =>
+              entryActionMutation.mutate({
+                action: 'record-loss',
+                entries,
+              })
+          "
+          @restore="restoreMutation.mutate($event)"
+          @remove-line="removeMutation.mutate($event)"
+        />
+
+        <LoanDetailsCollapsible
+          :loan="loan"
+          :can-manage="canActAsManager"
+          :is-loan-borrower="isLoanBorrower"
+          :can-participate-in-line-workflow="canParticipateInLineWorkflow"
+          :is-closed-phase="isClosedPhase"
+          :is-permanent="isPermanent"
+          :edit-pickup-note="editPickupNote"
+          :edit-return-note="editReturnNote"
+          :patch-pending="patchMetaMutation.isPending.value"
+          @update:edit-pickup-note="editPickupNote = $event"
+          @update:edit-return-note="editReturnNote = $event"
+          @save-pickup-note="patchMetaMutation.mutate({ pickupNote: editPickupNote })"
+          @save-return-note="patchMetaMutation.mutate({ returnNote: editReturnNote })"
+          @photos-change="queryClient.invalidateQueries({ queryKey: ['loan', loanId] })"
+        />
+      </section>
 
       <LoanPrimaryActions
         v-if="loan.lines.length > 0"
@@ -506,24 +574,20 @@ const globalActionError = computed(() => {
         @request="requestMutation.mutate()"
       />
 
-      <LoanDetailsCollapsible
-        :loan="loan"
-        :can-manage="canActAsManager"
-        :is-loan-borrower="isLoanBorrower"
-        :can-participate-in-line-workflow="canParticipateInLineWorkflow"
-        :is-closed-phase="isClosedPhase"
-        :is-permanent="isPermanent"
-        :edit-pickup-note="editPickupNote"
-        :edit-return-note="editReturnNote"
-        :patch-pending="patchMetaMutation.isPending.value"
-        @update:edit-pickup-note="editPickupNote = $event"
-        @update:edit-return-note="editReturnNote = $event"
-        @save-pickup-note="patchMetaMutation.mutate({ pickupNote: editPickupNote })"
-        @save-return-note="patchMetaMutation.mutate({ returnNote: editReturnNote })"
-        @photos-change="queryClient.invalidateQueries({ queryKey: ['loan', loanId] })"
+      <ActionFeedbackBanner
+        :message="globalActionError"
+        :multiline="actionErrorMultiline"
+        @dismiss="actionError = null"
       />
 
-      <ActionFeedbackBanner :message="globalActionError" @dismiss="actionError = null" />
+      <p v-if="canActAsManager" class="pt-4 text-center">
+        <RouterLink
+          class="text-xs text-base-content/40 hover:text-base-content/70"
+          :to="`/inventories/${inventoryId}/loans/${loanId}/mail-preview`"
+        >
+          Mail-Vorschau
+        </RouterLink>
+      </p>
     </template>
   </div>
 </template>

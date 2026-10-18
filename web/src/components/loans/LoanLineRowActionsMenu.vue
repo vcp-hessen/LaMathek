@@ -3,7 +3,9 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { LoanLine } from '../../schemas/loan'
 import UiIcon from '../UiIcon.vue'
-import { lineRowActionSplit, type LineRowActionId } from './loanLineRowActions'
+import { lineRowActionSplit, type LineRowActionId, type LineRowMenuItem } from './loanLineRowActions'
+import LoanHoverHint from './LoanHoverHint.vue'
+import type { LoanWorkflowContext } from '../../domain/loanWorkflowSteps'
 
 const props = defineProps<{
   line: LoanLine
@@ -11,8 +13,8 @@ const props = defineProps<{
   isLoanBorrower: boolean
   canParticipate: boolean
   confirmAllowed: boolean
+  workflow: LoanWorkflowContext
   confirmBlockedTitle?: string
-  showReasonError?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -26,6 +28,7 @@ const options = computed(() => ({
   isLoanBorrower: props.isLoanBorrower,
   canParticipate: props.canParticipate,
   confirmAllowed: props.confirmAllowed,
+  workflow: props.workflow,
 }))
 
 const split = computed(() => lineRowActionSplit(props.line, options.value))
@@ -39,10 +42,12 @@ const MENU_WIDTH = 192
 const MENU_ITEM_HEIGHT = 36
 const MENU_PADDING = 8
 
-function itemTitle(item: { id: LineRowActionId; disabled?: boolean }): string | undefined {
-  if (item.disabled && item.id === 'confirm' && props.confirmBlockedTitle) {
+function itemDisabledHint(item: LineRowMenuItem): string | undefined {
+  if (!item.disabled) return undefined
+  if (item.id === 'confirm' && props.confirmBlockedTitle) {
     return props.confirmBlockedTitle
   }
+  if (item.disabledTitleKey) return t(item.disabledTitleKey)
   return undefined
 }
 
@@ -132,19 +137,24 @@ function onSelect(id: LineRowActionId, disabled?: boolean) {
     @click.stop
   >
     <div class="inline-flex items-stretch">
-      <button
-        type="button"
-        class="btn btn-primary btn-xs h-7 min-h-7 max-w-[9rem] truncate rounded-r-none border-r border-primary-content/20 px-2"
-        :class="{
-          'btn-disabled': split.primary.disabled,
-          'rounded-r-md': !split.alternatives.length,
-        }"
-        :disabled="split.primary.disabled"
-        :title="itemTitle(split.primary)"
-        @click="onSelect(split.primary.id, split.primary.disabled)"
+      <LoanHoverHint
+        :text="itemDisabledHint(split.primary) ?? ''"
+        :show-hint="Boolean(split.primary.disabled && itemDisabledHint(split.primary))"
+        placement="above"
       >
-        {{ t(split.primary.labelKey) }}
-      </button>
+        <button
+          type="button"
+          class="btn btn-primary btn-xs h-7 min-h-7 max-w-[9rem] truncate rounded-r-none border-r border-primary-content/20 px-2"
+          :class="{
+            'btn-disabled': split.primary.disabled,
+            'rounded-r-md': !split.alternatives.length,
+          }"
+          :disabled="split.primary.disabled"
+          @click="onSelect(split.primary.id, split.primary.disabled)"
+        >
+          {{ t(split.primary.labelKey) }}
+        </button>
+      </LoanHoverHint>
       <div v-if="split.alternatives.length">
         <button
           ref="chevronRef"
@@ -175,7 +185,7 @@ function onSelect(id: LineRowActionId, disabled?: boolean) {
                 class="w-full justify-start"
                 :class="{ 'opacity-50': item.disabled }"
                 :disabled="item.disabled"
-                :title="itemTitle(item)"
+                :title="itemDisabledHint(item)"
                 @click="onSelect(item.id, item.disabled)"
               >
                 {{ t(item.labelKey) }}
@@ -185,12 +195,5 @@ function onSelect(id: LineRowActionId, disabled?: boolean) {
         </Teleport>
       </div>
     </div>
-    <p
-      v-if="showReasonError"
-      role="alert"
-      class="absolute right-0 top-full z-30 mt-1 w-52 rounded-md border border-error/40 bg-base-100 px-2 py-1.5 text-left text-xs leading-snug text-error shadow-md"
-    >
-      {{ t('loans.lineReasonMissingShort') }}
-    </p>
   </div>
 </template>

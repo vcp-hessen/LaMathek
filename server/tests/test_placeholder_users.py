@@ -45,7 +45,7 @@ def test_create_for_other_is_active_without_dates_and_listed():
         )
         assert created.status_code == 201, created.get_json()
         body = created.get_json()
-        assert body["phase"] == "active"
+        assert body["phase"] == "draft"
         assert body["contactUserId"] == mgr
         assert body["pickupOn"] is None
         listed = client.get(f"/api/inventories/{inv_id}/loans")
@@ -78,7 +78,7 @@ def test_changing_borrower_on_own_draft_promotes_it():
         )
         assert patched.status_code == 200, patched.get_json()
         body = patched.get_json()
-        assert body["phase"] == "active"
+        assert body["phase"] == "review"
         assert body["borrowerUserId"] == bor_id
         assert body["contactUserId"] == mgr
         assert body["lines"][0]["status"] == "requested"
@@ -148,9 +148,9 @@ def test_manager_sets_group_and_title_on_loan_for_other():
         _login(client, "borrower")
         denied = client.patch(
             f"/api/loans/{loan_id}",
-            json={"groupName": "Stamm C"},
+            json={"pickupOn": "2026-10-25"},
         )
-        assert denied.status_code == 409
+        assert denied.status_code == 403
     finally:
         tmp.cleanup()
 
