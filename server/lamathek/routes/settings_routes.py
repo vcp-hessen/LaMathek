@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 
 from lamathek.access import require_superuser
+from lamathek.bundesland import parse_calendar_bundesland
 from lamathek.db import get_session
 from lamathek.serializers import settings_to_json
 from lamathek.services.audit import (
@@ -53,9 +54,16 @@ def patch_settings(user):
     else:
         auth_provider_same_host = same_host
 
+    session = get_session()
+    current_settings = get_installation_settings(session)
+    raw_bundesland = body.get("calendarBundesland", current_settings.calendar_bundesland)
     try:
-        session = get_session()
-        before_values = installation_settings_audit_values(get_installation_settings(session))
+        calendar_bundesland = parse_calendar_bundesland(raw_bundesland)
+    except ValueError:
+        return jsonify({"error": "invalid_calendar_bundesland"}), 400
+
+    try:
+        before_values = installation_settings_audit_values(current_settings)
         settings = update_installation_settings(
             session,
             title=title,
@@ -76,6 +84,7 @@ def patch_settings(user):
             auth_provider_same_host=auth_provider_same_host,
             authority_name=text_field("authorityName"),
             authority_url=text_field("authorityUrl"),
+            calendar_bundesland=calendar_bundesland,
         )
     except ValueError:
         return jsonify({"error": "invalid_field"}), 400

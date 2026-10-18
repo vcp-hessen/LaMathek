@@ -1,4 +1,7 @@
 import { z } from 'zod'
+import { BUNDESLAND_CODES } from '../utils/germanPublicHolidays'
+
+export const calendarBundeslandSchema = z.enum(BUNDESLAND_CODES)
 
 export const installationSettingsSchema = z.object({
   title: z.string(),
@@ -20,6 +23,7 @@ export const installationSettingsSchema = z.object({
   authProviderSameHost: z.boolean(),
   authorityName: z.string(),
   authorityUrl: z.string(),
+  calendarBundesland: calendarBundeslandSchema,
 })
 
 export type InstallationSettings = z.infer<typeof installationSettingsSchema>

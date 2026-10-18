@@ -1,6 +1,7 @@
 from sqlalchemy import Boolean, CheckConstraint, Float, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
+from lamathek.bundesland import DEFAULT_CALENDAR_BUNDESLAND
 from lamathek.db import Base
 
 DEFAULT_MAP_LATITUDE = 50.65
@@ -36,3 +37,6 @@ class InstallationSettings(Base):
     )
     authority_name: Mapped[str] = mapped_column(String(512), nullable=False, default="")
     authority_url: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    calendar_bundesland: Mapped[str] = mapped_column(
+        String(2), nullable=False, default=DEFAULT_CALENDAR_BUNDESLAND
+    )

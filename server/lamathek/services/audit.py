@@ -31,6 +31,7 @@ INSTALLATION_SETTINGS_AUDIT_FIELDS: tuple[tuple[str, str], ...] = (
     ("auth_provider_same_host", "authProviderSameHost"),
     ("authority_name", "authorityName"),
     ("authority_url", "authorityUrl"),
+    ("calendar_bundesland", "calendarBundesland"),
 )
 
 

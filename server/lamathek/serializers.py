@@ -94,6 +94,7 @@ def settings_to_json(settings: InstallationSettings, session: Session) -> dict:
         "authProviderSameHost": settings.auth_provider_same_host,
         "authorityName": settings.authority_name,
         "authorityUrl": settings.authority_url,
+        "calendarBundesland": settings.calendar_bundesland,
     }
 
 

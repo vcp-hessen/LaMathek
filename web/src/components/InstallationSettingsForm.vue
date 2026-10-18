@@ -8,6 +8,7 @@ import { geocodeAddress } from '../api/geocode'
 import { updateInstallationSettings } from '../api/settings'
 import type { InstallationSettings } from '../schemas/settings'
 import { installationSettingsPatchSchema } from '../schemas/settings'
+import { BUNDESLAND_CODES, BUNDESLAND_LABELS } from '../utils/germanPublicHolidays'
 import InventoryMap from './InventoryMap.vue'
 
 const props = defineProps<{
@@ -44,6 +45,7 @@ const [authProviderName] = defineField('authProviderName')
 const [authProviderSameHost] = defineField('authProviderSameHost')
 const [authorityName] = defineField('authorityName')
 const [authorityUrl] = defineField('authorityUrl')
+const [calendarBundesland] = defineField('calendarBundesland')
 
 const mapLat = computed({
   get: () => (typeof mapLatitude.value === 'number' ? mapLatitude.value : null),
@@ -227,6 +229,19 @@ const onSubmit = handleSubmit(async (values) => {
             </label>
           </div>
         </div>
+      </fieldset>
+
+      <fieldset class="rounded-lg border border-base-200 px-3 pb-3 pt-1">
+        <legend class="px-1 text-sm font-medium">{{ t('settings.calendarHeading') }}</legend>
+        <p class="mt-1 text-xs opacity-70">{{ t('settings.calendarBundeslandHint') }}</p>
+        <label class="mt-2 flex min-w-0 max-w-md flex-col gap-1">
+          <span class="text-xs opacity-80">{{ t('settings.calendarBundeslandLabel') }}</span>
+          <select v-model="calendarBundesland" class="select select-bordered select-sm w-full">
+            <option v-for="code in BUNDESLAND_CODES" :key="code" :value="code">
+              {{ BUNDESLAND_LABELS[code] }}
+            </option>
+          </select>
+        </label>
       </fieldset>
 
       <fieldset class="space-y-2 rounded-lg border border-base-200 px-3 pb-3 pt-1">

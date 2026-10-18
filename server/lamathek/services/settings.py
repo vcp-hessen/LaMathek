@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 
+from lamathek.bundesland import DEFAULT_CALENDAR_BUNDESLAND
 from lamathek.models.settings import InstallationSettings
 
 DEFAULT_TITLE = "VCP Hessen"
@@ -39,6 +40,7 @@ def update_installation_settings(
     auth_provider_same_host: bool,
     authority_name: str,
     authority_url: str,
+    calendar_bundesland: str = DEFAULT_CALENDAR_BUNDESLAND,
 ) -> InstallationSettings:
     settings = get_installation_settings(session)
     settings.title = title.strip()
@@ -59,6 +61,7 @@ def update_installation_settings(
     settings.auth_provider_same_host = auth_provider_same_host
     settings.authority_name = authority_name.strip()
     settings.authority_url = authority_url.strip()
+    settings.calendar_bundesland = calendar_bundesland
     session.commit()
     session.refresh(settings)
     return settings

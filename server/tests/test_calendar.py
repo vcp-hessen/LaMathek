@@ -52,13 +52,33 @@ def test_user_calendar_and_ics():
         )
 
         _login(client, "borrower")
-        cal = client.get("/api/me/calendar")
+        cal = client.get("/api/me/calendar/borrower")
         assert cal.status_code == 200
         items = cal.get_json()["items"]
         assert any(item["loanId"] == loan_id for item in items)
+        assert all(item.get("asBorrower") for item in items)
 
-        token = client.post("/api/me/calendar-token")
+        token = client.post(
+            "/api/me/calendar-feeds",
+            json={"label": "Handy", "scope": "borrower"},
+        )
         assert token.status_code == 201
+        path = token.get_json()["path"]
+        assert path.startswith("/api/calendar/ics/borrower.ics?token=")
+        assert token.get_json()["label"] == "Handy"
+
+        listed = client.get("/api/me/calendar-feeds")
+        assert listed.status_code == 200
+        assert len(listed.get_json()["items"]) == 1
+
+        feed_id = listed.get_json()["items"][0]["id"]
+        deleted = client.delete(f"/api/me/calendar-feeds/{feed_id}")
+        assert deleted.status_code == 204
+
+        token = client.post(
+            "/api/me/calendar-feeds",
+            json={"label": "Handy", "scope": "borrower"},
+        )
         path = token.get_json()["path"]
         client.get("/logout")
         feed = client.get(path)

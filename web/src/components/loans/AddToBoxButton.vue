@@ -14,7 +14,8 @@ import { useActiveBox } from '../../composables/useActiveBox'
 import type { LoanLine } from '../../schemas/loan'
 import { useApiErrorMessage } from '../../composables/useApiErrorMessage'
 import UiIcon from '../UiIcon.vue'
-import WlzIcon from '../WlzIcon.vue'
+import WlzTriStateButton from '../WlzTriStateButton.vue'
+import type { WlzTriState } from '../../utils/wlzTriState'
 
 const OPEN_LINE_STATUSES = new Set<string>([
   'draft',
@@ -80,24 +81,42 @@ const removableLines = computed(() =>
   matchingLines.value.filter((line) => REMOVABLE_LINE_STATUSES.has(line.status)),
 )
 
-const inBox = computed(() => {
-  if (props.setId != null && (props.pieceIds != null || props.stockTypeIds != null)) {
-    const pieces = props.pieceIds ?? []
-    const stocks = props.stockTypeIds ?? []
-    if (pieces.length + stocks.length === 0) return false
-    return (
-      pieces.every((pieceId) =>
-        matchingLines.value.some((line) => line.kind === 'piece' && line.pieceId === pieceId),
-      ) &&
-      stocks.every((typeId) =>
-        matchingLines.value.some(
-          (line) => line.kind === 'stock' && line.materialTypeId === typeId,
-        ),
-      )
-    )
+function setPieceStockCoverage(): { matched: number; total: number } {
+  const pieces = props.pieceIds ?? []
+  const stocks = props.stockTypeIds ?? []
+  let total = 0
+  let matched = 0
+  for (const pieceId of pieces) {
+    total += 1
+    if (matchingLines.value.some((line) => line.kind === 'piece' && line.pieceId === pieceId)) {
+      matched += 1
+    }
   }
-  return matchingLines.value.length > 0
+  for (const typeId of stocks) {
+    total += 1
+    if (
+      matchingLines.value.some(
+        (line) => line.kind === 'stock' && line.materialTypeId === typeId,
+      )
+    ) {
+      matched += 1
+    }
+  }
+  return { matched, total }
+}
+
+const boxFillState = computed((): WlzTriState => {
+  if (props.setId != null && (props.pieceIds != null || props.stockTypeIds != null)) {
+    const { matched, total } = setPieceStockCoverage()
+    if (total === 0) return 'off'
+    if (matched === 0) return 'off'
+    if (matched === total) return 'on'
+    return 'partial'
+  }
+  return matchingLines.value.length > 0 ? 'on' : 'off'
 })
+
+const inBox = computed(() => boxFillState.value === 'on')
 
 const disabled = computed(
   () =>
@@ -179,29 +198,24 @@ const mutation = useMutation({
   },
 })
 
-const btnClass = computed(() => {
-  const size = props.size === 'xs' ? 'btn-xs' : props.size === 'md' ? 'btn-md' : 'btn-sm'
-  const tone = inBox.value
-    ? 'border-transparent bg-vcp-feuergelb text-vcp-erdbraun hover:bg-vcp-feuergelb/80'
-    : 'btn-ghost text-vcp-blau hover:bg-vcp-blau/10'
-  const errorRing = errorDetail.value ? 'ring-2 ring-error/60 ring-offset-1 ring-offset-base-100' : ''
-  return ['btn gap-1', size, tone, errorRing].join(' ')
-})
+const errorRingClass = computed(() =>
+  errorDetail.value ? 'ring-2 ring-error/60 ring-offset-1 ring-offset-base-100' : '',
+)
 </script>
 
 <template>
   <div class="inline-flex max-w-full flex-col items-end gap-1">
-    <button
-      type="button"
-      :class="btnClass"
-      :disabled="disabled || mutation.isPending.value"
-      :title="buttonTitle"
-      :aria-describedby="errorDetail ? errorAlertId : undefined"
-      @click.stop="mutation.mutate()"
-    >
-      <WlzIcon :glyph="inBox ? 'full' : 'empty'" size-class="text-sm" tooltip="" />
+    <div class="inline-flex items-center gap-1" :class="errorRingClass">
+      <WlzTriStateButton
+        :model-value="boxFillState"
+        :size="size"
+        :title="buttonTitle"
+        :cycle-on-click="false"
+        :disabled="disabled || mutation.isPending.value"
+        @click="mutation.mutate()"
+      />
       <span v-if="showLabel !== false" class="hidden sm:inline">{{ actionTitle }}</span>
-    </button>
+    </div>
     <div
       v-if="errorDetail"
       :id="errorAlertId"

@@ -114,6 +114,13 @@ export function useAppBreadcrumbs() {
         return [{ label: t('inventories.title') }]
       case 'my-loans':
         return [{ label: t('loans.myLoansHeading') }]
+      case 'calendar':
+        return [{ label: t('nav.calendar') }]
+      case 'calendar-feeds':
+        return [
+          { label: t('nav.calendar'), to: '/calendar' },
+          { label: t('calendar.feedsHeading') },
+        ]
       case 'inventory-material-types':
       case 'inventory-material':
       case 'inventory-sets':

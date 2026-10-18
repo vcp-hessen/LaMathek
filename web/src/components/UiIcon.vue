@@ -8,17 +8,23 @@ import {
   Bars3Icon,
   CheckIcon,
   ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
   HandRaisedIcon,
+  MoonIcon,
   NoSymbolIcon,
   PlusIcon,
+  SunIcon,
   XMarkIcon,
 } from '@heroicons/vue/24/outline'
 
 export type UiIconName =
   | 'menu'
   | 'chevronDown'
+  | 'chevronLeft'
+  | 'chevronRight'
   | 'plus'
   | 'check'
   | 'x'
@@ -30,10 +36,14 @@ export type UiIconName =
   | 'restock'
   | 'loss'
   | 'info'
+  | 'sun'
+  | 'moon'
 
 const ICONS: Record<UiIconName, Component> = {
   menu: Bars3Icon,
   chevronDown: ChevronDownIcon,
+  chevronLeft: ChevronLeftIcon,
+  chevronRight: ChevronRightIcon,
   plus: PlusIcon,
   check: CheckIcon,
   x: XMarkIcon,
@@ -45,6 +55,8 @@ const ICONS: Record<UiIconName, Component> = {
   restock: ArrowPathIcon,
   loss: ExclamationTriangleIcon,
   info: InformationCircleIcon,
+  sun: SunIcon,
+  moon: MoonIcon,
 }
 
 withDefaults(

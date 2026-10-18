@@ -35,6 +35,7 @@ def test_settings_public_and_superuser_bootstrap():
         assert data["subtitle"] == "Landesmaterial"
         assert data["hostName"] == ""
         assert data["authProviderSameHost"] is False
+        assert data["calendarBundesland"] == "HE"
 
         with app.app_context():
             session = get_session()

@@ -21,6 +21,7 @@ const props = defineProps<{
   diagnosticsActive: boolean
   usersActive: boolean
   myLoansActive: boolean
+  calendarActive: boolean
   mobile?: boolean
 }>()
 
@@ -232,6 +233,28 @@ const signOutLabel = computed(() =>
             <div
               class="tooltip tooltip-right w-full"
               :class="{ 'before:hidden': expanded }"
+              :data-tip="expanded ? undefined : t('nav.calendar')"
+            >
+              <RouterLink
+                to="/calendar"
+                :class="navItemClass(calendarActive, expanded)"
+                :aria-label="expanded ? undefined : t('nav.calendar')"
+                :aria-current="calendarActive ? 'page' : undefined"
+              >
+                <WlzIcon
+                  glyph="day"
+                  :active="calendarActive"
+                  size-class="text-lg"
+                  :tooltip="t('nav.calendar')"
+                />
+                <span v-show="expanded" class="truncate">{{ t('nav.calendar') }}</span>
+              </RouterLink>
+            </div>
+          </li>
+          <li v-if="me">
+            <div
+              class="tooltip tooltip-right w-full"
+              :class="{ 'before:hidden': expanded }"
               :data-tip="expanded ? undefined : t('nav.myLoans')"
             >
               <RouterLink
@@ -248,37 +271,6 @@ const signOutLabel = computed(() =>
                 />
                 <span v-show="expanded" class="truncate">{{ t('nav.myLoans') }}</span>
               </RouterLink>
-            </div>
-          </li>
-          <li>
-            <div
-              class="tooltip tooltip-right w-full"
-              :class="{ 'before:hidden': expanded }"
-              :data-tip="
-                expanded ? undefined : ui.theme === 'light' ? t('theme.dark') : t('theme.light')
-              "
-            >
-              <button
-                type="button"
-                class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm"
-                :class="[
-                  expanded ? '' : 'justify-center',
-                  impersonating
-                    ? 'text-vcp-blau/90 hover:bg-vcp-blau/10'
-                    : 'text-white/85 hover:bg-white/10',
-                ]"
-                :aria-label="t('theme.toggle')"
-                @click="ui.toggleTheme()"
-              >
-                <WlzIcon
-                  :glyph="ui.theme === 'light' ? 'night' : 'day'"
-                  size-class="text-lg"
-                  :tooltip="ui.theme === 'light' ? t('theme.dark') : t('theme.light')"
-                />
-                <span v-show="expanded">
-                  {{ ui.theme === 'light' ? t('theme.dark') : t('theme.light') }}
-                </span>
-              </button>
             </div>
           </li>
           <li v-if="me">

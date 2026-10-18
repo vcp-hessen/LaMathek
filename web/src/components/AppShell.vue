@@ -47,6 +47,7 @@ const settingsActive = computed(() => route.path === '/settings')
 const diagnosticsActive = computed(() => route.path === '/diagnose')
 const usersActive = computed(() => route.path === '/users')
 const myLoansActive = computed(() => route.path === '/my-loans')
+const calendarActive = computed(() => route.path.startsWith('/calendar'))
 
 watch(
   () => route.fullPath,
@@ -144,6 +145,7 @@ async function onSidebarSignOut() {
             :diagnostics-active="diagnosticsActive"
             :users-active="usersActive"
             :my-loans-active="myLoansActive"
+            :calendar-active="calendarActive"
             mobile
             @sign-out="onSidebarSignOut"
           />
@@ -167,6 +169,7 @@ async function onSidebarSignOut() {
         :diagnostics-active="diagnosticsActive"
         :users-active="usersActive"
         :my-loans-active="myLoansActive"
+        :calendar-active="calendarActive"
         @sign-out="onSidebarSignOut"
       />
     </aside>

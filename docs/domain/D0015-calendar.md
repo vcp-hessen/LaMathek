@@ -12,6 +12,8 @@ context_begriffe: [Verleih, Inventar, Materialwart*in, Ausleihende*r]
 ## Entscheidung
 
 - Ein Eintrag pro Verleih mit gesetztem Abholtermin, ab Phase Prüfung (keine Entwürfe).
-- Dauerleihgabe ohne Rückgabe: Eintrag ab Abholung, im Feed ein Tag, in der App als Dauerleihgabe gekennzeichnet.
-- Inventar-Kalender für Materialwart*innen; persönlicher Kalender für eigene Ausleihen und Zuständigkeiten.
-- iCal-Abo über persönliches Token, ohne Sitzung. Token ersetzbar und widerrufbar.
+- Dauerleihgabe ohne Rückgabe: Eintrag ab Abholung, im Feed ein Tag, in der App als offener Balken bis zum Rand des sichtbaren Monats.
+- Mehrtägige Verleihe sind ein durchgehender Balken über die Tage, an Wochengrenzen weitergeführt.
+- Wochenenden und die gesetzlichen Feiertage des in den Installationseinstellungen gewählten Bundeslands sind im Monat markiert (Berechnung im Frontend, Standard Hessen). Blättern geht monatsweise, inklusive Sprung auf den aktuellen Monat.
+- Kalender in der Benutzer-Sektion: gemeinsame Ansicht; Monatsraster (Wochenenden, Feiertage, Blättern) bleibt sichtbar, auch wenn unter „Anzeige“ keine Verleih-Ebene aktiv ist — dann ohne Balken. Anzeige mit Schalter für **Eigene Ausleihen** und je Inventar mit Berechtigung dreistufig (**Aus**, **Nur Verantwortlich**, **Alle Verleihe** — letzteres nur mit Verwaltungsrecht). Farbe pro Balken: Eigene Ausleihen, Nur Verantwortlich, oder übrige Verleihe bei „Alle Verleihe“. Deduplizierung nach Verleih-ID.
+- iCal-Abos auf einer eigenen Seite: je Eintrag ein benanntes Token (Anwendung). Inhalt mit denselben Begriffen (eigene Ausleihen; je Inventar Nur Verantwortlich oder Alle Verleihe). Abruf-URL beschreibt den Inhalt im Pfad (englisch: `…/borrower.ics`, `…/inventories/{id}/contact.ics`, `…/inventories/{id}/all-loans.ics`); Authentifizierung nur per Query-Parameter `token`. Widerruf pro Eintrag; Abruf ohne Sitzung.

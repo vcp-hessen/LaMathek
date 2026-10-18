@@ -106,7 +106,7 @@ watchEffect(() => {
 
     <nav v-if="me" class="mt-6 flex flex-wrap gap-3 text-sm">
       <RouterLink class="link" to="/my-loans">{{ t('loans.myLoansHeading') }}</RouterLink>
-      <RouterLink class="link" to="/kalender">{{ t('nav.calendar') }}</RouterLink>
+      <RouterLink class="link" to="/calendar">{{ t('nav.calendar') }}</RouterLink>
       <RouterLink class="link" to="/inventories">{{ t('inventories.nav') }}</RouterLink>
     </nav>
   </div>
