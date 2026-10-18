@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import type { ColumnDef } from '@tanstack/vue-table'
 import type { LoanLine } from '../../schemas/loan'
+import ContextHelp from '../ContextHelp.vue'
 import DataTableSearch from '../data-table/DataTableSearch.vue'
 import DataTableFooter from '../data-table/DataTableFooter.vue'
 import SortHeaderButton from '../data-table/SortHeaderButton.vue'
@@ -294,11 +295,14 @@ function openLineTarget(line: LoanLine, event: MouseEvent) {
               />
             </th>
             <th class="hidden lg:table-cell">
-              <SortHeaderButton
-                :label="t('material.piecesTableSet')"
-                :sorted="sortedState('set')"
-                @toggle="table.getColumn('set')?.toggleSorting()"
-              />
+              <div class="flex items-center gap-1">
+                <SortHeaderButton
+                  :label="t('material.piecesTableSet')"
+                  :sorted="sortedState('set')"
+                  @toggle="table.getColumn('set')?.toggleSorting()"
+                />
+                <ContextHelp anchor="set" :label="t('help.glossary.set.title')" />
+              </div>
             </th>
             <th class="hidden sm:table-cell">
               <SortHeaderButton

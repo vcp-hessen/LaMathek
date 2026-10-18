@@ -6,6 +6,7 @@ import { fetchBorrowers, fetchGroups, patchLoan } from '../../api/loans'
 import { fetchMe } from '../../api/me'
 import type { LoanDetail } from '../../schemas/loan'
 import { useApiErrorMessage } from '../../composables/useApiErrorMessage'
+import ContextHelp from '../ContextHelp.vue'
 import NamedOptionCombobox from '../NamedOptionCombobox.vue'
 import LoanDateField from './LoanDateField.vue'
 import LoanDetailDisclosure from './LoanDetailDisclosure.vue'
@@ -331,7 +332,10 @@ function onContactChange() {
           </dd>
         </div>
         <div class="flex min-w-0 flex-col gap-1">
-          <dt class="text-xs opacity-80">{{ t('loans.kind') }}</dt>
+          <dt class="flex items-center gap-1 text-xs opacity-80">
+            <span>{{ t('loans.kind') }}</span>
+            <ContextHelp anchor="dauerleihgabe" :label="t('help.glossary.dauerleihgabe.title')" />
+          </dt>
           <dd class="m-0">
             <select v-model="loanKind" class="select select-bordered select-sm w-full">
               <option value="short">{{ t('loans.kindShort') }}</option>

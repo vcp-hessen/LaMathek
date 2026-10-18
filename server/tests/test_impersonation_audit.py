@@ -61,8 +61,7 @@ def test_impersonation_requires_reason_and_grants_target_permissions():
         su, person, _other_su = _seed_users(session)
         from lamathek.services.inventories import create_inventory
 
-        inventory = create_inventory(session, name="Test")
-        grant_inventory_permission(session, person, inventory)
+        create_inventory(session, name="Test")
         su_id = su.id
         person_id = person.id
 

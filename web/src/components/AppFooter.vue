@@ -39,6 +39,9 @@ const siteUrl = computed(() => websiteHref(props.settings?.website))
       <RouterLink to="/datenschutz" class="link link-hover">
         {{ t('privacy.nav') }}
       </RouterLink>
+      <RouterLink to="/hilfe" class="link link-hover">
+        {{ t('help.nav') }}
+      </RouterLink>
     </div>
   </footer>
 </template>

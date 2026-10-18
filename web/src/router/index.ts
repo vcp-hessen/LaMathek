@@ -15,6 +15,7 @@ import InventorySetsView from '../views/InventorySetsView.vue'
 import LoanDetailView from '../views/LoanDetailView.vue'
 import MyLoansView from '../views/MyLoansView.vue'
 import SetDetailView from '../views/SetDetailView.vue'
+import HelpGlossaryView from '../views/HelpGlossaryView.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -48,6 +49,11 @@ export const router = createRouter({
       path: '/datenschutz',
       name: 'privacy',
       component: PrivacyView,
+    },
+    {
+      path: '/hilfe',
+      name: 'help-glossary',
+      component: HelpGlossaryView,
     },
     {
       path: '/inventories',

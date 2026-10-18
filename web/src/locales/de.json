@@ -243,6 +243,9 @@
     "itemStatusActive": "Im Bestand",
     "itemStatusRetired": "Aussortiert",
     "pieceLost": "Verloren",
+    "foundAgainTitle": "Wieder im Bestand",
+    "foundAgainReason": "Grund",
+    "foundAgainAction": "Wieder einbuchen",
     "acquiredYear": "Anschaffungsjahr",
     "itemNote": "Notiz",
     "itemSource": "Herkunft",
@@ -343,6 +346,16 @@
     "contactHint": "Für Ausleihende bei Fragen zu diesem Verleih erreichbar.",
     "contactRequiredForConfirm": "Bitte eine zuständige Materialwart*in auswählen und speichern.",
     "confirmDatesRequired": "Bitte Abhol- und Rückgabedatum setzen und speichern (Wunschtermine oder Termine unter Betreuung).",
+    "warnings": {
+      "piece_date_overlap": "Termin überschneidet sich mit Verleih #{otherLoanId} (gleiches Einzelteil).",
+      "stock_date_overlap": "Im Zeitraum ist mehr Menge bestätigt als Bestand (siehe Verleih #{otherLoanId}).",
+      "piece_wish_overlap": "Wunschtermin überschneidet sich mit bestätigtem Verleih #{otherLoanId}.",
+      "piece_total_loss": "Einzelteil ist als Totalverlust verbucht.",
+      "piece_severe_damage": "Schwerer offener Schaden am Einzelteil.",
+      "piece_mild_damage": "Offener Schaden (Hinweis) am Einzelteil.",
+      "planned_loan_total_loss": "Totalverlust – Eintrag in Verleih #{loanId}.",
+      "planned_loan_severe_damage": "Schwerer Schaden – Eintrag in Verleih #{loanId}."
+    },
     "errors": {
       "pickup_required": "Abholung fehlt. Bitte Datum setzen und speichern.",
       "return_required": "Rückgabe fehlt. Bei Verleih (nicht Dauerleihgabe) ist ein Rückgabedatum nötig – bitte setzen und speichern, dann erneut freigeben.",
@@ -686,5 +699,125 @@
     "uploadFailed": "Foto konnte nicht hochgeladen werden.",
     "deleteFailed": "Foto konnte nicht entfernt werden.",
     "coverFailed": "Titelbild konnte nicht gesetzt werden."
+  },
+  "commandPalette": {
+    "open": "Schnellaktionen",
+    "title": "Schnellaktionen",
+    "hint": "Material anlegen oder neuen Verleih starten.",
+    "newMaterialType": "Neue Materialart",
+    "newPiece": "Neues Einzelteil",
+    "newPiecesBatch": "Einzelteile (Stapel)",
+    "newLoan": "Neuer Verleih"
+  },
+  "help": {
+    "nav": "Hilfe & Begriffe",
+    "glossaryLink": "Begriff im Glossar",
+    "glossaryPageTitle": "Begriffe in LaMathek",
+    "glossaryIntro": "Kurze Erläuterungen zentraler Begriffe — ausführliche Regeln stehen in der Domänen-Dokumentation.",
+    "glossary": {
+      "verleih": {
+        "title": "Verleih",
+        "body": "Material aus einem Inventar für eine*n Ausleihende*n, meist im Namen einer Gruppe. Der Ablauf läuft über Phasen von der Anfrage bis zur Übernahme zurück ins Inventar."
+      },
+      "position": {
+        "title": "Position",
+        "body": "Ein Einzelteil oder eine Anzahl einer Menge auf einem Verleih — jede Zeile in der Positionsliste."
+      },
+      "ausleihende": {
+        "title": "Ausleihende*r",
+        "body": "Die Person, für die der Verleih bestimmt ist. Sie kann Positionen in frühen Phasen bearbeiten und Abhol- sowie Rückgabeschritte mitverfolgen."
+      },
+      "ansprechperson": {
+        "title": "Ansprechperson",
+        "body": "Materialwart*in auf dem Verleih, die für Rückfragen der Ausleihenden zuständig ist. Sie erscheint in Mails an Materialwart*innen im To-Feld."
+      },
+      "materialart": {
+        "title": "Materialart",
+        "body": "Art des Materials (z. B. Kohte, Heringe). Entscheidet, ob als Einzelteile oder als Menge gezählt wird."
+      },
+      "einzelteil": {
+        "title": "Einzelteil",
+        "body": "Ein benanntes Stück einer Materialart in einem Inventar — im Gegensatz zur anonym gezählten Menge."
+      },
+      "menge": {
+        "title": "Menge",
+        "body": "Materialart, die nur über Anzahlen geführt wird, ohne jedes Stück einzeln zu benennen."
+      },
+      "set": {
+        "title": "Set",
+        "body": "Benannte Gruppe von Material in einem Inventar mit fester Zuordnung und optionalen Extras."
+      },
+      "zuordnung": {
+        "title": "Zuordnung",
+        "body": "Die feste Zugehörigkeit von Einzelteilen und Mengenanteilen zu einem Set."
+      },
+      "optional": {
+        "title": "Optional",
+        "body": "Material am Set, das nicht zur festen Zuordnung gehört, aber beim Verleih des Sets mit angeboten werden kann."
+      },
+      "dauerleihgabe": {
+        "title": "Dauerleihgabe",
+        "body": "Verleih ohne Rückgabedatum — das Material bleibt dauerhaft bei der Gruppe, der Vorgang endet ohne Rückgabephase."
+      },
+      "verlust": {
+        "title": "Verlust",
+        "body": "Material, das ausgegeben war und als nicht zurückgekommen verbucht wird — mit Pflichtangabe eines Grunds."
+      },
+      "schaden": {
+        "title": "Schaden",
+        "body": "Festgehaltene Beschädigung an einem Einzelteil. Schwere Schäden blockieren neue Ausgaben, bis eine Reparatur erfasst ist."
+      },
+      "materialwart": {
+        "title": "Materialwart*in",
+        "body": "Person mit Berechtigung, ein Inventar zu pflegen — Material, Verleih, Sets und Stammdaten."
+      },
+      "inventar": {
+        "title": "Inventar",
+        "body": "Bestand an Material an einem Ort (z. B. Donnerskopf). Verleihe beziehen sich immer auf genau ein Inventar."
+      },
+      "uebernahme": {
+        "title": "Übernahme",
+        "body": "Schritt, in dem zurückgegebenes Material wieder ins Inventar übernommen wird."
+      },
+      "rueckgabe": {
+        "title": "Rückgabe",
+        "body": "Zurückbringen von Verleihmaterial — kann pro Position gemeldet und teilweise erfolgen."
+      }
+    }
+  },
+  "journal": {
+    "loanHeading": "Journal",
+    "pieceHeading": "Journal",
+    "empty": "Noch keine Einträge.",
+    "systemActor": "System",
+    "pdfKind": {
+      "pack": "Packliste",
+      "handover": "Abholliste",
+      "return": "Rückgabeliste"
+    },
+    "kind": {
+      "loan.updated": "Verleih geändert",
+      "workflow.complete_step": "Phase abgeschlossen",
+      "mail.dispatched": "Mail versendet",
+      "line.confirm": "Position bestätigt",
+      "line.decline": "Position abgelehnt",
+      "line.replace": "Position ersetzt",
+      "line.withdraw": "Position zurückgezogen",
+      "line.pack": "Position gepackt",
+      "line.unpack": "Packen rückgängig",
+      "line.not_packed": "Nicht gepackt",
+      "line.pickup": "Abgeholt",
+      "line.undo_pickup": "Abholung rückgängig",
+      "line.not_picked_up": "Nicht abgeholt",
+      "line.report_return": "Rückgabe gemeldet",
+      "line.restock": "Übernommen",
+      "line.restock_loss": "Verlust bei Übernahme",
+      "line.record_loss": "Verlust verbucht",
+      "line.restore": "Position wiedereröffnet",
+      "line.restore_withdrawn": "Zurückgezogene Position wieder da",
+      "damage.created": "Schaden erfasst",
+      "repair.created": "Reparatur erfasst",
+      "piece.found_again": "Wieder aufgetaucht"
+    }
   }
 }

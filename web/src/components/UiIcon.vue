@@ -9,6 +9,7 @@ import {
   CheckIcon,
   ChevronDownIcon,
   ExclamationTriangleIcon,
+  InformationCircleIcon,
   HandRaisedIcon,
   NoSymbolIcon,
   PlusIcon,
@@ -28,6 +29,7 @@ export type UiIconName =
   | 'return'
   | 'restock'
   | 'loss'
+  | 'info'
 
 const ICONS: Record<UiIconName, Component> = {
   menu: Bars3Icon,
@@ -42,6 +44,7 @@ const ICONS: Record<UiIconName, Component> = {
   return: ArrowUturnLeftIcon,
   restock: ArrowPathIcon,
   loss: ExclamationTriangleIcon,
+  info: InformationCircleIcon,
 }
 
 withDefaults(

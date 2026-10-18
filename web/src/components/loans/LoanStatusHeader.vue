@@ -13,6 +13,7 @@ import {
   loanWorkflowContextFromLoan,
   resolveEffectiveWorkflowStep,
 } from '../../domain/loanWorkflowSteps'
+import ContextHelp from '../ContextHelp.vue'
 import LoanPhaseCloseCluster from './LoanPhaseCloseCluster.vue'
 import type { LoanPhaseRareActionId, LoanPhaseRareMenuItem } from '../../utils/loanPhaseRareActions'
 
@@ -205,7 +206,10 @@ const closeButtonClass = computed(() => {
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div class="min-w-0 flex-1 space-y-2">
         <h1 class="app-page-title">{{ displayTitle }}</h1>
-        <p class="text-sm font-medium text-base-content/90">{{ t(statusLineKey) }}</p>
+        <p class="flex items-center gap-1.5 text-sm font-medium text-base-content/90">
+          <span>{{ t(statusLineKey) }}</span>
+          <ContextHelp anchor="verleih" :label="t('help.glossary.verleih.title')" />
+        </p>
       </div>
       <LoanPhaseCloseCluster
         :phase-close-label-key="phaseClose?.labelKey ?? null"

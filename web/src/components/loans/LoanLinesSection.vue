@@ -3,6 +3,7 @@ import { computed, ref, watch, withDefaults } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import type { LoanDetail } from '../../schemas/loan'
+import ContextHelp from '../ContextHelp.vue'
 import UiIcon from '../UiIcon.vue'
 import LoanLinesDataTable from './LoanLinesDataTable.vue'
 import { LOAN_DETAIL_SECTION } from './loanDetailLayout'
@@ -573,6 +574,7 @@ function countLabel(key: string, count: number): string {
             >
               <UiIcon name="loss" size-class="size-4" />
               {{ countLabel('loans.actionRecordLossWithCount', actionContext.lossCount) }}
+              <ContextHelp anchor="verlust" :label="t('help.glossary.verlust.title')" />
             </button>
           </template>
           <button
