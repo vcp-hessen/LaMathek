@@ -17,8 +17,9 @@ Siehe [CONTEXT.md](../../CONTEXT.md) — **Position**, **Ausleihende*r**.
 
 - **Ausleihende*r** kann angefragte oder bestätigte Positionen **vor dem Packen** vom Verleih nehmen → Status **zurückgezogen**, Material sofort frei, **ohne Grund**.
 - Nach dem Packen kann **Materialwart*in** bis zur Abholung mit Grund als **nicht gepackt** beenden.
-- Nach der ersten Bestätigung dürfen **weitere Positionen** hinzukommen: starten als **angefragt**, übernehmen die Termine des Verleihs, werden nur durch Materialwart*in **bestätigt**.
+- Nach der ersten Bestätigung dürfen **weitere Positionen** hinzukommen: starten als **angefragt**, übernehmen die Termine des Verleihs, werden nur durch Materialwart*in **bestätigt** — nur solange der Verleih in **Entwurf**, **Prüfung** oder **Packen** ist (ab Abholung keine neuen Positionen).
+- In **Packen** dürfen angefragte Nachzüge bestätigt, abgelehnt, zurückgezogen oder ersetzt werden; der Packen-Schritt schließt erst, wenn keine angefragte Position mehr offen ist.
 
 ## Konsequenzen
 
-- Workflow-Aktionen `withdraw`, `mark-not-packed`, Nachziehen von Lines in späteren Phasen.
+- Workflow-Aktionen `withdraw`, `mark-not-packed`; Nachziehen nur in `draft`, `review`, `pack`.

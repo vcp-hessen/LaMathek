@@ -20,7 +20,8 @@ Siehe [CONTEXT.md](../../CONTEXT.md) — **Verleih**, **Verlust**, **Rückgabe**
 - **Materialwart*in**: gepackt, übernommen; darf auch abgeholt, nicht abgeholt und Rückgabe markieren — MW-Markierung reicht allein.
 - **Nicht zurückgebracht** = **Verlust**, schreibt Anzahl aus dem Bestand.
 - Meldet Ausleihende*r Rückgabe, Material fehlt → MW bucht **Verlust**.
-- Verleih **geschlossen**, wenn jede Position geendet hat: übernommen, Verlust, frühes Ende, zurückgezogen, oder abgeholt bei Verbrauchsmaterial.
+- Verbrauchsmaterial: Rückgabe und Übernahme; zurückgegebene Menge bleibt im Bestand, Verbrauch wird bei der Übernahme abgeschrieben.
+- Verleih **geschlossen**, wenn jede Position geendet hat: übernommen, Verlust, frühes Ende oder zurückgezogen.
 
 ## Konsequenzen
 

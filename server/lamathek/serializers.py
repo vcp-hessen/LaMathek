@@ -162,7 +162,9 @@ def damage_to_json(damage: Damage) -> dict:
     }
 
 
-def piece_to_json(piece: Piece, *, cover_photo_id: int | None = None) -> dict:
+def piece_to_json(
+    piece: Piece, *, cover_photo_id: int | None = None, lost: bool = False
+) -> dict:
     return {
         "id": piece.id,
         "materialTypeId": piece.material_type_id,
@@ -173,13 +175,16 @@ def piece_to_json(piece: Piece, *, cover_photo_id: int | None = None) -> dict:
         "setRole": piece.set_role,
         "setName": piece.material_set.name if piece.material_set else None,
         "coverPhotoId": cover_photo_id,
+        "lost": lost,
         **material_item_fields_to_json(piece),
     }
 
 
-def piece_detail_to_json(piece: Piece, *, cover_photo_id: int | None = None) -> dict:
+def piece_detail_to_json(
+    piece: Piece, *, cover_photo_id: int | None = None, lost: bool = False
+) -> dict:
     return {
-        **piece_to_json(piece, cover_photo_id=cover_photo_id),
+        **piece_to_json(piece, cover_photo_id=cover_photo_id, lost=lost),
         "inventoryId": piece.material_type.inventory_id,
         "photos": photos_to_json(list(piece.photos)),
         "damages": [damage_to_json(d) for d in piece.damages],

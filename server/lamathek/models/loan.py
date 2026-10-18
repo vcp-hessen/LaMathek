@@ -156,6 +156,12 @@ class Loan(Base):
     return_on: Mapped[date | None] = mapped_column(Date(), nullable=True)
     pickup_note: Mapped[str] = mapped_column(Text(), default="", server_default="")
     return_note: Mapped[str] = mapped_column(Text(), default="", server_default="")
+    mail_sent_borrower: Mapped[bool] = mapped_column(
+        Boolean(), default=False, server_default="0"
+    )
+    mail_sent_managers: Mapped[bool] = mapped_column(
+        Boolean(), default=False, server_default="0"
+    )
     inventory: Mapped["Inventory"] = relationship(back_populates="loans")
     group: Mapped["Group"] = relationship()
     borrower_user: Mapped["User"] = relationship(foreign_keys=[borrower_user_id])

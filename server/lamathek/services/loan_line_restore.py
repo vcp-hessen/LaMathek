@@ -16,6 +16,7 @@ from lamathek.models.loan import (
 )
 from lamathek.models.user import User
 from lamathek.services.inventories import user_can_manage_inventory
+from lamathek.services.loan_mail_dispatch import reset_loan_mail_receipt_flags
 from lamathek.services.loan_workflow import refresh_loan_phase
 from lamathek.services.loan_workflow_steps import (
     RESTORABLE_TERMINAL_STATUSES,
@@ -86,7 +87,9 @@ def restore_loan_line(session: Session, loan: Loan, line_id: int, *, actor: User
     if line.status == LINE_STATUS_NOT_RETURNED and line.material_type_id is not None:
         qty = line.quantity
         if qty is not None and qty > 0:
-            restore_stock_quantity(session, line.material_type_id, qty)
+            restore_stock_quantity(
+                session, line.material_type_id, qty, loan_line_id=line.id
+            )
 
     if line.status == LINE_STATUS_NOT_RETURNED:
         line.returned_quantity = None
@@ -95,6 +98,7 @@ def restore_loan_line(session: Session, loan: Loan, line_id: int, *, actor: User
     line.status_before_end = None
     line.reason = ""
     line.mail_pending = True
+    reset_loan_mail_receipt_flags(loan)
 
     was_closed = loan.phase == LOAN_PHASE_CLOSED
     sync_loan_phase_after_line_change(loan)

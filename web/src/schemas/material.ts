@@ -62,6 +62,7 @@ export const pieceSchema = z.object({
   setRole: z.enum(['assignment', 'optional']).nullable(),
   setName: z.string().nullable(),
   coverPhotoId: z.number().nullish(),
+  lost: z.boolean().optional(),
   ...materialItemFieldsSchema.shape,
 })
 

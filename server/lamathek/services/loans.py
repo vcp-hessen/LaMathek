@@ -15,8 +15,8 @@ from lamathek.models.loan import (
     LOAN_KIND_SHORT,
     LOAN_PHASE_CLOSED,
     LOAN_PHASE_DRAFT,
+    LOAN_PHASE_PACK,
     LOAN_PHASE_REVIEW,
-    is_workflow_loan_phase,
     ORIGIN_SET_ROLE_ASSIGNMENT,
     ORIGIN_SET_ROLE_OPTIONAL,
     VALID_LOAN_KINDS,
@@ -368,6 +368,18 @@ def update_loan(
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
 
+def piece_ids_marked_lost(session: Session, piece_ids: list[int]) -> set[int]:
+    if not piece_ids:
+        return set()
+    rows = session.scalars(
+        select(LoanLine.piece_id).where(
+            LoanLine.piece_id.in_(piece_ids),
+            LoanLine.status == LINE_STATUS_NOT_RETURNED,
+        )
+    ).all()
+    return {piece_id for piece_id in rows if piece_id is not None}
+
+
 def _piece_lost(session: Session, piece_id: int) -> bool:
     stmt = select(LoanLine.id).where(
         LoanLine.piece_id == piece_id,
@@ -556,7 +568,7 @@ def _origin_fields(material_set: MaterialSet, role: str) -> dict:
 
 
 def _loan_editable_for_lines(loan: Loan) -> bool:
-    return loan.phase == LOAN_PHASE_DRAFT or is_workflow_loan_phase(loan.phase)
+    return loan.phase in (LOAN_PHASE_DRAFT, LOAN_PHASE_REVIEW, LOAN_PHASE_PACK)
 
 
 def _piece_line_on_loan(session: Session, loan_id: int, piece_id: int) -> LoanLine | None:

@@ -34,6 +34,7 @@ from lamathek.services.loans import (
     _validate_stock_available,
     loan_by_id,
 )
+from lamathek.services.loan_mail_dispatch import reset_loan_mail_receipt_flags
 from lamathek.services.loan_notifications import notify_loan_action
 from lamathek.services.loan_workflow_steps import (
     assert_line_action_allowed,
@@ -44,10 +45,8 @@ from lamathek.services.loan_workflow_steps import (
 )
 
 
-def line_is_terminal(line: LoanLine, *, consumable: bool = False) -> bool:
-    if line.status in LINE_STATUSES_TERMINAL:
-        return True
-    return False
+def line_is_terminal(line: LoanLine) -> bool:
+    return line.status in LINE_STATUSES_TERMINAL
 
 
 def _material_type_consumable(session: Session, line: LoanLine) -> bool:
@@ -66,8 +65,7 @@ def advance_loan_phase(session: Session, loan: Loan) -> None:
         loan.phase = LOAN_PHASE_CLOSED
         return
     for line in loan.lines:
-        consumable = _material_type_consumable(session, line)
-        if not line_is_terminal(line, consumable=consumable):
+        if not line_is_terminal(line):
             next_step = open_workflow_step_from_lines(loan)
             if next_step:
                 loan.phase = next_step
@@ -84,8 +82,7 @@ def refresh_loan_phase(session: Session, loan: Loan) -> None:
         loan.phase = LOAN_PHASE_CLOSED
         return
     for line in loan.lines:
-        consumable = _material_type_consumable(session, line)
-        if not line_is_terminal(line, consumable=consumable):
+        if not line_is_terminal(line):
             if any(line.mail_pending for line in loan.lines):
                 return
             if loan.phase == LOAN_PHASE_CLOSED:
@@ -158,6 +155,12 @@ _STEP_MAIL_ACTION = {
 def _queue_mail(loan: Loan, lines: list[LoanLine]) -> None:
     for line in lines:
         line.mail_pending = True
+    reset_loan_mail_receipt_flags(loan)
+
+
+def _mark_line_mail_pending(loan: Loan, line: LoanLine) -> None:
+    line.mail_pending = True
+    reset_loan_mail_receipt_flags(loan)
 
 
 def _clear_mail(lines: list[LoanLine]) -> None:
@@ -283,7 +286,7 @@ def decline_lines(
         line.status_before_end = line.status
         line.status = LINE_STATUS_UNAVAILABLE
         line.reason = reason.strip()
-        line.mail_pending = True
+        _mark_line_mail_pending(loan, line)
         line_ids.append(line_id)
     session.commit()
     refresh_loan_phase(session, loan)
@@ -313,13 +316,13 @@ def replace_line(
     original.status_before_end = original.status
     original.status = LINE_STATUS_UNAVAILABLE
     original.reason = reason.strip()
-    original.mail_pending = True
+    _mark_line_mail_pending(loan, original)
 
     new_line = LoanLine(
         loan_id=loan.id,
         status=LINE_STATUS_CONFIRMED,
         replaces_line_id=original.id,
-        mail_pending=True,
+        mail_pending=False,
         origin_set_id=original.origin_set_id,
         origin_set_name=original.origin_set_name,
         origin_set_role=original.origin_set_role,
@@ -342,6 +345,7 @@ def replace_line(
     else:
         raise ValueError("invalid_replacement")
     session.add(new_line)
+    _mark_line_mail_pending(loan, new_line)
     session.commit()
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
@@ -363,7 +367,7 @@ def withdraw_lines(
             raise ValueError("invalid_line_status")
         assert_line_action_allowed(loan, line, "withdraw")
         line.status = LINE_STATUS_WITHDRAWN
-        line.mail_pending = True
+        _mark_line_mail_pending(loan, line)
     session.commit()
     refresh_loan_phase(session, loan)
     session.commit()
@@ -433,7 +437,7 @@ def mark_not_packed(
         line.status_before_end = line.status
         line.status = LINE_STATUS_NOT_PACKED
         line.reason = reason.strip()
-        line.mail_pending = True
+        _mark_line_mail_pending(loan, line)
         line_ids.append(line_id)
     session.commit()
     refresh_loan_phase(session, loan)
@@ -503,7 +507,7 @@ def mark_not_picked_up(
         line.status_before_end = line.status
         line.status = LINE_STATUS_NOT_PICKED_UP
         line.reason = reason.strip()
-        line.mail_pending = True
+        _mark_line_mail_pending(loan, line)
         line_ids.append(line_id)
     session.commit()
     refresh_loan_phase(session, loan)
@@ -581,7 +585,9 @@ def restock_lines(
         if consumable:
             if returned == 0:
                 reason = _reason_from_entry(entry)
-                apply_stock_loss(session, line.material_type_id, line.quantity)
+                apply_stock_loss(
+                    session, line.material_type_id, line.quantity, loan_line_id=line.id
+                )
                 line.status_before_end = line.status
                 line.status = LINE_STATUS_NOT_RETURNED
                 line.reason = reason
@@ -589,7 +595,9 @@ def restock_lines(
             else:
                 consumed = line.quantity - returned
                 if consumed > 0:
-                    apply_stock_loss(session, line.material_type_id, consumed)
+                    apply_stock_loss(
+                        session, line.material_type_id, consumed, loan_line_id=line.id
+                    )
                 line.returned_quantity = returned
                 line.status = LINE_STATUS_RESTOCKED
             line_ids.append(line_id)
@@ -601,7 +609,9 @@ def restock_lines(
             continue
         if returned == 0:
             reason = _reason_from_entry(entry)
-            apply_stock_loss(session, line.material_type_id, line.quantity)
+            apply_stock_loss(
+                session, line.material_type_id, line.quantity, loan_line_id=line.id
+            )
             line.status_before_end = line.status
             line.status = LINE_STATUS_NOT_RETURNED
             line.reason = reason
@@ -621,17 +631,20 @@ def restock_lines(
             status_before_end=LINE_STATUS_RETURN_REPORTED,
             reason=reason,
             split_from_line_id=line.id,
-            mail_pending=True,
+            mail_pending=False,
         )
         _copy_line_origin(line, lost_line)
-        apply_stock_loss(session, line.material_type_id, missing)
         session.add(lost_line)
         session.flush()
+        apply_stock_loss(
+            session, line.material_type_id, missing, loan_line_id=lost_line.id
+        )
+        _mark_line_mail_pending(loan, lost_line)
         line_ids.append(line_id)
         line_ids.append(lost_line.id)
     for line in loan.lines:
         if line.id in line_ids:
-            line.mail_pending = True
+            _mark_line_mail_pending(loan, line)
     session.commit()
     refresh_loan_phase(session, loan)
     session.commit()
@@ -667,11 +680,11 @@ def record_loss_lines(
         reason = _reason_from_entry(entry)
         if line.material_type_id is not None and line.quantity is not None:
             qty = quantity if isinstance(quantity, int) else line.quantity
-            apply_stock_loss(session, line.material_type_id, qty)
+            apply_stock_loss(session, line.material_type_id, qty, loan_line_id=line.id)
         line.status_before_end = line.status
         line.status = LINE_STATUS_NOT_RETURNED
         line.reason = reason
-        line.mail_pending = True
+        _mark_line_mail_pending(loan, line)
         line_ids.append(line_id)
     session.commit()
     refresh_loan_phase(session, loan)
@@ -843,6 +856,8 @@ def complete_loan_step(session: Session, loan: Loan, *, actor: User) -> Loan:
         open_status = _STEP_OPEN_STATUS[step]
         if any(line.status == open_status for line in loan.lines):
             raise ValueError("step_incomplete")
+    if step == "pack" and any(line.status == LINE_STATUS_REQUESTED for line in loan.lines):
+        raise ValueError("step_incomplete")
 
     pending = [line for line in loan.lines if line.mail_pending]
     if not pending:
@@ -881,7 +896,7 @@ def cancel_unpacked_loan(session: Session, loan: Loan, *, actor: User) -> Loan:
     for line in loan.lines:
         if line.status in _CANCEL_WITHDRAW_LINE_STATUSES:
             line.status = LINE_STATUS_WITHDRAWN
-            line.mail_pending = True
+            _mark_line_mail_pending(loan, line)
             withdrawn_ids.append(line.id)
     if not loan.lines:
         loan.phase = LOAN_PHASE_CLOSED
@@ -915,7 +930,7 @@ def skip_pickup_to_return(session: Session, loan: Loan, *, actor: User) -> Loan:
     for line in loan.lines:
         if line.status == LINE_STATUS_PACKED:
             line.status = LINE_STATUS_RETURN_REPORTED
-            line.mail_pending = True
+            _mark_line_mail_pending(loan, line)
             line_ids.append(line.id)
     session.commit()
     refresh_loan_phase(session, loan)

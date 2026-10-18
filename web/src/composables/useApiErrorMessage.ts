@@ -19,6 +19,8 @@ const LOAN_ERROR_CODES = new Set([
   'invalid_loan_state',
   'loan_not_editable',
   'set_already_added',
+  'mail_not_sent',
+  'step_incomplete',
 ])
 
 const KNOWN_CODES = new Set([

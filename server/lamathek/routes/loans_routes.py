@@ -89,6 +89,7 @@ def _loan_status(code: str) -> int:
         "step_incomplete",
         "workflow_step_mismatch",
         "replacement_blocks_reopen",
+        "mail_not_sent",
     ):
         status = 409
     if code in ("invalid_permanent_fields", "invalid_date_range", "invalid_scope"):

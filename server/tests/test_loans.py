@@ -272,3 +272,42 @@ def test_withdrawn_piece_can_be_added_again():
         assert sum(1 for line in lines if line["pieceId"] == piece_id) == 1
     finally:
         tmp.cleanup()
+
+
+def test_add_line_blocked_after_handover():
+    app, tmp = _app_with_db()
+    try:
+        _bootstrap(app)
+        client = app.test_client()
+        inv_id = setup_inventory(client)
+        bor_id = borrower_id(client)
+        mgr_id = manager_id(client)
+        mt = client.post(
+            f"/api/inventories/{inv_id}/material-types",
+            json={"name": "Brettspiel", "tracking": "piece"},
+        ).get_json()["id"]
+        piece_a = client.post(
+            f"/api/inventories/{inv_id}/pieces",
+            json={"materialTypeId": mt, "name": "A"},
+        ).get_json()["id"]
+        piece_b = client.post(
+            f"/api/inventories/{inv_id}/pieces",
+            json={"materialTypeId": mt, "name": "B"},
+        ).get_json()["id"]
+        loan_id = create_loan(client, inv_id, bor_id).get_json()["id"]
+        add_piece_line(client, loan_id, piece_a)
+        line_id = client.get(f"/api/loans/{loan_id}").get_json()["lines"][0]["id"]
+        submit_request(client, loan_id)
+        _login(client, "mgr")
+        confirm_all_lines(client, loan_id, mgr_id, [line_id])
+        complete_workflow_step(client, loan_id)
+        pack_lines(client, loan_id, [line_id])
+        complete_workflow_step(client, loan_id)
+        pickup_lines(client, loan_id, [line_id])
+        complete_workflow_step(client, loan_id)
+        assert client.get(f"/api/loans/{loan_id}").get_json()["phase"] == "return"
+        blocked = add_piece_line(client, loan_id, piece_b)
+        assert blocked.status_code == 409
+        assert blocked.get_json()["error"] == "loan_not_editable"
+    finally:
+        tmp.cleanup()

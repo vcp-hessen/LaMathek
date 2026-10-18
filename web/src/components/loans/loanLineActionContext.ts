@@ -21,7 +21,7 @@ function isSubset(statuses: Set<string>, allowed: Set<string>): boolean {
   return statuses.size > 0
 }
 
-export type LineActionHint = 'select' | 'mixed' | 'no_action'
+export type LineActionHint = 'select' | 'mixed' | 'no_action' | 'wrong_step'
 
 export type LineActionContext =
   | { kind: 'hint'; hint: LineActionHint }

@@ -260,8 +260,18 @@ def get_pieces(_user, inventory):
     session = get_session()
     pieces = list_pieces(session, inventory.id)
     covers = cover_photo_ids_for_pieces(session, pieces)
+    from lamathek.services.loans import piece_ids_marked_lost
+
+    lost_ids = piece_ids_marked_lost(session, [piece.id for piece in pieces])
     return jsonify(
-        [piece_to_json(p, cover_photo_id=covers.get(p.id)) for p in pieces]
+        [
+            piece_to_json(
+                piece,
+                cover_photo_id=covers.get(piece.id),
+                lost=piece.id in lost_ids,
+            )
+            for piece in pieces
+        ]
     )
 
 
@@ -346,7 +356,12 @@ def get_piece(user, piece_id: int):
     if not user_can_view_inventory(session, user, piece.material_type.inventory):
         return jsonify({"error": "forbidden"}), 403
     covers = cover_photo_ids_for_pieces(session, [piece])
-    return jsonify(piece_detail_to_json(piece, cover_photo_id=covers.get(piece.id)))
+    from lamathek.services.loans import piece_ids_marked_lost
+
+    lost = piece.id in piece_ids_marked_lost(session, [piece.id])
+    return jsonify(
+        piece_detail_to_json(piece, cover_photo_id=covers.get(piece.id), lost=lost)
+    )
 
 
 @material_bp.post("/pieces/<int:piece_id>/damages")

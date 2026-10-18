@@ -1,4 +1,4 @@
-"""Verleih workflow step derivation and action gating (keep in sync with web/src/domain/loanWorkflowSteps.ts)."""
+"""Verleih workflow step derivation and action gating (web/src/domain/workflowGates.json)."""
 
 from __future__ import annotations
 
@@ -21,6 +21,11 @@ from lamathek.models.loan import (
     Loan,
     LoanLine,
     is_workflow_loan_phase,
+)
+from lamathek.services.workflow_gates import (
+    line_action_steps,
+    open_workflow_step_from_open_statuses,
+    workflow_step_for_line_status as _step_for_status,
 )
 
 RESTORABLE_TERMINAL_STATUSES = frozenset(
@@ -76,19 +81,7 @@ def open_workflow_step_from_lines(loan: Loan) -> str | None:
     open_statuses = {
         line.status for line in loan.lines if line.status not in LINE_STATUSES_TERMINAL
     }
-    if not open_statuses:
-        return None
-    if LINE_STATUS_REQUESTED in open_statuses:
-        return "review"
-    if LINE_STATUS_CONFIRMED in open_statuses:
-        return "pack"
-    if LINE_STATUS_PACKED in open_statuses:
-        return "handover"
-    if LINE_STATUS_PICKED_UP in open_statuses:
-        return "return"
-    if LINE_STATUS_RETURN_REPORTED in open_statuses:
-        return "restock"
-    return None
+    return open_workflow_step_from_open_statuses(open_statuses)
 
 
 def open_workflow_step(loan: Loan) -> str | None:
@@ -108,17 +101,7 @@ def loan_past_handover(loan: Loan) -> bool:
 
 
 def workflow_step_for_line_status(status: str) -> str | None:
-    if status == LINE_STATUS_REQUESTED:
-        return "review"
-    if status == LINE_STATUS_CONFIRMED:
-        return "pack"
-    if status == LINE_STATUS_PACKED:
-        return "handover"
-    if status == LINE_STATUS_PICKED_UP:
-        return "return"
-    if status == LINE_STATUS_RETURN_REPORTED:
-        return "restock"
-    return None
+    return _step_for_status(status)
 
 
 def restore_target_status(line: LoanLine) -> str | None:
@@ -131,46 +114,6 @@ def restore_target_status(line: LoanLine) -> str | None:
 def action_workflow_step(action: str, line: LoanLine, loan: Loan) -> str | None:
     status = line.status
 
-    if action == "confirm":
-        return "review" if status == LINE_STATUS_REQUESTED else None
-    if action == "decline":
-        if status == LINE_STATUS_REQUESTED:
-            return "review"
-        if status == LINE_STATUS_CONFIRMED:
-            return "pack"
-        return None
-    if action == "withdraw":
-        if status == LINE_STATUS_REQUESTED:
-            return "review"
-        if status == LINE_STATUS_CONFIRMED:
-            return "pack"
-        return None
-    if action == "replace":
-        if status == LINE_STATUS_REQUESTED:
-            return "review"
-        if status == LINE_STATUS_CONFIRMED:
-            return "pack"
-        return None
-    if action == "pack":
-        return "pack" if status == LINE_STATUS_CONFIRMED else None
-    if action == "unpack":
-        return "pack" if status == LINE_STATUS_PACKED else None
-    if action == "mark_not_packed":
-        return "handover" if status == LINE_STATUS_PACKED else None
-    if action in ("pickup", "mark_not_picked_up"):
-        return "handover" if status == LINE_STATUS_PACKED else None
-    if action == "undo_pickup":
-        return "handover" if status == LINE_STATUS_PICKED_UP else None
-    if action == "report_return":
-        return "return" if status == LINE_STATUS_PICKED_UP else None
-    if action == "restock":
-        return "restock" if status == LINE_STATUS_RETURN_REPORTED else None
-    if action == "record_loss":
-        if status == LINE_STATUS_PICKED_UP:
-            return "return"
-        if status == LINE_STATUS_RETURN_REPORTED:
-            return "restock"
-        return None
     if action == "restore":
         if status in RESTORABLE_TERMINAL_STATUSES:
             target = restore_target_status(line)
@@ -185,16 +128,23 @@ def action_workflow_step(action: str, line: LoanLine, loan: Loan) -> str | None:
         return None
     if action == "remove":
         return "draft" if status == LINE_STATUS_DRAFT else None
-    return None
+
+    steps = line_action_steps(action, status)
+    if not steps:
+        return None
+    return steps[0]
 
 
 def allowed_workflow_steps(action: str, line: LoanLine, loan: Loan) -> frozenset[str]:
-    required = action_workflow_step(action, line, loan)
-    if required is None:
+    if action == "restore":
+        required = action_workflow_step(action, line, loan)
+        if required is None:
+            return frozenset()
+        return frozenset({required})
+    steps = line_action_steps(action, line.status)
+    if not steps:
         return frozenset()
-    if action == "unpack" and line.status == LINE_STATUS_PACKED:
-        return frozenset({"pack", "handover"})
-    return frozenset({required})
+    return frozenset(steps)
 
 
 def assert_line_action_allowed(loan: Loan, line: LoanLine, action: str) -> None:

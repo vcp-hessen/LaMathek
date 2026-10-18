@@ -228,3 +228,20 @@ class StockLotVariantValue(Base):
 
     stock_lot: Mapped["StockLot"] = relationship(back_populates="variant_selections")
     variant: Mapped["MaterialTypeVariant"] = relationship()
+
+
+class StockLossEntry(Base):
+    __tablename__ = "stock_loss_entries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    loan_line_id: Mapped[int | None] = mapped_column(
+        ForeignKey("loan_lines.id", ondelete="CASCADE"), nullable=True
+    )
+    material_type_id: Mapped[int] = mapped_column(
+        ForeignKey("material_types.id", ondelete="CASCADE")
+    )
+    stock_lot_id: Mapped[int | None] = mapped_column(
+        ForeignKey("stock_lots.id", ondelete="SET NULL"), nullable=True
+    )
+    quantity: Mapped[int] = mapped_column(Integer)
+    variant_signature: Mapped[str] = mapped_column(Text(), default="{}", server_default="{}")

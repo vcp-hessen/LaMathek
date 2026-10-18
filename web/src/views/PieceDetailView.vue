@@ -226,6 +226,9 @@ function damageStatusLabel(damage: Damage): string {
         <p v-if="piece.setName" class="text-sm text-base-content/70">
           {{ t('sets.onSet', { name: piece.setName }) }}
         </p>
+        <p v-if="piece.lost" class="text-sm">
+          <span class="badge badge-error badge-sm">{{ t('material.pieceLost') }}</span>
+        </p>
         <MaterialItemMetadataFields
           v-model:acquired-year="editMeta.acquiredYear"
           v-model:note="editMeta.note"

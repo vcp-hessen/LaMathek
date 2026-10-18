@@ -1,6 +1,7 @@
-/** Keep in sync with server/lamathek/services/loan_workflow_steps.py */
+/** Verleih workflow gating — rules in workflowGates.json */
 
 import type { LoanDetail, LoanLine } from '../schemas/loan'
+import workflowGates from './workflowGates.json'
 
 export type WorkflowStep = 'review' | 'pack' | 'handover' | 'return' | 'restock'
 
@@ -41,6 +42,20 @@ const RESTORE_VALID_TARGETS = new Set([
   'return_reported',
 ])
 
+const LINE_STATUS_TO_STEP = workflowGates.lineStatusToStep as Record<string, WorkflowStep>
+
+function lineActionSteps(action: string, lineStatus: string): WorkflowStep[] | null {
+  for (const rule of workflowGates.lineActions) {
+    if (rule.action === action && rule.lineStatus === lineStatus) {
+      return rule.steps.filter((step): step is WorkflowStep => step !== 'draft')
+    }
+  }
+  if (action === 'remove' && lineStatus === 'draft') {
+    return []
+  }
+  return null
+}
+
 export function isWorkflowLoanPhase(phase: LoanDetail['phase']): phase is WorkflowStep {
   return WORKFLOW_PHASES.has(phase as WorkflowStep)
 }
@@ -62,12 +77,7 @@ export function loanPastHandover(lines: LoanLine[]): boolean {
 }
 
 export function workflowStepForLineStatus(status: string): WorkflowStep | null {
-  if (status === 'requested') return 'review'
-  if (status === 'confirmed') return 'pack'
-  if (status === 'packed') return 'handover'
-  if (status === 'picked_up') return 'return'
-  if (status === 'return_reported') return 'restock'
-  return null
+  return LINE_STATUS_TO_STEP[status] ?? null
 }
 
 export function restoreTargetStatus(line: LoanLine): string | null {
@@ -83,25 +93,6 @@ export function actionWorkflowStep(
 ): WorkflowStep | 'draft' | null {
   const status = line.status
 
-  if (action === 'confirm') return status === 'requested' ? 'review' : null
-  if (action === 'decline' || action === 'withdraw' || action === 'replace') {
-    if (status === 'requested') return 'review'
-    if (status === 'confirmed') return 'pack'
-    return null
-  }
-  if (action === 'pack') return status === 'confirmed' ? 'pack' : null
-  if (action === 'unpack') return status === 'packed' ? 'pack' : null
-  if (action === 'mark_not_packed' || action === 'pickup' || action === 'mark_not_picked_up') {
-    return status === 'packed' ? 'handover' : null
-  }
-  if (action === 'undo_pickup') return status === 'picked_up' ? 'handover' : null
-  if (action === 'report_return') return status === 'picked_up' ? 'return' : null
-  if (action === 'restock') return status === 'return_reported' ? 'restock' : null
-  if (action === 'record_loss') {
-    if (status === 'picked_up') return 'return'
-    if (status === 'return_reported') return 'restock'
-    return null
-  }
   if (action === 'restore') {
     if (RESTORABLE_TERMINAL_STATUSES.has(status)) {
       const target = restoreTargetStatus(line)
@@ -114,7 +105,13 @@ export function actionWorkflowStep(
     return null
   }
   if (action === 'remove') return status === 'draft' ? 'draft' : null
-  return null
+
+  const steps = lineActionSteps(action, status)
+  if (!steps || steps.length === 0) {
+    if (action === 'remove' && status === 'draft') return 'draft'
+    return null
+  }
+  return steps[0]
 }
 
 const ROW_ACTION_TO_SERVER: Record<string, string> = {
@@ -141,12 +138,14 @@ export function allowedWorkflowSteps(
 ): Set<WorkflowStep> {
   const action = ROW_ACTION_TO_SERVER[rowActionId]
   if (!action) return new Set()
-  const required = actionWorkflowStep(action, line, ctx)
-  if (!required || required === 'draft') return new Set()
-  if (action === 'unpack' && line.status === 'packed') {
-    return new Set(['pack', 'handover'])
+  if (action === 'restore') {
+    const required = actionWorkflowStep(action, line, ctx)
+    if (!required || required === 'draft') return new Set()
+    return new Set([required])
   }
-  return new Set([required])
+  const steps = lineActionSteps(action, line.status)
+  if (!steps) return new Set()
+  return new Set(steps)
 }
 
 export function isLineActionAllowed(

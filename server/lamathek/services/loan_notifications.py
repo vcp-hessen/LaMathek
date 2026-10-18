@@ -1,4 +1,3 @@
-import logging
 from typing import Callable
 
 from sqlalchemy.orm import Session
@@ -7,8 +6,6 @@ from lamathek.models.loan import Loan
 from lamathek.models.user import User
 from lamathek.services.loan_mail_dispatch import dispatch_loan_mail
 from lamathek.services.mail import send_mail
-
-logger = logging.getLogger(__name__)
 
 MailSender = Callable[[str, str, str, str | None, list[str]], None]
 
@@ -28,10 +25,7 @@ def _default_sender(
 ) -> None:
     global _last_mail
     _last_mail = {"to": to, "subject": subject, "text": text, "html": html, "cc": cc}
-    try:
-        send_mail(to, subject, text, html=html, cc=cc)
-    except Exception as exc:
-        logger.warning("Loan mail not sent: %s", exc)
+    send_mail(to, subject, text, html=html, cc=cc)
 
 
 _mail_sender: MailSender = _default_sender

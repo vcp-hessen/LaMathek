@@ -103,7 +103,26 @@ def variant_for_action(
     return ""
 
 
-def dispatch_loan_mail(
+def reset_loan_mail_receipt_flags(loan: Loan) -> None:
+    loan.mail_sent_borrower = False
+    loan.mail_sent_managers = False
+
+
+def _audience_sent(loan: Loan, audience: Audience) -> bool:
+    if audience == "borrower":
+        return loan.mail_sent_borrower
+    return loan.mail_sent_managers
+
+
+def _mark_audience_sent(session: Session, loan: Loan, audience: Audience) -> None:
+    if audience == "borrower":
+        loan.mail_sent_borrower = True
+    else:
+        loan.mail_sent_managers = True
+    session.commit()
+
+
+def deliver_loan_receipt_mails(
     session: Session,
     loan: Loan,
     action: str,
@@ -113,12 +132,16 @@ def dispatch_loan_mail(
     mail_step: str | None = None,
     locale: str = "de",
 ) -> None:
+    """Send each receipt audience once; commit per success for safe retry."""
     from lamathek.services.loan_notifications import get_mail_sender
 
     sender = get_mail_sender()
     for audience in _LOAN_MAIL_AUDIENCES:
+        if _audience_sent(loan, audience):
+            continue
         recipients = recipients_for_audience(session, loan, audience)
         if recipients is None:
+            _mark_audience_sent(session, loan, audience)
             continue
         variant = variant_for_action(session, loan, actor, action, audience)
         subject, text, html = render_loan_action_mail(
@@ -132,4 +155,29 @@ def dispatch_loan_mail(
             locale=locale,
             mail_step=mail_step,
         )
-        sender(recipients.to, subject, text, html, recipients.cc)
+        try:
+            sender(recipients.to, subject, text, html, recipients.cc)
+        except Exception:
+            raise ValueError("mail_not_sent") from None
+        _mark_audience_sent(session, loan, audience)
+
+
+def dispatch_loan_mail(
+    session: Session,
+    loan: Loan,
+    action: str,
+    line_ids: list[int],
+    *,
+    actor: User,
+    mail_step: str | None = None,
+    locale: str = "de",
+) -> None:
+    deliver_loan_receipt_mails(
+        session,
+        loan,
+        action,
+        line_ids,
+        actor=actor,
+        mail_step=mail_step,
+        locale=locale,
+    )

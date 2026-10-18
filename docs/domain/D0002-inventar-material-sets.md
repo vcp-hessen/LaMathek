@@ -43,7 +43,7 @@ Material liegt ortsgebunden in Inventaren (z. B. Donnerskopf, Landesbüro). Se
 
 - Set hinzufügen kopiert die Zuordnung in Positionen plus gewählte Optionals; Setname bleibt als **Herkunft**.
 - Verleih kann auch ein einzelnes Einzelteil oder eine Anzahl aus einer Menge aufnehmen.
-- **Verbrauchsmaterial** (consumable): keine Rückgabe/Übernahme; Position endet nach Abholung.
+- **Verbrauchsmaterial** (consumable): Rückgabe und Übernahme wie bei anderen Mengen; bei der Übernahme wird nur der nicht zurückgegebene Teil vom Bestand abgeschrieben (Menge 0 = Verlust mit Grund).
 - Stark beschädigtes oder **ausgesondertes** Material ist nicht anfragbar.
 
 ## Konsequenzen

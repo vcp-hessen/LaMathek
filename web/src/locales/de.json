@@ -242,6 +242,7 @@
     "itemStatus": "Status",
     "itemStatusActive": "Im Bestand",
     "itemStatusRetired": "Aussortiert",
+    "pieceLost": "Verloren",
     "acquiredYear": "Anschaffungsjahr",
     "itemNote": "Notiz",
     "itemSource": "Herkunft",
@@ -358,6 +359,7 @@
       "workflow_step_mismatch": "Diese Aktion gehört zu einem anderen Verleihschritt. Bitte den aktuellen Schritt oben zu Ende führen.",
       "invalid_loan_state": "Für diesen Verleih ist die Aktion im aktuellen Stand nicht möglich.",
       "step_incomplete": "Noch nicht alle Positionen dieses Schritts sind bearbeitet.",
+      "mail_not_sent": "Die Benachrichtigungs-Mail konnte nicht versendet werden. Bitte erneut versuchen.",
       "loan_not_editable": "Dieser Verleih kann nicht mehr bearbeitet werden.",
       "set_already_added": "Dieses Set ist schon in der Box."
     },

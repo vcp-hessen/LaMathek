@@ -182,6 +182,10 @@ function showRetiredBadge(row: MaterialRow): boolean {
   )
 }
 
+function showLostBadge(row: MaterialRow): boolean {
+  return row.kind === 'piece' && row.piece.lost === true
+}
+
 watch(materialTypeFilter, () => {
   const pruned = pruneVariantFilterToCatalog(variantFilterValue.value, variantAxisCatalog.value)
   if (JSON.stringify(pruned) !== JSON.stringify(variantFilterValue.value)) {
@@ -356,6 +360,12 @@ function onRowKeydown(event: KeyboardEvent, row: MaterialRow) {
                   class="badge badge-ghost badge-sm"
                 >
                   {{ t('material.itemStatusRetired') }}
+                </span>
+                <span
+                  v-if="showLostBadge(row.original)"
+                  class="badge badge-error badge-sm"
+                >
+                  {{ t('material.pieceLost') }}
                 </span>
               </div>
               <div class="mt-0.5 space-y-0.5 text-xs opacity-70">
