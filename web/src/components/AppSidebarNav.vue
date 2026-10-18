@@ -52,6 +52,13 @@ const workspaceLinks = computed(() => {
       glyph: 'gather' as WlzGlyphId,
     },
     {
+      key: 'calendar',
+      to: `${base}/calendar`,
+      routeName: 'inventory-calendar',
+      label: t('nav.calendar'),
+      glyph: 'exchange' as WlzGlyphId,
+    },
+    {
       key: 'loans',
       to: `${base}/loans`,
       routeName: 'inventory-loans',

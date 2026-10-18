@@ -54,5 +54,7 @@ Material, Inventar, Sets: [D0002](D0002-inventar-material-sets.md). Rollen: [D00
 | D0011 | Schaden | [D0011-damage.md](D0011-damage.md) |
 | D0012 | Workflow-Phasen und Mail | [D0012-workflow-phase-mail.md](D0012-workflow-phase-mail.md) |
 | D0013 | Oberfläche und Roadmap | [D0013-ui-language-roadmap.md](D0013-ui-language-roadmap.md) |
+| D0014 | Verleih-Journal | [D0014-loan-journal.md](D0014-loan-journal.md) |
+| D0015 | Kalender | [D0015-calendar.md](D0015-calendar.md) |
 
 Vorlage für neue Records: [_template.md](_template.md).

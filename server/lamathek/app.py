@@ -19,6 +19,7 @@ from lamathek.routes.photo_routes import photos_bp
 from lamathek.routes.mail_routes import mail_bp
 from lamathek.routes.impersonation_routes import impersonation_bp
 from lamathek.routes.audit_routes import audit_bp
+from lamathek.routes.calendar_routes import calendar_bp
 
 
 def client_dist_dir() -> Path:
@@ -56,6 +57,7 @@ def create_app(config: type[Config] = Config) -> Flask:
     app.register_blueprint(mail_bp)
     app.register_blueprint(impersonation_bp)
     app.register_blueprint(audit_bp)
+    app.register_blueprint(calendar_bp)
 
     static_root = client_dist_dir()
 

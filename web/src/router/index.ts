@@ -16,6 +16,7 @@ import LoanDetailView from '../views/LoanDetailView.vue'
 import MyLoansView from '../views/MyLoansView.vue'
 import SetDetailView from '../views/SetDetailView.vue'
 import HelpGlossaryView from '../views/HelpGlossaryView.vue'
+import CalendarView from '../views/CalendarView.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -59,6 +60,17 @@ export const router = createRouter({
       path: '/inventories',
       name: 'inventories',
       component: InventoriesListView,
+    },
+    {
+      path: '/kalender',
+      name: 'my-calendar',
+      component: CalendarView,
+    },
+    {
+      path: '/inventories/:id/calendar',
+      name: 'inventory-calendar',
+      component: CalendarView,
+      props: (route) => ({ inventoryId: Number(route.params.id) }),
     },
     {
       path: '/my-loans',

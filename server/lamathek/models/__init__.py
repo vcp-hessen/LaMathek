@@ -17,9 +17,11 @@ from lamathek.models.photo import Photo
 from lamathek.models.audit import AuditEvent
 from lamathek.models.settings import InstallationSettings
 from lamathek.models.user import User
+from lamathek.models.calendar import CalendarFeed
 
 __all__ = [
     "AuditEvent",
+    "CalendarFeed",
     "Event",
     "Group",
     "InstallationSettings",

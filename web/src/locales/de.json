@@ -10,6 +10,7 @@
     "material": "Material",
     "sets": "Sets",
     "loans": "Verleih",
+    "calendar": "Kalender",
     "myLoans": "Meine Ausleihen"
   },
   "shell": {
@@ -310,6 +311,15 @@
     "repairNote": "Notiz zur Reparatur",
     "repairNoteOptional": "optional",
     "submitRepair": "Reparatur buchen"
+  },
+  "calendar": {
+    "heading": "Kalender",
+    "month": "Monat",
+    "table": "Tabelle",
+    "colTitle": "Verleih",
+    "colFrom": "Abholung",
+    "colTo": "Rückgabe",
+    "token": "iCal-Abo erzeugen"
   },
   "loans": {
     "heading": "Verleih",
