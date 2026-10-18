@@ -730,7 +730,18 @@
   },
   "help": {
     "nav": "Hilfe & Begriffe",
-    "glossaryLink": "Begriff im Glossar",
+    "glossaryLink": "Im Glossar nachlesen",
+    "context": {
+      "verleih": "Ein Verleih bündelt Positionen, Termine und die Phase von der Anfrage bis zur Rücknahme.",
+      "phase": "Die Phase sagt, welcher Schritt als Nächstes dran ist: Prüfung, Packen, Abholung, Rückgabe oder Übernahme.",
+      "dauerleihgabe": "Dauerleihgabe hat kein Rückgabedatum, bis eine Materialwart*in die Markierung aufhebt.",
+      "verlust": "Verlust heißt: das Material kommt nicht zurück. Beim Einzelteil bleibt das Teil gesperrt, bis es wieder eingebucht wird.",
+      "set": "Ein Set ist eine feste Zusammenstellung von Einzelteilen und Mengen, die gemeinsam verliehen werden kann.",
+      "material": "Material ist entweder ein Einzelteil oder eine Menge einer Materialart in diesem Inventar.",
+      "inventar": "Ein Inventar ist der Bestand an einem Ort, zum Beispiel Landesmaterial oder Landesbüro.",
+      "kalender": "Der Kalender zeigt einen Eintrag pro Verleih zwischen Abholung und Rückgabe.",
+      "dashboard": "Die Startseite listet, was in deinen Inventaren gerade Aufmerksamkeit braucht."
+    },
     "glossaryPageTitle": "Begriffe in LaMathek",
     "glossaryIntro": "Kurze Erläuterungen zentraler Begriffe — ausführliche Regeln stehen in der Domänen-Dokumentation.",
     "glossary": {

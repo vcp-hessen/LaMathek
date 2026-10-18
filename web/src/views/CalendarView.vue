@@ -4,6 +4,7 @@ import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api } from '../api/client'
+import ContextHelp from '../components/ContextHelp.vue'
 
 type CalItem = {
   loanId: number
@@ -57,6 +58,8 @@ function isoDate(date: Date) {
   const d = String(date.getDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
 }
+
+const days = computed(() => {
   const year = cursor.value.getFullYear()
   const month = cursor.value.getMonth()
   const first = new Date(year, month, 1)
@@ -99,7 +102,10 @@ const feedUrl = computed(() => {
 <template>
   <div class="app-page">
     <header class="flex flex-wrap items-center justify-between gap-3">
-      <h1 class="text-2xl font-semibold">{{ t('calendar.heading') }}</h1>
+      <h1 class="text-2xl font-semibold">
+        {{ t('calendar.heading') }}
+        <ContextHelp anchor="kalender" />
+      </h1>
       <div class="flex gap-2">
         <button type="button" class="btn btn-sm" :class="mode === 'month' ? 'btn-primary' : ''" @click="mode = 'month'">
           {{ t('calendar.month') }}

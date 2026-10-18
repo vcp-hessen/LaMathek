@@ -7,6 +7,7 @@ import { fetchAuthMode } from '../api/authMode'
 import { api } from '../api/client'
 import { fetchInstallationSettings } from '../api/settings'
 import { fetchMe } from '../api/me'
+import ContextHelp from '../components/ContextHelp.vue'
 
 type DashLoan = {
   id: number
@@ -54,6 +55,8 @@ const displayName = computed(
 const title = computed(() => settings.value?.title ?? t('app.productName'))
 const subtitle = computed(() => settings.value?.subtitle ?? '')
 
+const cardOrder = ['waiting', 'openRequests', 'returnsDue', 'overdue', 'openActions', 'myLoans'] as const
+
 const visibleCards = computed(() => {
   if (dashboard.value?.canManage) return cardOrder
   return ['myLoans'] as const
@@ -69,7 +72,10 @@ watchEffect(() => {
 <template>
   <div class="app-page">
     <header class="mb-6">
-      <h1 class="text-3xl font-bold">{{ title }}</h1>
+      <h1 class="text-3xl font-bold">
+        {{ title }}
+        <ContextHelp v-if="me" anchor="dashboard" />
+      </h1>
       <p v-if="subtitle" class="text-base-content/70">{{ subtitle }}</p>
       <p v-if="settingsLoading || meLoading" class="text-sm">{{ t('auth.loading') }}</p>
       <p v-else-if="me" class="mt-2 text-lg">
