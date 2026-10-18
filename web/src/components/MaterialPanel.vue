@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   createPiece,
@@ -44,6 +45,7 @@ type ExpandedKey = typeof NEW_ROW | typeof BATCH_ROW | typeof NEW_LOT | null
 
 const props = defineProps<{ inventoryId: number; canManage?: boolean }>()
 
+const route = useRoute()
 const { t } = useI18n()
 const { messageFor } = useApiErrorMessage()
 const queryClient = useQueryClient()
@@ -289,6 +291,16 @@ function openBatchRow() {
   resetBatchDraft()
   formError.value = null
 }
+
+watch(
+  () => route.query.openCreate,
+  (value) => {
+    if (!props.canManage) return
+    if (value === 'piece') openNewRow()
+    if (value === 'batch') openBatchRow()
+  },
+  { immediate: true },
+)
 
 function openNewLotRow() {
   if (!canAddLots.value) return

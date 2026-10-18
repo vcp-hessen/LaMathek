@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import type { Inventory } from '../schemas/inventory'
 import type { WlzGlyphId } from './wlz-glyphs'
+import AppCommandPalette from './AppCommandPalette.vue'
 import AppInventorySwitcher from './AppInventorySwitcher.vue'
 import WlzIcon from './WlzIcon.vue'
 
@@ -18,6 +19,11 @@ const props = defineProps<{
 
 const route = useRoute()
 const { t } = useI18n()
+const paletteOpen = ref(false)
+
+const canManageActive = computed(
+  () => props.inventories.find((inv) => inv.id === props.activeInventoryId)?.canManage ?? false,
+)
 
 const workspaceLinks = computed(() => {
   const id = props.activeInventoryId
@@ -100,6 +106,27 @@ const dividerClass = computed(() =>
       <p v-show="expanded" :class="sectionLabelClass">
         {{ t('inventories.detail') }}
       </p>
+      <div v-if="activeInventoryId && canManageActive" class="mb-2">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm w-full justify-start gap-2 border border-white/20"
+          :class="[
+            expanded ? '' : 'btn-square justify-center px-0',
+            impersonating ? 'text-vcp-blau hover:bg-vcp-blau/10' : 'text-white/90 hover:bg-white/10',
+          ]"
+          :title="t('commandPalette.open')"
+          @click="paletteOpen = true"
+        >
+          <span class="text-xs opacity-70">⌘K</span>
+          <span v-show="expanded" class="truncate">{{ t('commandPalette.open') }}</span>
+        </button>
+      </div>
+      <AppCommandPalette
+        v-if="activeInventoryId"
+        v-model:open="paletteOpen"
+        :inventory-id="activeInventoryId"
+        :can-manage="canManageActive"
+      />
       <div
         class="tooltip tooltip-right w-full"
         :class="{ 'before:hidden': expanded }"

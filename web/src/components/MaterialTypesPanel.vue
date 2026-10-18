@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { ColumnDef } from '@tanstack/vue-table'
 import { computed, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   createMaterialType,
@@ -27,6 +28,7 @@ import PhotoThumbnail from './PhotoThumbnail.vue'
 
 const props = defineProps<{ inventoryId: number; canManage?: boolean }>()
 
+const route = useRoute()
 const { t } = useI18n()
 const { messageFor } = useApiErrorMessage()
 const queryClient = useQueryClient()
@@ -34,6 +36,14 @@ const queryClient = useQueryClient()
 const creating = ref(false)
 const expandedId = ref<number | null>(null)
 const formError = ref<string | null>(null)
+
+watch(
+  () => route.query.openCreate,
+  (value) => {
+    if (value === '1' && props.canManage) creating.value = true
+  },
+  { immediate: true },
+)
 
 const name = ref('')
 const tracking = ref<'piece' | 'stock'>('piece')
