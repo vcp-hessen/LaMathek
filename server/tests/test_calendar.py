@@ -50,12 +50,17 @@ def test_user_calendar_and_ics():
             f"/api/loans/{loan_id}",
             json={"pickupOn": start.isoformat(), "returnOn": end.isoformat()},
         )
+        client.patch(
+            f"/api/loans/{loan_id}",
+            json={"eventName": "Sommerlager", "groupName": "Stamm B"},
+        )
 
         _login(client, "borrower")
         cal = client.get("/api/me/calendar/borrower")
         assert cal.status_code == 200
         items = cal.get_json()["items"]
-        assert any(item["loanId"] == loan_id for item in items)
+        match = next(item for item in items if item["loanId"] == loan_id)
+        assert match["title"] == "Sommerlager"
         assert all(item.get("asBorrower") for item in items)
 
         token = client.post(
@@ -83,7 +88,11 @@ def test_user_calendar_and_ics():
         client.get("/logout")
         feed = client.get(path)
         assert feed.status_code == 200
-        assert b"BEGIN:VEVENT" in feed.data
-        assert str(loan_id).encode() in feed.data
+        body = feed.data.decode()
+        assert "BEGIN:VEVENT" in body
+        assert "SUMMARY:Sommerlager" in body
+        assert "Gruppe: Stamm B" in body
+        assert "Ausleihende:" in body
+        assert f"/inventories/{inv_id}/loans/{loan_id}" in body
     finally:
         tmp.cleanup()

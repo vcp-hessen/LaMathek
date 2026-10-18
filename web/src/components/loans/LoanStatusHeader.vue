@@ -16,6 +16,12 @@ import {
 import ContextHelp from '../ContextHelp.vue'
 import LoanPhaseCloseCluster from './LoanPhaseCloseCluster.vue'
 import type { LoanPhaseRareActionId, LoanPhaseRareMenuItem } from '../../utils/loanPhaseRareActions'
+import {
+  loanPdfHref,
+  loanPdfKindForWorkflowStep,
+  loanPdfKindsForPhase,
+  type LoanPdfKind,
+} from '../../utils/loanPdf'
 
 const props = defineProps<{
   loan: LoanDetail
@@ -199,6 +205,14 @@ const closeButtonClass = computed(() => {
   return stageButtonClass(tone, true)
 })
 
+const availablePdfKinds = computed(() => loanPdfKindsForPhase(props.loan.phase))
+
+function stepPdfKind(step: string): LoanPdfKind | null {
+  const kind = loanPdfKindForWorkflowStep(step)
+  if (!kind || !availablePdfKinds.value.includes(kind)) return null
+  return kind
+}
+
 </script>
 
 <template>
@@ -234,12 +248,25 @@ const closeButtonClass = computed(() => {
           :key="steps[index]"
           class="flex items-center gap-1 sm:gap-1.5"
         >
-          <span
-            class="badge badge-sm border whitespace-nowrap"
-            :class="stepBadgeClass(stepTones[index], pillState(index))"
-            :aria-current="pillState(index) === 'current' ? 'step' : undefined"
-          >
-            {{ label }}
+          <span class="inline-flex items-center gap-0.5">
+            <span
+              class="badge badge-sm border whitespace-nowrap"
+              :class="stepBadgeClass(stepTones[index], pillState(index))"
+              :aria-current="pillState(index) === 'current' ? 'step' : undefined"
+            >
+              {{ label }}
+            </span>
+            <a
+              v-if="stepPdfKind(steps[index])"
+              :href="loanPdfHref(loan.id, stepPdfKind(steps[index])!)"
+              class="btn btn-ghost btn-xs h-6 min-h-6 px-1.5 text-[10px] font-normal"
+              target="_blank"
+              rel="noopener noreferrer"
+              :title="t('loans.openStepPdf', { kind: t(`journal.pdfKind.${stepPdfKind(steps[index])}`) })"
+              @click.stop
+            >
+              PDF
+            </a>
           </span>
           <span
             v-if="index < stepLabels.length - 1"
@@ -251,6 +278,21 @@ const closeButtonClass = computed(() => {
         </li>
       </ol>
       <p class="text-sm text-base-content/75">{{ t(workflowHintDisplayKey) }}</p>
+      <p
+        v-if="!useManagerWorkflowSteps && availablePdfKinds.length"
+        class="flex flex-wrap gap-x-3 gap-y-1 text-sm"
+      >
+        <a
+          v-for="kind in availablePdfKinds"
+          :key="kind"
+          :href="loanPdfHref(loan.id, kind)"
+          class="link link-hover font-medium"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {{ t('loans.openStepPdf', { kind: t(`journal.pdfKind.${kind}`) }) }}
+        </a>
+      </p>
       <p v-if="phaseClose && phaseClose.remaining > 0" class="text-sm text-base-content/75">
         {{ t('loans.phaseIncomplete', { count: phaseClose.remaining }) }}
       </p>

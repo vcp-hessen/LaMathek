@@ -44,5 +44,5 @@ Siehe [CONTEXT.md](../../CONTEXT.md) — **Verleih**, **Position**, **Ansprechpe
 
 ## Konsequenzen
 
-- `loan_workflow`, `mail_pending`, Mail-Templates; UI Schritt-Header und Chevron-Menü.
+- `loan_workflow`, `mail_pending`, Mail-Templates; UI Schritt-Header und Chevron-Menü; in der Schritt-Leiste (bzw. für Ausleihende als Link unter dem Hinweis) PDF der Pack-, Abhol- oder Rückgabeliste öffnen, sobald die API sie für die aktuelle Phase freigibt.
 - Tests: `test_loan_notifications.py`, `test_loan_shortcuts.py` (Superuser-Delete).

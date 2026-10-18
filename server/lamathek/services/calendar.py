@@ -20,6 +20,12 @@ from lamathek.models.loan import LOAN_KIND_PERMANENT, LOAN_PHASE_DRAFT, Loan
 from lamathek.models.user import User
 from lamathek.services.inventories import inventory_by_id, user_can_manage_inventory
 from lamathek.services.loan_access import user_can_view_loan
+from lamathek.services.loan_display import (
+    ics_loan_description,
+    ics_text_escape,
+    loan_display_title,
+    loan_detail_url,
+)
 
 
 def _hash_token(token: str) -> str:
@@ -148,6 +154,7 @@ def _loan_query():
     return select(Loan).options(
         selectinload(Loan.inventory),
         selectinload(Loan.group),
+        selectinload(Loan.event),
         selectinload(Loan.borrower_user),
     )
 
@@ -230,7 +237,7 @@ def loan_to_calendar_item(loan: Loan, *, viewer_id: int | None) -> dict:
         "loanId": loan.id,
         "inventoryId": loan.inventory_id,
         "inventoryName": loan.inventory.name if loan.inventory else "",
-        "title": loan.group.name if loan.group else f"Verleih {loan.id}",
+        "title": loan_display_title(loan),
         "phase": loan.phase,
         "pickupOn": loan.pickup_on.isoformat() if loan.pickup_on else None,
         "returnOn": end.isoformat() if end else None,
@@ -254,19 +261,25 @@ def ics_for_loans(loans: list[Loan]) -> str:
         end = loan.return_on or (start + timedelta(days=1))
         # iCal DTEND is exclusive
         dtend = end + timedelta(days=1)
-        title = loan.group.name if loan.group else f"Verleih {loan.id}"
+        title = loan_display_title(loan)
         if loan.kind == LOAN_KIND_PERMANENT:
             title = f"Dauerleihgabe: {title}"
-        lines.extend(
-            [
-                "BEGIN:VEVENT",
-                f"UID:loan-{loan.id}@lamathek",
-                f"DTSTART;VALUE=DATE:{start.strftime('%Y%m%d')}",
-                f"DTEND;VALUE=DATE:{dtend.strftime('%Y%m%d')}",
-                f"SUMMARY:{title}",
-                "END:VEVENT",
-            ]
-        )
+        summary = ics_text_escape(title)
+        event_lines = [
+            "BEGIN:VEVENT",
+            f"UID:loan-{loan.id}@lamathek",
+            f"DTSTART;VALUE=DATE:{start.strftime('%Y%m%d')}",
+            f"DTEND;VALUE=DATE:{dtend.strftime('%Y%m%d')}",
+            f"SUMMARY:{summary}",
+        ]
+        description = ics_loan_description(loan)
+        if description:
+            event_lines.append(f"DESCRIPTION:{description}")
+        detail_url = loan_detail_url(loan)
+        if detail_url:
+            event_lines.append(f"URL:{detail_url}")
+        event_lines.append("END:VEVENT")
+        lines.extend(event_lines)
     lines.append("END:VCALENDAR")
     return "\r\n".join(lines) + "\r\n"
 

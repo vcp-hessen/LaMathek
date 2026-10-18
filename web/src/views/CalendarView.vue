@@ -159,13 +159,6 @@ const dataLoading = computed(
     inventoryQueries.value.some((query) => query.isLoading),
 )
 
-const anyLayerEnabled = computed(() => {
-  if (showBorrower.value) return true
-  return calendarInventories.value.some(
-    (inventory) => inventoryScope.value[inventory.id] !== 'off',
-  )
-})
-
 const totalLayerCount = computed(() => 1 + calendarInventories.value.length)
 
 const enabledLayerCount = computed(() => {

@@ -22,6 +22,7 @@ from lamathek.models.loan import (
     Loan,
 )
 from lamathek.models.user import User
+from lamathek.services.loan_display import loan_detail_url, loan_display_title
 from sqlalchemy.orm import Session
 
 PdfKind = Literal["pack", "handover", "return"]
@@ -73,21 +74,6 @@ class PdfRow:
     piece_name: str
     set_label: str
     sort_key: tuple[str, str]
-
-
-def _loan_display_title(loan: Loan) -> str:
-    if loan.event is not None and (loan.event.name or "").strip():
-        return loan.event.name.strip()
-    if loan.group is not None and (loan.group.name or "").strip() not in {"", "—", "-"}:
-        return loan.group.name.strip()
-    return f"Verleih #{loan.id}"
-
-
-def _loan_detail_url(loan: Loan) -> str:
-    frontend_url = str(_cfg("FRONTEND_URL", "") or "").strip().rstrip("/")
-    if not frontend_url:
-        return ""
-    return f"{frontend_url}/inventories/{loan.inventory_id}/loans/{loan.id}"
 
 
 def _qr_data_uri(url: str) -> str:
@@ -144,16 +130,16 @@ def pdf_rows_for_loan(loan: Loan) -> list[dict]:
 
 
 def pdf_filename(loan: Loan, kind: PdfKind) -> str:
-    title = _loan_display_title(loan).replace("/", "-")[:40]
+    title = loan_display_title(loan).replace("/", "-")[:40]
     return f"lamathek-{kind}-{loan.id}-{title}.pdf"
 
 
 def render_loan_pdf(session: Session, loan: Loan, kind: PdfKind) -> bytes:
     del session
-    detail_url = _loan_detail_url(loan)
+    detail_url = loan_detail_url(loan)
     context = {
         "title": _PDF_TITLES[kind],
-        "loan_title": _loan_display_title(loan),
+        "loan_title": loan_display_title(loan),
         "inventory_name": (loan.inventory.name or "").strip() if loan.inventory else "",
         "borrower_name": (loan.borrower_user.name or loan.borrower_user.email or "").strip()
         if loan.borrower_user

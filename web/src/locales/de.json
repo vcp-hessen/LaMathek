@@ -603,6 +603,7 @@
     "shortcutSkipPickupConfirm": "Abholung überspringen und gepacktes Material direkt zur Rückgabe melden?",
     "phaseCloseRequest": "Anfrage senden",
     "phaseCloseReview": "Freigabe abschließen",
+    "openStepPdf": "{kind} öffnen (PDF)",
     "phaseClosePack": "Packen abschließen",
     "phaseCloseHandover": "Abholung abschließen",
     "phaseCloseReturn": "Rückgabe abschließen",
