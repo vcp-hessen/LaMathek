@@ -101,6 +101,7 @@ def send_mail(
     html: str | None = None,
     *,
     cc: list[str] | None = None,
+    attachments: list[tuple[str, bytes, str]] | None = None,
 ) -> None:
     if not mail_configured():
         raise MailDeliveryError("smtp_not_configured")
@@ -116,6 +117,17 @@ def send_mail(
     message.set_content(text)
     if html:
         message.add_alternative(html, subtype="html")
+    if attachments:
+        for filename, data, mime in attachments:
+            maintype, _, subtype = mime.partition("/")
+            if not subtype:
+                maintype, subtype = "application", "octet-stream"
+            message.add_attachment(
+                data,
+                maintype=maintype,
+                subtype=subtype,
+                filename=filename,
+            )
 
     timeout = float(_cfg("SMTP_TIMEOUT", 15))
     host = str(_cfg("SMTP_HOST", "") or "").strip()

@@ -7,7 +7,10 @@ from lamathek.models.user import User
 from lamathek.services.loan_mail_dispatch import dispatch_loan_mail
 from lamathek.services.mail import send_mail
 
-MailSender = Callable[[str, str, str, str | None, list[str]], None]
+MailSender = Callable[
+    [str, str, str, str | None, list[str], list[tuple[str, bytes, str]] | None],
+    None,
+]
 
 _last_mail: dict | None = None
 
@@ -22,10 +25,18 @@ def _default_sender(
     text: str,
     html: str | None,
     cc: list[str],
+    attachments: list[tuple[str, bytes, str]] | None = None,
 ) -> None:
     global _last_mail
-    _last_mail = {"to": to, "subject": subject, "text": text, "html": html, "cc": cc}
-    send_mail(to, subject, text, html=html, cc=cc)
+    _last_mail = {
+        "to": to,
+        "subject": subject,
+        "text": text,
+        "html": html,
+        "cc": cc,
+        "attachments": attachments,
+    }
+    send_mail(to, subject, text, html=html, cc=cc, attachments=attachments)
 
 
 _mail_sender: MailSender = _default_sender

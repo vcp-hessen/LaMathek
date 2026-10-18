@@ -1,0 +1,43 @@
+<h1>{{ title }}</h1>
+<div class="meta">
+  <div><strong>Verleih:</strong> {{ loan_title }}</div>
+  {% if inventory_name %}<div><strong>Inventar:</strong> {{ inventory_name }}</div>{% endif %}
+  {% if borrower_name %}<div><strong>Ausleihende*r:</strong> {{ borrower_name }}</div>{% endif %}
+</div>
+<table class="items">
+  <thead>
+    <tr>
+      <th style="width: 10mm;"></th>
+      <th>Materialart</th>
+      <th>Stück / Menge</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td><span class="checkbox"></span></td>
+      <td>
+        {{ row.materialTypeName }}
+        {% if row.setLabel %}
+        <div class="set-hint">Set: {{ row.setLabel }}</div>
+        {% endif %}
+      </td>
+      <td>{{ row.pieceName }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<div class="footer-row">
+  {% if show_signature %}
+  <div class="signature">
+    <div class="signature-line">Unterschrift</div>
+  </div>
+  {% else %}
+  <div></div>
+  {% endif %}
+  {% if qr_src %}
+  <div class="qr">
+    <img src="{{ qr_src }}" alt="QR"/>
+  </div>
+  {% endif %}
+</div>

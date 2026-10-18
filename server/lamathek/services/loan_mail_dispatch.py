@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 from lamathek.models.loan import Loan
 from lamathek.models.user import User
 from lamathek.services.inventories import permission_users, user_can_manage_inventory
+from lamathek.services.journal import append_journal
+from lamathek.services.loan_pdf import pdf_attachment_for_mail, pdf_kind_for_mail_step
 from lamathek.services.mail import is_valid_email
 from lamathek.services.mail_templates import render_loan_action_mail
 
@@ -136,6 +138,7 @@ def deliver_loan_receipt_mails(
     from lamathek.services.loan_notifications import get_mail_sender
 
     sender = get_mail_sender()
+    pdf_attachment = pdf_attachment_for_mail(session, loan, mail_step)
     for audience in _LOAN_MAIL_AUDIENCES:
         if _audience_sent(loan, audience):
             continue
@@ -155,11 +158,25 @@ def deliver_loan_receipt_mails(
             locale=locale,
             mail_step=mail_step,
         )
+        attachments = [pdf_attachment] if pdf_attachment is not None else None
         try:
-            sender(recipients.to, subject, text, html, recipients.cc)
+            sender(recipients.to, subject, text, html, recipients.cc, attachments)
         except Exception:
             raise ValueError("mail_not_sent") from None
         _mark_audience_sent(session, loan, audience)
+    append_journal(
+        session,
+        "mail.dispatched",
+        actor,
+        {
+            "action": action,
+            "mailStep": mail_step,
+            "pdfKind": pdf_kind_for_mail_step(mail_step),
+            "lineIds": line_ids,
+        },
+        loan_id=loan.id,
+    )
+    session.commit()
 
 
 def dispatch_loan_mail(

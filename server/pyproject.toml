@@ -11,6 +11,8 @@ dependencies = [
     "requests>=2.31",
     "python-dotenv>=1.0",
     "pillow>=10.0",
+    "weasyprint>=62.0",
+    "qrcode>=7.4",
 ]
 
 [project.scripts]

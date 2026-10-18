@@ -40,6 +40,7 @@ Siehe [CONTEXT.md](../../CONTEXT.md) — **Verleih**, **Position**, **Ansprechpe
 - Geschlossener Verleih mit stillen Änderungen: Button **Änderungen mitteilen**, nur diese Änderungen.
 - Ohne E-Mail-Adresse des Nutzers: Schritt gilt als erledigt, **keine** Mail.
 - Schlägt der Versand für eine Rolle fehl (SMTP), bleibt der Schritt offen (`mail_pending`); erneuter Abschluss versendet nur die noch ausstehende Rolle, ohne Doppelversand an bereits zugestellte Empfänger.
+- Phasen-Receipt-Mails an Ausleihende*n und Materialwart*innen können einen **PDF-Anhang** tragen: nach Freigabe die Packliste, nach Packen die Abholliste, nach Abholung die Rückgabeliste. Dieselben Listen sind ab der passenden Phase per API abrufbar.
 
 ## Konsequenzen
 

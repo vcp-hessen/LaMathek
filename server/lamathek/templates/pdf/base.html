@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8"/>
+  <title>{{ title }}</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 16mm 20mm 16mm;
+    }
+    body {
+      font-family: "DejaVu Sans", sans-serif;
+      font-size: 10pt;
+      color: #111;
+      background: #fff;
+      margin: 0;
+    }
+    .sheet {
+      border: 2px solid #004287;
+      padding: 12mm 10mm;
+      min-height: 240mm;
+      box-sizing: border-box;
+    }
+    h1 {
+      color: #004287;
+      font-size: 16pt;
+      margin: 0 0 4mm;
+    }
+    .meta {
+      margin-bottom: 6mm;
+      line-height: 1.45;
+    }
+    .meta strong { color: #004287; }
+    table.items {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 4mm;
+    }
+    table.items th {
+      text-align: left;
+      border-bottom: 2px solid #004287;
+      padding: 2mm 2mm;
+      color: #004287;
+      font-size: 9pt;
+    }
+    table.items td {
+      border-bottom: 1px solid #c5d4e4;
+      padding: 2.5mm 2mm;
+      vertical-align: top;
+    }
+    .checkbox {
+      width: 4.5mm;
+      height: 4.5mm;
+      border: 1.5px solid #004287;
+      display: inline-block;
+    }
+    .set-hint {
+      font-size: 8.5pt;
+      color: #444;
+    }
+    .footer-row {
+      margin-top: 10mm;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 8mm;
+    }
+    .qr img {
+      width: 28mm;
+      height: 28mm;
+    }
+    .signature {
+      flex: 1;
+      margin-top: 8mm;
+    }
+    .signature-line {
+      border-top: 1px solid #004287;
+      margin-top: 14mm;
+      padding-top: 2mm;
+      font-size: 9pt;
+      color: #004287;
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    {% block body %}{% endblock %}
+  </div>
+</body>
+</html>
