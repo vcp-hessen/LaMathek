@@ -3,15 +3,16 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from lamathek.models.damage import Damage, Repair
+from lamathek.models.damage import (
+    DAMAGE_KIND_DAMAGE,
+    RESOLUTION_REPAIRED,
+    Damage,
+    Repair,
+)
 from lamathek.models.material import MaterialType, Piece
-def piece_has_open_severe_damage(session: Session, piece_id: int) -> bool:
-    damages = session.scalars(
-        select(Damage)
-        .where(Damage.piece_id == piece_id, Damage.severe.is_(True))
-        .options(selectinload(Damage.repair))
-    ).all()
-    return any(damage.repair is None for damage in damages)
+from lamathek.models.user import User
+from lamathek.services.journal import append_journal
+from lamathek.services.piece_availability import piece_has_open_severe_damage
 
 
 def create_damage(
@@ -21,14 +22,26 @@ def create_damage(
     *,
     note: str | None,
     severe: bool,
+    actor: User | None = None,
 ) -> Damage:
     damage = Damage(
         piece_id=piece.id,
         recorded_on=recorded_on,
         note=note,
         severe=severe,
+        kind=DAMAGE_KIND_DAMAGE,
     )
     session.add(damage)
+    session.flush()
+    append_journal(
+        session,
+        "damage.created",
+        actor,
+        {"damageId": damage.id, "severe": severe, "note": note or ""},
+        piece_id=piece.id,
+        loan_id=damage.loan_id,
+        loan_line_id=damage.loan_line_id,
+    )
     session.commit()
     return session.scalar(
         select(Damage)
@@ -57,6 +70,7 @@ def create_repair(
     recorded_on: date,
     *,
     note: str | None,
+    actor: User | None = None,
 ) -> Repair:
     if damage.repair is not None:
         raise ValueError("already_repaired")
@@ -64,7 +78,23 @@ def create_repair(
         damage_id=damage.id,
         recorded_on=recorded_on,
         note=note,
+        resolution_kind=RESOLUTION_REPAIRED,
     )
     session.add(repair)
+    session.flush()
+    append_journal(
+        session,
+        "repair.created",
+        actor,
+        {
+            "repairId": repair.id,
+            "damageId": damage.id,
+            "resolutionKind": repair.resolution_kind,
+            "note": note or "",
+        },
+        piece_id=damage.piece_id,
+        loan_id=damage.loan_id,
+        loan_line_id=damage.loan_line_id,
+    )
     session.commit()
     return repair

@@ -1,4 +1,5 @@
 import { api } from './client'
+import { journalEntrySchema } from '../schemas/journal'
 import {
   categorySchema,
   materialTypeSchema,
@@ -72,6 +73,11 @@ export async function fetchPieces(inventoryId: number): Promise<Piece[]> {
   return pieceSchema.array().parse(response.data)
 }
 
+export async function fetchPieceJournal(pieceId: number) {
+  const response = await api.get(`/api/pieces/${pieceId}/journal`)
+  return journalEntrySchema.array().parse(response.data)
+}
+
 export async function fetchPiece(pieceId: number): Promise<PieceDetail> {
   const response = await api.get(`/api/pieces/${pieceId}`)
   return pieceDetailSchema.parse(response.data)
@@ -82,6 +88,14 @@ export async function createPieceDamage(
   payload: { recordedOn: string; severe: boolean; note?: string },
 ): Promise<void> {
   await api.post(`/api/pieces/${pieceId}/damages`, payload)
+}
+
+export async function postPieceFoundAgain(
+  pieceId: number,
+  payload: { reason: string; recordedOn?: string },
+): Promise<PieceDetail> {
+  const response = await api.post(`/api/pieces/${pieceId}/found-again`, payload)
+  return pieceDetailSchema.parse(response.data)
 }
 
 export async function createDamageRepair(

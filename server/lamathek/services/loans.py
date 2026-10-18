@@ -33,7 +33,11 @@ from lamathek.models.set import (
     SetStockLine,
 )
 from lamathek.models.user import User
-from lamathek.services.damages import piece_has_open_severe_damage
+from lamathek.services.piece_availability import (
+    piece_has_open_severe_damage,
+    piece_ids_with_open_total_loss,
+    piece_is_blocked_for_lending,
+)
 from lamathek.services.inventories import user_can_manage_inventory
 from lamathek.services.loan_workflow_steps import assert_line_action_allowed
 def new_line_status_for_loan(loan: Loan) -> str:
@@ -252,6 +256,7 @@ def update_loan(
     session: Session,
     loan: Loan,
     *,
+    actor: User | None = None,
     group_name: str | None = None,
     borrower_user_id: int | None = None,
     event_name: str | None = None,
@@ -274,6 +279,7 @@ def update_loan(
     manager_edit: bool = False,
     allow_shared_meta: bool = False,
 ) -> Loan:
+    updated_fields: list[str] = []
     if loan.phase == LOAN_PHASE_CLOSED:
         raise ValueError("loan_not_editable")
     if loan.phase != LOAN_PHASE_DRAFT:
@@ -292,6 +298,7 @@ def update_loan(
         if kind not in VALID_LOAN_KINDS:
             raise ValueError("invalid_kind")
         loan.kind = kind
+        updated_fields.append("kind")
         if kind == LOAN_KIND_PERMANENT:
             loan.event_id = None
             loan.return_on = None
@@ -324,26 +331,34 @@ def update_loan(
     meta_editable = allow_shared_meta or manager_edit
     if group_name is not None and meta_editable:
         loan.group = get_or_create_group(session, group_name)
+        updated_fields.append("group")
     if borrower_user_id is not None and meta_editable:
         _validate_borrower(session, borrower_user_id)
         loan.borrower_user_id = borrower_user_id
+        updated_fields.append("borrower")
     if clear_event and meta_editable:
         loan.event_id = None
+        updated_fields.append("event")
     elif event_name is not None and event_name.strip() and meta_editable:
         loan.event = get_or_create_event(session, event_name)
+        updated_fields.append("event")
     if update_wish_pickup_on or update_wish_return_on:
         if loan.phase == LOAN_PHASE_DRAFT or manager_edit:
             if update_wish_pickup_on:
                 loan.wish_pickup_on = wish_pickup_on
+                updated_fields.append("wishPickupOn")
             if update_wish_return_on and effective_kind != LOAN_KIND_PERMANENT:
                 loan.wish_return_on = wish_return_on
+                updated_fields.append("wishReturnOn")
         elif update_wish_pickup_on or update_wish_return_on:
             raise ValueError("invalid_loan_state")
     if manager_edit:
         if update_pickup_on:
             loan.pickup_on = pickup_on
+            updated_fields.append("pickupOn")
         if update_return_on and effective_kind != LOAN_KIND_PERMANENT:
             loan.return_on = return_on
+            updated_fields.append("returnOn")
     if update_contact:
         if not manager_edit:
             raise ValueError("forbidden")
@@ -360,32 +375,29 @@ def update_loan(
             ):
                 raise ValueError("invalid_contact")
             loan.contact_user_id = contact_user_id
+        updated_fields.append("contact")
     if update_pickup_note:
         loan.pickup_note = (pickup_note or "").strip()
+        updated_fields.append("pickupNote")
     if update_return_note:
         loan.return_note = (return_note or "").strip()
+        updated_fields.append("returnNote")
+    if actor is not None and updated_fields:
+        from lamathek.services.journal import append_journal
+
+        append_journal(
+            session,
+            "loan.updated",
+            actor,
+            {"fields": updated_fields},
+            loan_id=loan.id,
+        )
     session.commit()
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
 
 def piece_ids_marked_lost(session: Session, piece_ids: list[int]) -> set[int]:
-    if not piece_ids:
-        return set()
-    rows = session.scalars(
-        select(LoanLine.piece_id).where(
-            LoanLine.piece_id.in_(piece_ids),
-            LoanLine.status == LINE_STATUS_NOT_RETURNED,
-        )
-    ).all()
-    return {piece_id for piece_id in rows if piece_id is not None}
-
-
-def _piece_lost(session: Session, piece_id: int) -> bool:
-    stmt = select(LoanLine.id).where(
-        LoanLine.piece_id == piece_id,
-        LoanLine.status == LINE_STATUS_NOT_RETURNED,
-    )
-    return session.scalar(stmt) is not None
+    return piece_ids_with_open_total_loss(session, piece_ids)
 
 
 def _stock_quantity(session: Session, material_type_id: int) -> int:
@@ -551,9 +563,7 @@ def _validate_piece_available(
     piece = session.get(Piece, piece_id)
     if piece is not None and piece.status == ITEM_STATUS_RETIRED:
         raise ValueError("piece_unavailable")
-    if piece_has_open_severe_damage(session, piece_id):
-        raise ValueError("piece_unavailable")
-    if _piece_lost(session, piece_id):
+    if piece_is_blocked_for_lending(session, piece_id):
         raise ValueError("piece_unavailable")
     if piece_blocked_on_loan(session, piece_id, exclude_loan_id=exclude_loan_id):
         raise ValueError("piece_unavailable")
@@ -732,9 +742,7 @@ def add_piece_line(session: Session, loan: Loan, piece_id: int) -> LoanLine:
     piece = session.get(Piece, piece_id)
     if piece is not None and piece.status == ITEM_STATUS_RETIRED:
         raise ValueError("piece_unavailable")
-    if piece_has_open_severe_damage(session, piece_id):
-        raise ValueError("piece_unavailable")
-    if _piece_lost(session, piece_id):
+    if piece_is_blocked_for_lending(session, piece_id):
         raise ValueError("piece_unavailable")
     if status != LINE_STATUS_DRAFT and piece_blocked_on_loan(
         session, piece_id, exclude_loan_id=loan.id
@@ -806,7 +814,9 @@ def add_stock_line(session: Session, loan: Loan, material_type_id: int, quantity
     return line
 
 
-def restore_withdrawn_line(session: Session, loan: Loan, line_id: int) -> Loan:
+def restore_withdrawn_line(
+    session: Session, loan: Loan, line_id: int, *, actor: User | None = None
+) -> Loan:
     line = session.get(LoanLine, line_id)
     if line is None or line.loan_id != loan.id:
         raise ValueError("invalid_line")
@@ -824,6 +834,16 @@ def restore_withdrawn_line(session: Session, loan: Loan, line_id: int) -> Loan:
     line.reason = ""
     line.request_notified = False
     line.mail_pending = False
+    if actor is not None:
+        from lamathek.services.journal import journal_line_action
+
+        journal_line_action(
+            session,
+            actor=actor,
+            loan_id=loan.id,
+            line=line,
+            action="restore_withdrawn",
+        )
     session.commit()
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 

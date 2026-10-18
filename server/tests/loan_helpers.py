@@ -21,7 +21,7 @@ def manager_id(client, sub: str = "mgr") -> int:
     with client.application.app_context():
         session = get_session()
         user = upsert_user_from_oidc(
-            session, sub=sub, name=sub, email=f"{sub}@test.example", force_superuser=True
+            session, sub=sub, name=sub, email=f"{sub}@test.example", force_superuser=False
         )
         session.commit()
         return user.id

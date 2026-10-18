@@ -34,10 +34,20 @@ const loanLineOriginSchema = z.object({
   originSetRole: z.enum(['assignment', 'optional']).nullable(),
 })
 
+export const loanWarningSchema = z.object({
+  code: z.string(),
+  otherLoanId: z.number().optional(),
+  loanId: z.number().optional(),
+  pieceId: z.number().optional(),
+  lineId: z.number().optional(),
+  materialTypeId: z.number().optional(),
+})
+
 const loanLineCommonSchema = {
   requestNotified: z.boolean().optional(),
   returnedQuantity: z.number().nullable().optional(),
   statusBeforeEnd: loanLineStatusSchema.nullable().optional(),
+  warnings: z.array(loanWarningSchema).optional(),
 }
 
 export const loanLineSchema = z.discriminatedUnion('kind', [
@@ -101,6 +111,7 @@ export const loanDetailSchema = loanSchema.extend({
   pickupPhotos: z.array(photoMetaSchema).optional(),
   returnPhotos: z.array(photoMetaSchema).optional(),
   lines: z.array(loanLineSchema),
+  warnings: z.array(loanWarningSchema).optional(),
   hasUnnotifiedRequestedLines: z.boolean().optional(),
   hasPendingMailChanges: z.boolean().optional(),
 })

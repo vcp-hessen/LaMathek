@@ -12,11 +12,13 @@ from lamathek.db import get_session
 from lamathek.serializers import (
     category_to_json,
     damage_to_json,
+    journal_entry_to_json,
     material_type_to_json,
     piece_detail_to_json,
     piece_to_json,
     stock_to_json,
 )
+from lamathek.services.journal import append_journal, list_piece_journal
 from lamathek.services.categories import list_categories
 from lamathek.services.damages import create_damage, create_repair, damage_by_id
 from lamathek.services.inventories import (
@@ -346,6 +348,19 @@ def post_pieces_batch(_user, inventory):
     return jsonify(payload), 201
 
 
+@material_bp.get("/pieces/<int:piece_id>/journal")
+@require_login
+def get_piece_journal(user, piece_id: int):
+    session = get_session()
+    piece = piece_by_id(session, piece_id)
+    if piece is None:
+        return jsonify({"error": "not_found"}), 404
+    if not user_can_view_inventory(session, user, piece.material_type.inventory):
+        return jsonify({"error": "forbidden"}), 403
+    entries = list_piece_journal(session, piece_id)
+    return jsonify([journal_entry_to_json(entry) for entry in entries])
+
+
 @material_bp.get("/pieces/<int:piece_id>")
 @require_login
 def get_piece(user, piece_id: int):
@@ -356,11 +371,85 @@ def get_piece(user, piece_id: int):
     if not user_can_view_inventory(session, user, piece.material_type.inventory):
         return jsonify({"error": "forbidden"}), 403
     covers = cover_photo_ids_for_pieces(session, [piece])
+    from lamathek.services.loan_conflicts import piece_planned_loan_warnings
+    from lamathek.services.loans import piece_ids_marked_lost
+    from lamathek.services.piece_availability import piece_found_again_eligible
+
+    lost = piece.id in piece_ids_marked_lost(session, [piece.id])
+    return jsonify(
+        piece_detail_to_json(
+            piece,
+            cover_photo_id=covers.get(piece.id),
+            lost=lost,
+            found_again_eligible=piece_found_again_eligible(session, piece.id),
+            warnings=piece_planned_loan_warnings(session, piece.id),
+        )
+    )
+
+
+@material_bp.post("/pieces/<int:piece_id>/found-again")
+@require_login
+def post_piece_found_again(user, piece_id: int):
+    session = get_session()
+    piece = piece_by_id(session, piece_id)
+    if piece is None:
+        return jsonify({"error": "not_found"}), 404
+    if not user_can_manage_inventory(session, user, piece.material_type.inventory):
+        return jsonify({"error": "forbidden"}), 403
+
+    from datetime import date
+
+    from lamathek.services.piece_availability import (
+        piece_found_again_eligible,
+        record_found_again_for_piece,
+    )
+
+    if not piece_found_again_eligible(session, piece.id):
+        return jsonify({"error": "not_eligible"}), 400
+
+    body = request.get_json(silent=True) or {}
+    reason = body.get("reason")
+    if not isinstance(reason, str) or not reason.strip():
+        return jsonify({"error": "invalid_reason"}), 400
+    try:
+        recorded_on = parse_date(body.get("recordedOn"))
+    except ValueError:
+        return jsonify({"error": "invalid_date"}), 400
+    if recorded_on is None:
+        recorded_on = date.today()
+
+    try:
+        record_found_again_for_piece(
+            session,
+            piece.id,
+            recorded_on=recorded_on,
+            reason=reason.strip(),
+        )
+        append_journal(
+            session,
+            "piece.found_again",
+            user,
+            {"reason": reason.strip(), "recordedOn": recorded_on.isoformat()},
+            piece_id=piece.id,
+        )
+        session.commit()
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    piece = piece_by_id(session, piece_id)
+    covers = cover_photo_ids_for_pieces(session, [piece])
+    from lamathek.services.loan_conflicts import piece_planned_loan_warnings
     from lamathek.services.loans import piece_ids_marked_lost
 
     lost = piece.id in piece_ids_marked_lost(session, [piece.id])
     return jsonify(
-        piece_detail_to_json(piece, cover_photo_id=covers.get(piece.id), lost=lost)
+        piece_detail_to_json(
+            piece,
+            cover_photo_id=covers.get(piece.id),
+            lost=lost,
+            found_again_eligible=piece_found_again_eligible(session, piece.id),
+            warnings=piece_planned_loan_warnings(session, piece.id),
+        )
     )
 
 
@@ -395,6 +484,7 @@ def post_piece_damage(user, piece_id: int):
         recorded_on,
         note=note.strip() if isinstance(note, str) and note.strip() else None,
         severe=severe,
+        actor=user,
     )
     return jsonify(damage_to_json(damage)), 201
 
@@ -427,6 +517,7 @@ def post_damage_repair(user, damage_id: int):
             damage,
             recorded_on,
             note=note.strip() if isinstance(note, str) and note.strip() else None,
+            actor=user,
         )
     except ValueError as exc:
         return _damage_error(exc)

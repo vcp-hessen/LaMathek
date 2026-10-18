@@ -72,6 +72,7 @@ export const repairSchema = z.object({
   id: z.number(),
   recordedOn: z.string(),
   note: z.string().nullable(),
+  resolutionKind: z.string().optional(),
 })
 
 export const damageSchema = z.object({
@@ -79,6 +80,7 @@ export const damageSchema = z.object({
   recordedOn: z.string(),
   note: z.string().nullable(),
   severe: z.boolean(),
+  kind: z.string().optional(),
   open: z.boolean(),
   repair: repairSchema.nullable(),
   photos: z.array(photoMetaSchema).optional(),
@@ -88,6 +90,16 @@ export const pieceDetailSchema = pieceSchema.extend({
   inventoryId: z.number(),
   photos: z.array(photoMetaSchema).optional(),
   damages: z.array(damageSchema),
+  foundAgainEligible: z.boolean().optional(),
+  warnings: z
+    .array(
+      z.object({
+        code: z.string(),
+        loanId: z.number().optional(),
+        lineId: z.number().optional(),
+      }),
+    )
+    .optional(),
 })
 
 export type Damage = z.infer<typeof damageSchema>

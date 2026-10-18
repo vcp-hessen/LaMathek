@@ -25,6 +25,7 @@ from lamathek.services.loan_workflow_steps import (
     restore_target_status,
     sync_loan_phase_after_line_change,
 )
+from lamathek.services.journal import journal_line_action
 from lamathek.services.loans import (
     _validate_piece_available,
     _validate_stock_available,
@@ -65,7 +66,7 @@ def restore_loan_line(session: Session, loan: Loan, line_id: int, *, actor: User
         raise ValueError("invalid_line")
 
     if line.status == LINE_STATUS_WITHDRAWN:
-        return restore_withdrawn_line(session, loan, line_id)
+        return restore_withdrawn_line(session, loan, line_id, actor=actor)
 
     if line.status not in RESTORABLE_TERMINAL_STATUSES:
         raise ValueError("invalid_line_status")
@@ -92,6 +93,17 @@ def restore_loan_line(session: Session, loan: Loan, line_id: int, *, actor: User
             )
 
     if line.status == LINE_STATUS_NOT_RETURNED:
+        from datetime import date
+
+        from lamathek.services.piece_availability import cancel_total_loss_for_line
+
+        if line.piece_id is not None:
+            cancel_total_loss_for_line(
+                session,
+                line.id,
+                recorded_on=date.today(),
+                note="Korrektur Verlust",
+            )
         line.returned_quantity = None
 
     line.status = target
@@ -99,6 +111,9 @@ def restore_loan_line(session: Session, loan: Loan, line_id: int, *, actor: User
     line.reason = ""
     line.mail_pending = True
     reset_loan_mail_receipt_flags(loan)
+    journal_line_action(
+        session, actor=actor, loan_id=loan.id, line=line, action="restore"
+    )
 
     was_closed = loan.phase == LOAN_PHASE_CLOSED
     sync_loan_phase_after_line_change(loan)

@@ -26,5 +26,6 @@ Mehrere Entwürfe dürfen dasselbe Stück referenzieren; Konflikt entsteht bei B
 
 ## Konsequenzen
 
-- Server: Verfügbarkeitsprüfung bei Bestätigung und Anfrage.
+- Server: Verfügbarkeitsprüfung bei Bestätigung und Anfrage; Einzelteil-Sperre über Stück-Ereignisse (nicht über historische `not_returned`-Zeilen).
 - UI: verständliche Fehlermeldung mit Hinweis auf blockierenden Verleih wo möglich.
+- Terminüberschneidungen bei bereits bestätigten Belegungen: **Warnung** (Speichern erlaubt); zweite Bestätigung desselben Einzelteils bleibt abgelehnt.
