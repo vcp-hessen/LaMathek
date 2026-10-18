@@ -36,8 +36,8 @@ def test_request_mail_to_managers():
     app, tmp = _app_with_db()
     captured: list[dict] = []
 
-    def capture(to, subject, text, html, cc):
-        captured.append({"to": to, "cc": cc})
+    def capture(to, subject, text, html, cc, attachments=None):
+        captured.append({"to": to, "cc": cc, "attachments": attachments})
 
     set_mail_sender_for_tests(capture)
     try:
@@ -85,7 +85,7 @@ def test_request_mail_is_german_and_addressed():
     app, tmp = _app_with_db()
     captured: list[dict] = []
 
-    def capture(to, subject, text, html, cc):
+    def capture(to, subject, text, html, cc, attachments=None):
         captured.append(
             {"to": to, "subject": subject, "text": text, "html": html, "cc": cc}
         )
@@ -137,7 +137,7 @@ def test_complete_step_sends_role_specific_mails():
     app, tmp = _app_with_db()
     captured: list[dict] = []
 
-    def capture(to, subject, text, html, cc):
+    def capture(to, subject, text, html, cc, attachments=None):
         captured.append({"to": to, "subject": subject, "text": text, "cc": cc})
 
     set_mail_sender_for_tests(capture)
@@ -207,7 +207,7 @@ def test_quiet_line_change_is_listed_in_the_step_mail():
     app, tmp = _app_with_db()
     captured: list[dict] = []
 
-    def capture(to, subject, text, html, cc):
+    def capture(to, subject, text, html, cc, attachments=None):
         captured.append({"to": to, "text": text})
 
     set_mail_sender_for_tests(capture)
@@ -277,7 +277,7 @@ def test_mail_partial_failure_retries_without_duplicate():
     app, tmp = _app_with_db()
     sent_to: list[str] = []
 
-    def flaky(to, subject, text, html, cc):
+    def flaky(to, subject, text, html, cc, attachments=None):
         del subject, text, html, cc
         sent_to.append(to)
         if len(sent_to) == 2:
@@ -314,16 +314,17 @@ def test_mail_partial_failure_retries_without_duplicate():
         failed = client.post(f"/api/loans/{loan_id}/actions/complete-step")
         assert failed.status_code == 409
         assert failed.get_json()["error"] == "mail_not_sent"
-        assert len(sent_to) == 1
+        assert len(sent_to) == 2
         assert client.get(f"/api/loans/{loan_id}").get_json()["phase"] == phase_before
 
+        sent_to.clear()
         set_mail_sender_for_tests(
-            lambda to, subject, text, html, cc: sent_to.append(to)
+            lambda to, subject, text, html, cc, attachments=None: sent_to.append(to)
         )
         ok = client.post(f"/api/loans/{loan_id}/actions/complete-step")
         assert ok.status_code == 200, ok.get_json()
-        assert len(sent_to) == 2
-        assert sent_to[0] != sent_to[1]
+        assert len(sent_to) == 1
+        assert sent_to[0] == "mgr@test.example"
     finally:
         set_mail_sender_for_tests(None)
         tmp.cleanup()

@@ -5,6 +5,7 @@ from lamathek.services.inventories import (
     format_content_responsible_users,
     users_with_inventory_permission,
 )
+from lamathek.models.journal import LoanJournalEntry
 from lamathek.models.loan import Loan, LoanLine
 from lamathek.models.damage import Damage, Repair
 from lamathek.models.category import Category
@@ -147,6 +148,7 @@ def repair_to_json(repair: Repair) -> dict:
         "id": repair.id,
         "recordedOn": repair.recorded_on.isoformat(),
         "note": repair.note,
+        "resolutionKind": repair.resolution_kind,
     }
 
 
@@ -156,6 +158,7 @@ def damage_to_json(damage: Damage) -> dict:
         "recordedOn": damage.recorded_on.isoformat(),
         "note": damage.note,
         "severe": damage.severe,
+        "kind": damage.kind,
         "open": damage.repair is None,
         "repair": repair_to_json(damage.repair) if damage.repair else None,
         "photos": photos_to_json(list(damage.photos)),
@@ -181,13 +184,20 @@ def piece_to_json(
 
 
 def piece_detail_to_json(
-    piece: Piece, *, cover_photo_id: int | None = None, lost: bool = False
+    piece: Piece,
+    *,
+    cover_photo_id: int | None = None,
+    lost: bool = False,
+    found_again_eligible: bool = False,
+    warnings: list[dict] | None = None,
 ) -> dict:
     return {
         **piece_to_json(piece, cover_photo_id=cover_photo_id, lost=lost),
         "inventoryId": piece.material_type.inventory_id,
         "photos": photos_to_json(list(piece.photos)),
         "damages": [damage_to_json(d) for d in piece.damages],
+        "foundAgainEligible": found_again_eligible,
+        "warnings": warnings or [],
     }
 
 
@@ -277,7 +287,7 @@ def _origin_json(line: LoanLine) -> dict:
     }
 
 
-def _loan_line_to_json(line: LoanLine) -> dict:
+def _loan_line_to_json(line: LoanLine, *, warnings: list[dict] | None = None) -> dict:
     origin = _origin_json(line)
     base = {
         "id": line.id,
@@ -289,6 +299,7 @@ def _loan_line_to_json(line: LoanLine) -> dict:
         "requestNotified": bool(line.request_notified),
         "returnedQuantity": line.returned_quantity,
         "statusBeforeEnd": line.status_before_end,
+        "warnings": warnings or [],
         **origin,
     }
     if line.piece_id is not None and line.piece is not None:
@@ -367,20 +378,52 @@ def loan_detail_to_json(
     session: Session | None = None,
 ) -> dict:
     from lamathek.models.loan import PHOTO_ROLE_PICKUP, PHOTO_ROLE_RETURN
+    from lamathek.services.loan_conflicts import enrich_loan_detail_warnings
 
     pickup_photos = [p for p in loan.photos if p.loan_photo_role == PHOTO_ROLE_PICKUP]
     return_photos = [p for p in loan.photos if p.loan_photo_role == PHOTO_ROLE_RETURN]
+    loan_warnings: list[dict] = []
+    line_warning_map: dict[int, list[dict]] = {}
+    if session is not None:
+        loan_warnings, line_warning_map = enrich_loan_detail_warnings(session, loan)
     return {
         **loan_to_json(
             loan, cover_photo_id=cover_photo_id, viewer=viewer, session=session
         ),
+        "warnings": loan_warnings,
         "pickupPhotos": photos_to_json(pickup_photos),
         "returnPhotos": photos_to_json(return_photos),
-        "lines": [_loan_line_to_json(line) for line in loan.lines],
+        "lines": [
+            _loan_line_to_json(line, warnings=line_warning_map.get(line.id))
+            for line in loan.lines
+        ],
         "hasPendingMailChanges": any(line.mail_pending for line in loan.lines),
         "hasUnnotifiedRequestedLines": any(
             line.status == "requested" and not line.request_notified for line in loan.lines
         ),
+    }
+
+
+def journal_entry_to_json(entry: LoanJournalEntry) -> dict:
+    import json
+
+    payload: dict = {}
+    try:
+        parsed = json.loads(entry.payload or "{}")
+        if isinstance(parsed, dict):
+            payload = parsed
+    except json.JSONDecodeError:
+        payload = {"raw": entry.payload}
+    actor = entry.actor_user
+    return {
+        "id": entry.id,
+        "createdAt": entry.created_at.isoformat() if entry.created_at else None,
+        "kind": entry.kind,
+        "payload": payload,
+        "loanId": entry.loan_id,
+        "pieceId": entry.piece_id,
+        "loanLineId": entry.loan_line_id,
+        "actor": user_to_json(actor) if actor is not None else None,
     }
 
 

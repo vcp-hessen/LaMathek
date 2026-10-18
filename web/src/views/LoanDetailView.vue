@@ -8,15 +8,18 @@ import { fetchMe, patchMePhone } from '../api/me'
 import {
   deleteLoan,
   fetchLoan,
+  fetchLoanJournal,
   loanAction,
   patchLoan,
   removeLoanLine,
   restoreLoanLine,
 } from '../api/loans'
+import JournalSection from '../components/journal/JournalSection.vue'
 import LoanDetailsCollapsible from '../components/loans/LoanDetailsCollapsible.vue'
 import LoanLinesSection from '../components/loans/LoanLinesSection.vue'
 import LoanPrimaryActions from '../components/loans/LoanPrimaryActions.vue'
 import ActionFeedbackBanner from '../components/ActionFeedbackBanner.vue'
+import LoanConflictWarnings from '../components/loans/LoanConflictWarnings.vue'
 import LoanStatusHeader from '../components/loans/LoanStatusHeader.vue'
 import { LOAN_DETAIL_SECTION } from '../components/loans/loanDetailLayout'
 import { useActiveBox } from '../composables/useActiveBox'
@@ -63,6 +66,12 @@ const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
 const { data: loan, isLoading } = useQuery({
   queryKey: ['loan', loanId],
   queryFn: () => fetchLoan(loanId.value),
+  enabled: () => Number.isFinite(loanId.value),
+})
+
+const { data: journalEntries, isLoading: journalLoading } = useQuery({
+  queryKey: ['loan-journal', loanId],
+  queryFn: () => fetchLoanJournal(loanId.value),
   enabled: () => Number.isFinite(loanId.value),
 })
 
@@ -435,6 +444,8 @@ const globalActionError = computed(() => {
   <div class="app-page">
     <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
     <template v-else-if="loan">
+      <LoanConflictWarnings v-if="loan.warnings?.length" :warnings="loan.warnings" />
+
       <LoanStatusHeader
         :loan="loan"
         :can-manage="canManage"
@@ -559,6 +570,12 @@ const globalActionError = computed(() => {
           @save-pickup-note="patchMetaMutation.mutate({ pickupNote: editPickupNote })"
           @save-return-note="patchMetaMutation.mutate({ returnNote: editReturnNote })"
           @photos-change="queryClient.invalidateQueries({ queryKey: ['loan', loanId] })"
+        />
+
+        <JournalSection
+          :title="t('journal.loanHeading')"
+          :entries="journalEntries"
+          :loading="journalLoading"
         />
       </section>
 

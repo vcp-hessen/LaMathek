@@ -9,11 +9,14 @@ import {
   deletePiece,
   fetchMaterialTypes,
   fetchPiece,
+  fetchPieceJournal,
+  postPieceFoundAgain,
   updatePiece,
 } from '../api/material'
 import type { Damage, PieceDetail } from '../schemas/material'
 import { useApiErrorMessage } from '../composables/useApiErrorMessage'
 import { useInventoryCanManage } from '../composables/useInventoryCanManage'
+import JournalSection from '../components/journal/JournalSection.vue'
 import MaterialDetailsSection from '../components/material/MaterialDetailsSection.vue'
 import MaterialItemMetadataFields from '../components/material/MaterialItemMetadataFields.vue'
 import {
@@ -47,6 +50,12 @@ const { data: materialTypes } = useQuery({
 const { data: piece, isLoading } = useQuery({
   queryKey: ['piece', pieceId],
   queryFn: () => fetchPiece(pieceId.value),
+  enabled: () => Number.isFinite(pieceId.value),
+})
+
+const { data: journalEntries, isLoading: journalLoading } = useQuery({
+  queryKey: ['piece-journal', pieceId],
+  queryFn: () => fetchPieceJournal(pieceId.value),
   enabled: () => Number.isFinite(pieceId.value),
 })
 
@@ -145,6 +154,22 @@ const deleteMutation = useMutation({
   },
 })
 
+const foundAgainReason = ref('')
+
+const foundAgainMutation = useMutation({
+  mutationFn: () =>
+    postPieceFoundAgain(pieceId.value, {
+      reason: foundAgainReason.value.trim(),
+    }),
+  onSuccess: async () => {
+    foundAgainReason.value = ''
+    await invalidatePiece()
+  },
+  onError: (error) => {
+    stammdatenError.value = messageFor(error)
+  },
+})
+
 const damageMutation = useMutation({
   mutationFn: () =>
     createPieceDamage(pieceId.value, {
@@ -229,6 +254,29 @@ function damageStatusLabel(damage: Damage): string {
         <p v-if="piece.lost" class="text-sm">
           <span class="badge badge-error badge-sm">{{ t('material.pieceLost') }}</span>
         </p>
+        <div
+          v-if="canManage && piece.foundAgainEligible"
+          class="flex max-w-md flex-col gap-2 rounded-md border border-base-300 p-3"
+        >
+          <p class="text-sm font-medium">{{ t('material.foundAgainTitle') }}</p>
+          <label class="flex flex-col gap-1 text-sm">
+            <span>{{ t('material.foundAgainReason') }}</span>
+            <textarea
+              v-model="foundAgainReason"
+              class="textarea textarea-bordered textarea-sm"
+              rows="2"
+              required
+            />
+          </label>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm w-fit"
+            :disabled="!foundAgainReason.trim() || foundAgainMutation.isPending.value"
+            @click="foundAgainMutation.mutate()"
+          >
+            {{ t('material.foundAgainAction') }}
+          </button>
+        </div>
         <MaterialItemMetadataFields
           v-model:acquired-year="editMeta.acquiredYear"
           v-model:note="editMeta.note"
@@ -259,6 +307,14 @@ function damageStatusLabel(damage: Damage): string {
             :readonly="!canManage"
             @change="invalidate"
           />
+      </section>
+
+      <section class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
+        <JournalSection
+          :title="t('journal.pieceHeading')"
+          :entries="journalEntries"
+          :loading="journalLoading"
+        />
       </section>
 
       <section class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">

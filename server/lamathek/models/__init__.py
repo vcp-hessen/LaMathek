@@ -1,4 +1,5 @@
 from lamathek.models.inventory import Inventory, InventoryPermission
+from lamathek.models.journal import LoanJournalEntry
 from lamathek.models.loan import Event, Group, Loan, LoanLine
 from lamathek.models.damage import Damage, Repair
 from lamathek.models.category import Category
@@ -23,6 +24,7 @@ __all__ = [
     "Group",
     "InstallationSettings",
     "Loan",
+    "LoanJournalEntry",
     "LoanLine",
     "Category",
     "Damage",

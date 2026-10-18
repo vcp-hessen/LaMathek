@@ -25,5 +25,6 @@ LaMathek erfasst nur Material von VCP Hessen (nicht Stamm/Bezirk/Bund). Verleihe
 | D0011 | Schaden | [domain/D0011-damage.md](domain/D0011-damage.md) |
 | D0012 | Workflow-Phasen und Mail | [domain/D0012-workflow-phase-mail.md](domain/D0012-workflow-phase-mail.md) |
 | D0013 | Oberfläche und Roadmap | [domain/D0013-ui-language-roadmap.md](domain/D0013-ui-language-roadmap.md) |
+| D0014 | Verleih-Journal | [domain/D0014-loan-journal.md](domain/D0014-loan-journal.md) |
 
 Einstieg und Pflegehinweise: [domain/README.md](domain/README.md).

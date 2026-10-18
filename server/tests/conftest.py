@@ -35,8 +35,8 @@ def login(client, sub: str, *, email=None):
 def _loan_mail_sender_no_smtp():
     from lamathek.services.loan_notifications import set_mail_sender_for_tests
 
-    def ok_sender(to, subject, text, html, cc):
-        del to, subject, text, html, cc
+    def ok_sender(to, subject, text, html, cc, attachments=None):
+        del to, subject, text, html, cc, attachments
 
     set_mail_sender_for_tests(ok_sender)
     yield

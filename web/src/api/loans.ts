@@ -1,5 +1,6 @@
 import { api } from './client'
 import { meSchema, type Me } from '../schemas/me'
+import { journalEntrySchema } from '../schemas/journal'
 import {
   eventSchema,
   groupSchema,
@@ -145,6 +146,11 @@ export type LoanMailPreview = {
   subject: string
   text: string
   html: string
+}
+
+export async function fetchLoanJournal(loanId: number) {
+  const response = await api.get(`/api/loans/${loanId}/journal`)
+  return journalEntrySchema.array().parse(response.data)
 }
 
 export async function fetchLoanMailPreview(

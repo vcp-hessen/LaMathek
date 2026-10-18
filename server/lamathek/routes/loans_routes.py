@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, Response, jsonify, request
 
 from lamathek.models.loan import LINE_STATUS_DRAFT, is_workflow_loan_phase
 from lamathek.services.mail_templates import preview_loan_action_mail
@@ -11,9 +11,16 @@ from lamathek.routes.parsing import parse_date
 from lamathek.serializers import (
     event_to_json,
     group_to_json,
+    journal_entry_to_json,
     loan_detail_to_json,
     loan_to_json,
     user_to_json,
+)
+from lamathek.services.journal import list_loan_journal
+from lamathek.services.loan_pdf import (
+    pdf_access_allowed,
+    pdf_filename,
+    render_loan_pdf,
 )
 from lamathek.services.inventories import user_can_manage_inventory
 from lamathek.services.loan_access import (
@@ -379,6 +386,43 @@ def delete_loan(user, loan_id: int):
     return jsonify({"ok": True})
 
 
+_PDF_KINDS = frozenset({"pack", "handover", "return"})
+
+
+@loans_bp.get("/loans/<int:loan_id>/pdf/<kind>")
+@require_login
+def loan_pdf(user, loan_id: int, kind: str):
+    if kind not in _PDF_KINDS:
+        return jsonify({"error": "not_found"}), 404
+    session = get_session()
+    loan, err = _require_loan_access(session, user, loan_id)
+    if err:
+        return err
+    if not pdf_access_allowed(loan, kind):  # type: ignore[arg-type]
+        return jsonify({"error": "workflow_step_mismatch"}), 409
+    try:
+        pdf_bytes = render_loan_pdf(session, loan, kind)  # type: ignore[arg-type]
+    except Exception:
+        return jsonify({"error": "pdf_render_failed"}), 500
+    filename = pdf_filename(loan, kind)  # type: ignore[arg-type]
+    return Response(
+        pdf_bytes,
+        mimetype="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
+
+@loans_bp.get("/loans/<int:loan_id>/journal")
+@require_login
+def loan_journal(user, loan_id: int):
+    session = get_session()
+    loan, err = _require_loan_access(session, user, loan_id)
+    if err:
+        return err
+    entries = list_loan_journal(session, loan_id)
+    return jsonify([journal_entry_to_json(entry) for entry in entries])
+
+
 @loans_bp.get("/loans/<int:loan_id>/mail-preview")
 @require_login
 def loan_mail_preview(user, loan_id: int):
@@ -492,6 +536,7 @@ def patch_loan(user, loan_id: int):
                     borrower_user_id=borrower_user_id,
                     manager_edit=True,
                     allow_shared_meta=True,
+                    actor=user,
                 )
             elif loan.borrower_user_id == user.id and borrower_user_id != user.id:
                 loan = hand_draft_to_borrower(
@@ -504,6 +549,7 @@ def patch_loan(user, loan_id: int):
                     borrower_user_id=borrower_user_id,
                     manager_edit=True,
                     allow_shared_meta=True,
+                    actor=user,
                 )
         except ValueError as exc:
             return _loan_error(exc)
@@ -589,6 +635,7 @@ def patch_loan(user, loan_id: int):
         kwargs["update_return_note"] = True
 
     try:
+        kwargs["actor"] = user
         loan = update_loan(session, loan, **kwargs)
     except ValueError as exc:
         return _loan_error(exc)
@@ -726,6 +773,14 @@ def loan_action_request(user, loan_id: int):
 
 
 @loans_bp.post("/loans/<int:loan_id>/actions/notify-added")
+@require_login
+def loan_action_notify_added(user, loan_id: int):
+    def _handle_notify(session, loan, _body, user):
+        return notify_added_lines(session, loan, actor=user)
+
+    return _action_invoke(user, loan_id, _handle_notify)
+
+
 @loans_bp.post("/loans/<int:loan_id>/actions/complete-step")
 @require_login
 def loan_action_complete_step(user, loan_id: int):
@@ -733,14 +788,6 @@ def loan_action_complete_step(user, loan_id: int):
         return complete_loan_step(session, loan, actor=user)
 
     return _action_invoke(user, loan_id, _handle_complete)
-
-
-@require_login
-def loan_action_notify_added(user, loan_id: int):
-    def _handle_notify(session, loan, _body, user):
-        return notify_added_lines(session, loan, actor=user)
-
-    return _action_invoke(user, loan_id, _handle_notify)
 
 
 @loans_bp.post("/loans/<int:loan_id>/actions/confirm")

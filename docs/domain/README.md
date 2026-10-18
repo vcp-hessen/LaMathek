@@ -33,6 +33,7 @@ Hier stehen **verbindliche Produktregeln** für LaMathek — wer darf was, Verle
 | Abholung, Rückgabe, Verlust, Abschluss | [D0009](D0009-pickup-return-handover-loss.md) |
 | Abhol-/Rückgabeinfo, Fotos | [D0010](D0010-pickup-return-info-photos.md) |
 | Phasen, Mail, Chevron-Aktionen, Löschen | [D0012](D0012-workflow-phase-mail.md) |
+| Journal (Verlauf) | [D0014](D0014-loan-journal.md) |
 
 Material, Inventar, Sets: [D0002](D0002-inventar-material-sets.md). Rollen: [D0001](D0001-scope-roles.md). Schaden: [D0011](D0011-damage.md).
 
