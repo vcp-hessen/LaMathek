@@ -312,6 +312,15 @@
     "repairNoteOptional": "optional",
     "submitRepair": "Reparatur buchen"
   },
+  "dashboard": {
+    "waiting": "Wartende Ausleihen",
+    "openRequests": "Offene Anfragen",
+    "returnsDue": "Rückgabe fällig",
+    "overdue": "Überfällige Rückgaben",
+    "openActions": "Offene Aktionen",
+    "myLoans": "Eigene Ausleihen",
+    "untitled": "Verleih"
+  },
   "calendar": {
     "heading": "Kalender",
     "month": "Monat",
