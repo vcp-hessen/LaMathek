@@ -1,43 +1,70 @@
-<h1>{{ title }}</h1>
-<div class="meta">
-  <div><strong>Verleih:</strong> {{ loan_title }}</div>
-  {% if inventory_name %}<div><strong>Inventar:</strong> {{ inventory_name }}</div>{% endif %}
-  {% if borrower_name %}<div><strong>Ausleihende*r:</strong> {{ borrower_name }}</div>{% endif %}
-</div>
-<table class="items">
-  <thead>
-    <tr>
-      <th style="width: 10mm;"></th>
-      <th>Materialart</th>
-      <th>Stück / Menge</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for row in rows %}
-    <tr>
-      <td><span class="checkbox"></span></td>
-      <td>
-        {{ row.materialTypeName }}
-        {% if row.setLabel %}
-        <div class="set-hint">Set: {{ row.setLabel }}</div>
-        {% endif %}
-      </td>
-      <td>{{ row.pieceName }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-<div class="footer-row">
-  {% if show_signature %}
-  <div class="signature">
-    <div class="signature-line">Unterschrift</div>
+<div class="sheet-inner">
+  <div class="head-grid">
+    <h1>{{ pdf_title }}</h1>
+    <dl class="meta">
+      <dt>Verleih</dt>
+      <dd>{{ loan_title }}</dd>
+      <dt>Gruppe</dt>
+      <dd>{% if group_name %}{{ group_name }}{% else %}<span class="muted">—</span>{% endif %}</dd>
+      {% if borrower_name %}
+      <dt>Ausleihende*r</dt>
+      <dd>{{ borrower_name }}</dd>
+      {% endif %}
+    </dl>
+    <dl class="meta">
+      {% if inventory_name %}
+      <dt>Inventar</dt>
+      <dd>{{ inventory_name }}</dd>
+      {% endif %}
+      <dt>Datum</dt>
+      <dd>{{ pickup_on }} – {{ return_on }}</dd>
+      {% if contact_name %}
+      <dt>Materialwart*in</dt>
+      <dd>{{ contact_name }}</dd>
+      {% endif %}
+    </dl>
+    {% if qr_src %}
+    <div class="head-qr">
+      <img src="{{ qr_src }}" alt="QR Verleih"/>
+    </div>
+    {% endif %}
   </div>
-  {% else %}
-  <div></div>
-  {% endif %}
-  {% if qr_src %}
-  <div class="qr">
-    <img src="{{ qr_src }}" alt="QR"/>
+  <div class="content-grow">
+    <table class="items">
+      <thead>
+        <tr>
+          <th style="width: 7mm;"></th>
+          <th style="width: 28%;">Stück / Menge</th>
+          <th>Materialart</th>
+          <th style="width: 26%;">Set</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td><span class="checkbox"></span></td>
+          <td>{{ row.itemLabel }}</td>
+          <td>{{ row.materialTypeName }}</td>
+          <td class="set-cell">{% if row.setLabel %}{{ row.setLabel }}{% else %}<span class="muted">—</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if show_signature %}
+  <div class="signature-block">
+    <div class="signature-row">
+      <div class="signature-col">
+        <div class="field-input"></div>
+        <div class="field-line"></div>
+        <div class="field-label">Unterschrift Ausleihende*r</div>
+      </div>
+      <div class="signature-col narrow">
+        <div class="field-input"></div>
+        <div class="field-line"></div>
+        <div class="field-label">Datum</div>
+      </div>
+    </div>
   </div>
   {% endif %}
 </div>

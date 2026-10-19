@@ -5,7 +5,10 @@ from __future__ import annotations
 import base64
 import io
 from dataclasses import dataclass
+from datetime import date, datetime, timezone
+from pathlib import Path
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 import qrcode
 from flask import current_app, has_app_context
@@ -22,8 +25,11 @@ from lamathek.models.loan import (
     Loan,
 )
 from lamathek.models.user import User
-from lamathek.services.loan_display import loan_detail_url, loan_display_title
+from lamathek.services.loan_display import loan_detail_url, loan_display_title, loan_group_label
+from lamathek.services.settings import get_installation_settings
 from sqlalchemy.orm import Session
+
+_PDF_TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates" / "pdf"
 
 PdfKind = Literal["pack", "handover", "return"]
 
@@ -70,10 +76,30 @@ def pdf_access_allowed(loan: Loan, kind: PdfKind, *, mail_step: str | None = Non
 
 @dataclass(frozen=True)
 class PdfRow:
+    item_label: str
     material_type_name: str
-    piece_name: str
     set_label: str
     sort_key: tuple[str, str]
+
+
+def _format_loan_date(value: date | None) -> str:
+    if value is None:
+        return "—"
+    return value.strftime("%d.%m.%Y")
+
+
+def _instance_now() -> datetime:
+    """Wall clock in LAMATHEK_INSTANCE_TIMEZONE from UTC (unabhängig von TZ=)."""
+    tz_name = _cfg("INSTANCE_TIMEZONE", Config.INSTANCE_TIMEZONE)
+    return datetime.now(timezone.utc).astimezone(ZoneInfo(tz_name))
+
+
+def _instance_generator_label(instance_name: str, instance_subtitle: str) -> str:
+    title = instance_name.strip() or "LaMathek"
+    subtitle = instance_subtitle.strip()
+    if subtitle:
+        return f"LaMathek — {title}, {subtitle}"
+    return f"LaMathek — {title}"
 
 
 def _qr_data_uri(url: str) -> str:
@@ -98,31 +124,32 @@ def pdf_rows_for_loan(loan: Loan) -> list[dict]:
                 if line.piece.material_type is not None
                 else ""
             )
-            piece_name = line.piece.name.strip()
+            item_label = line.piece.name.strip()
             rows.append(
                 PdfRow(
+                    item_label=item_label,
                     material_type_name=mt_name,
-                    piece_name=piece_name,
                     set_label=origin,
-                    sort_key=(mt_name.casefold(), piece_name.casefold()),
+                    sort_key=(mt_name.casefold(), item_label.casefold()),
                 )
             )
         elif line.material_type is not None and line.quantity is not None:
             mt_name = line.material_type.name.strip()
-            piece_name = f"{line.quantity}× {mt_name}"
+            qty = line.quantity
+            item_label = f"{qty}×"
             rows.append(
                 PdfRow(
+                    item_label=item_label,
                     material_type_name=mt_name,
-                    piece_name=piece_name,
                     set_label=origin,
-                    sort_key=(mt_name.casefold(), piece_name.casefold()),
+                    sort_key=(mt_name.casefold(), f"{qty:04d}"),
                 )
             )
     rows.sort(key=lambda row: row.sort_key)
     return [
         {
+            "itemLabel": row.item_label,
             "materialTypeName": row.material_type_name,
-            "pieceName": row.piece_name,
             "setLabel": row.set_label,
         }
         for row in rows
@@ -134,16 +161,85 @@ def pdf_filename(loan: Loan, kind: PdfKind) -> str:
     return f"lamathek-{kind}-{loan.id}-{title}.pdf"
 
 
+def _pdf_document_meta(
+    loan: Loan,
+    kind: PdfKind,
+    *,
+    instance_name: str,
+    instance_subtitle: str,
+    contact_name: str,
+    borrower_name: str,
+) -> dict[str, str]:
+    list_title = _PDF_TITLES[kind]
+    loan_title = loan_display_title(loan)
+    inventory_name = (loan.inventory.name or "").strip() if loan.inventory else ""
+    group_name = loan_group_label(loan)
+    pickup = _format_loan_date(loan.pickup_on)
+    ret = _format_loan_date(loan.return_on)
+    created = _instance_now()
+
+    pdf_title = f"{list_title} — {loan_title}"
+    description_lines = [
+        f"Verleih: {loan_title}",
+        f"Gruppe: {group_name or '—'}",
+    ]
+    if borrower_name:
+        description_lines.append(f"Ausleihende*r: {borrower_name}")
+    if inventory_name:
+        description_lines.append(f"Inventar: {inventory_name}")
+    description_lines.append(f"Datum: {pickup} – {ret}")
+    if contact_name:
+        description_lines.append(f"Materialwart*in: {contact_name}")
+
+    keyword_parts = [list_title, "Verleih", "LaMathek"]
+    if inventory_name:
+        keyword_parts.append(inventory_name)
+    if group_name:
+        keyword_parts.append(group_name)
+
+    pdf_author = contact_name.strip() or "—"
+
+    return {
+        "pdf_title": pdf_title,
+        "pdf_author": pdf_author,
+        "pdf_generator": _instance_generator_label(instance_name, instance_subtitle),
+        "pdf_description_lines": description_lines,
+        "pdf_keywords": ", ".join(keyword_parts),
+        "pdf_created_iso": created.isoformat(timespec="seconds"),
+        "generated_at": created.strftime("%d.%m.%Y %H:%M"),
+    }
+
+
 def render_loan_pdf(session: Session, loan: Loan, kind: PdfKind) -> bytes:
-    del session
     detail_url = loan_detail_url(loan)
+    settings = get_installation_settings(session)
+    instance_name = (settings.title or "").strip() or "LaMathek"
+    instance_subtitle = (settings.subtitle or "").strip()
+    contact_name = ""
+    if loan.contact_user is not None:
+        contact_name = (loan.contact_user.name or loan.contact_user.email or "").strip()
+    borrower_name = ""
+    if loan.borrower_user is not None:
+        borrower_name = (loan.borrower_user.name or loan.borrower_user.email or "").strip()
+    doc_meta = _pdf_document_meta(
+        loan,
+        kind,
+        instance_name=instance_name,
+        instance_subtitle=instance_subtitle,
+        contact_name=contact_name,
+        borrower_name=borrower_name,
+    )
     context = {
         "title": _PDF_TITLES[kind],
+        **doc_meta,
         "loan_title": loan_display_title(loan),
+        "group_name": loan_group_label(loan),
         "inventory_name": (loan.inventory.name or "").strip() if loan.inventory else "",
-        "borrower_name": (loan.borrower_user.name or loan.borrower_user.email or "").strip()
-        if loan.borrower_user
-        else "",
+        "borrower_name": borrower_name,
+        "contact_name": contact_name,
+        "pickup_on": _format_loan_date(loan.pickup_on),
+        "return_on": _format_loan_date(loan.return_on),
+        "instance_name": instance_name,
         "rows": pdf_rows_for_loan(loan),
         "show_signature": kind in {"handover", "return"},
         "qr_src": _qr_data_uri(detail_url),
@@ -151,7 +247,7 @@ def render_loan_pdf(session: Session, loan: Loan, kind: PdfKind) -> bytes:
     }
     env = current_app.jinja_env
     html = env.get_template(f"pdf/{kind}_list.html").render(context)
-    return HTML(string=html).write_pdf()
+    return HTML(string=html, base_url=_PDF_TEMPLATE_DIR.as_uri() + "/").write_pdf()
 
 
 def pdf_attachment_for_mail(

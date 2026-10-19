@@ -2,89 +2,209 @@
 <html lang="de">
 <head>
   <meta charset="utf-8"/>
-  <title>{{ title }}</title>
+  <title>{{ pdf_title }}</title>
+  <meta name="author" content="{{ pdf_author }}"/>
+  <meta name="description" content="{% for line in pdf_description_lines %}{{ line }}{% if not loop.last %}&#10;{% endif %}{% endfor %}"/>
+  <meta name="keywords" content="{{ pdf_keywords }}"/>
+  <meta name="generator" content="{{ pdf_generator }}"/>
+  <meta name="dcterms.created" content="{{ pdf_created_iso }}"/>
   <style>
-    @page {
-      size: A4;
-      margin: 18mm 16mm 20mm 16mm;
+    @font-face {
+      font-family: 'Roboto';
+      src: url('../../static/fonts/Roboto-Regular.ttf') format('truetype');
+      font-weight: 400;
+      font-style: normal;
     }
-    body {
-      font-family: "DejaVu Sans", sans-serif;
-      font-size: 10pt;
-      color: #111;
-      background: #fff;
+    @font-face {
+      font-family: 'Roboto';
+      src: url('../../static/fonts/Roboto-Medium.ttf') format('truetype');
+      font-weight: 500;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'Roboto';
+      src: url('../../static/fonts/Roboto-Bold.ttf') format('truetype');
+      font-weight: 700;
+      font-style: normal;
+    }
+    /* A4: 297mm × 210mm; @page margins define printable area */
+    @page {
+      size: A4 portrait;
+      margin: 12mm 14mm 14mm 14mm;
+    }
+    html, body {
+      height: 271mm;
       margin: 0;
     }
-    .sheet {
-      border: 2px solid #004287;
-      padding: 12mm 10mm;
-      min-height: 240mm;
+    body {
+      font-family: 'Roboto', sans-serif;
+      font-size: 9pt;
+      color: #111;
+      background: #fff;
+      line-height: 1.35;
+    }
+    .page-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 3mm;
+      min-height: 271mm;
+      height: 271mm;
       box-sizing: border-box;
     }
+    .sheet {
+      border: 1.5px solid #004287;
+      padding: 8mm 8mm 8mm;
+      box-sizing: border-box;
+      flex: 1 1 auto;
+      min-height: 0;
+      height: 262mm;
+      display: flex;
+      flex-direction: column;
+    }
+    .sheet-inner {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+    }
+    .content-grow {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .head-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      grid-template-rows: auto auto;
+      column-gap: 6mm;
+      row-gap: 2mm;
+      align-items: start;
+      margin-bottom: 4mm;
+      flex-shrink: 0;
+    }
     h1 {
+      grid-column: 1 / 3;
       color: #004287;
-      font-size: 16pt;
-      margin: 0 0 4mm;
+      font-size: 13pt;
+      font-weight: 500;
+      margin: 0;
+      line-height: 1.2;
+    }
+    .head-qr {
+      grid-column: 3;
+      grid-row: 1 / 3;
+      align-self: start;
+    }
+    .head-qr img {
+      width: 22mm;
+      height: 22mm;
+      display: block;
     }
     .meta {
-      margin-bottom: 6mm;
-      line-height: 1.45;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.5mm 3mm;
+      font-size: 8.5pt;
+      min-width: 0;
     }
-    .meta strong { color: #004287; }
+    .meta dt {
+      margin: 0;
+      font-weight: 500;
+      color: #004287;
+      white-space: nowrap;
+    }
+    .meta dd {
+      margin: 0;
+    }
+    .meta .muted {
+      color: #666;
+    }
     table.items {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 4mm;
+      font-size: 8.5pt;
     }
     table.items th {
       text-align: left;
-      border-bottom: 2px solid #004287;
-      padding: 2mm 2mm;
+      border-bottom: 1.5px solid #004287;
+      padding: 1.2mm 1.5mm;
       color: #004287;
-      font-size: 9pt;
+      font-size: 8pt;
+      font-weight: 500;
     }
     table.items td {
-      border-bottom: 1px solid #c5d4e4;
-      padding: 2.5mm 2mm;
+      border-bottom: 1px solid #d0dbe8;
+      padding: 1.4mm 1.5mm;
       vertical-align: top;
     }
+    table.items td.set-cell {
+      color: #333;
+    }
+    table.items td.muted {
+      color: #666;
+    }
     .checkbox {
-      width: 4.5mm;
-      height: 4.5mm;
-      border: 1.5px solid #004287;
+      width: 3.5mm;
+      height: 3.5mm;
+      border: 1px solid #004287;
       display: inline-block;
     }
-    .set-hint {
-      font-size: 8.5pt;
-      color: #444;
+    .signature-block {
+      margin-top: auto;
+      padding-top: 8mm;
+      flex-shrink: 0;
     }
-    .footer-row {
-      margin-top: 10mm;
+    .signature-row {
+      display: flex;
+      align-items: stretch;
+      gap: 10mm;
+      max-width: 120mm;
+      min-height: 18mm;
+    }
+    .signature-col {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .signature-col.narrow {
+      flex: 0 0 42mm;
+    }
+    .field-input {
+      flex: 1 1 auto;
+      min-height: 12mm;
+    }
+    .field-line {
+      border-top: 1px solid #004287;
+      flex-shrink: 0;
+      height: 0;
+    }
+    .field-label {
+      margin-top: 1.5mm;
+      font-size: 8pt;
+      color: #004287;
+    }
+    .doc-footer {
       display: flex;
       justify-content: space-between;
-      align-items: flex-end;
-      gap: 8mm;
-    }
-    .qr img {
-      width: 28mm;
-      height: 28mm;
-    }
-    .signature {
-      flex: 1;
-      margin-top: 8mm;
-    }
-    .signature-line {
-      border-top: 1px solid #004287;
-      margin-top: 14mm;
-      padding-top: 2mm;
-      font-size: 9pt;
-      color: #004287;
+      gap: 4mm;
+      font-size: 7.5pt;
+      color: #555;
+      padding: 0 1mm;
+      flex-shrink: 0;
     }
   </style>
 </head>
 <body>
-  <div class="sheet">
-    {% block body %}{% endblock %}
+  <div class="page-wrap">
+    <div class="sheet">
+      {% block body %}{% endblock %}
+    </div>
+    <div class="doc-footer">
+      <span>{{ instance_name }}</span>
+      <span>Erstellt {{ generated_at }}</span>
+    </div>
   </div>
 </body>
 </html>

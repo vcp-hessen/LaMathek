@@ -26,6 +26,40 @@ def _bootstrap(app):
 
 weasyprint = pytest.importorskip("weasyprint")
 
+from lamathek.services.loan_pdf import _pdf_document_meta
+
+
+def test_pdf_document_meta_fields():
+    class _Group:
+        name = "Stamm A"
+
+    class _Inventory:
+        name = "Donnerskopf"
+
+    class _Loan:
+        id = 42
+        inventory = _Inventory()
+        group = _Group()
+        pickup_on = None
+        return_on = None
+        event = None
+
+    meta = _pdf_document_meta(
+        _Loan(),
+        "pack",
+        instance_name="Test-Instanz",
+        instance_subtitle="Untertitel",
+        contact_name="MW Person",
+        borrower_name="Borrower",
+    )
+    assert meta["pdf_title"] == "Packliste — Stamm A"
+    assert meta["pdf_author"] == "MW Person"
+    assert "LaMathek — Test-Instanz, Untertitel" == meta["pdf_generator"]
+    assert meta["pdf_description_lines"][0] == "Verleih: Stamm A"
+    assert "Inventar: Donnerskopf" in meta["pdf_description_lines"]
+    assert meta["pdf_created_iso"]
+    assert meta["generated_at"]
+
 
 def test_pack_pdf_after_review_complete():
     app, tmp = _app_with_db()

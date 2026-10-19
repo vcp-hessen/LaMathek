@@ -3,6 +3,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from lamathek.timezone import DEFAULT_INSTANCE_TIMEZONE, parse_instance_timezone
+
 
 def checkout_root() -> Path:
     """Repository root in a checkout, or /app inside the staging image.
@@ -67,6 +69,11 @@ def _env_bool(name: str, default: bool = False) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _instance_timezone_from_env() -> str:
+    raw = os.environ.get("LAMATHEK_INSTANCE_TIMEZONE", DEFAULT_INSTANCE_TIMEZONE)
+    return parse_instance_timezone(raw)
+
+
 def _env_optional_bool(name: str) -> bool | None:
     raw = os.environ.get(name)
     if raw is None or raw.strip() == "":
@@ -103,3 +110,5 @@ class Config:
     SMTP_STARTTLS = _env_bool("SMTP_STARTTLS", default=True)
     SMTP_SSL = _env_bool("SMTP_SSL", default=False)
     SMTP_TIMEOUT = float(os.environ.get("SMTP_TIMEOUT", "15"))
+
+    INSTANCE_TIMEZONE = _instance_timezone_from_env()
