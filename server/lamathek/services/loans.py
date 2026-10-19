@@ -213,6 +213,17 @@ def create_loan(
         return_on=return_on if for_other else None,
     )
     session.add(loan)
+    if actor is not None:
+        from lamathek.services.journal import append_journal
+
+        session.flush()
+        append_journal(
+            session,
+            "loan.created",
+            actor,
+            {"kind": kind, "forOther": for_other, "group": group.name},
+            loan_id=loan.id,
+        )
     session.commit()
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
@@ -223,6 +234,7 @@ def get_or_create_draft_loan(
     borrower_user_id: int,
     *,
     group_name: str = "—",
+    actor: User | None = None,
 ) -> Loan:
     draft = get_draft_loan(session, inventory.id, borrower_user_id)
     if draft is not None:
@@ -235,6 +247,7 @@ def get_or_create_draft_loan(
         event_name=None,
         pickup_on=None,
         return_on=None,
+        actor=actor,
     )
 
 
@@ -266,6 +279,7 @@ def update_loan(
     allow_shared_meta: bool = False,
 ) -> Loan:
     updated_fields: list[str] = []
+    before = _loan_snapshot(session, loan)
     if loan.phase == LOAN_PHASE_CLOSED:
         raise ValueError("loan_not_editable")
     if loan.phase != LOAN_PHASE_DRAFT:
@@ -388,15 +402,54 @@ def update_loan(
     if actor is not None and updated_fields:
         from lamathek.services.journal import append_journal
 
+        session.flush()
+        after = _loan_snapshot(session, loan)
+        changes = {
+            field: {"from": before[field], "to": after[field]}
+            for field in updated_fields
+            if field in before and before[field] != after[field]
+        }
         append_journal(
             session,
             "loan.updated",
             actor,
-            {"fields": updated_fields},
+            {"fields": updated_fields, "changes": changes},
             loan_id=loan.id,
         )
     session.commit()
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
+
+
+def _loan_snapshot(session: Session, loan: Loan) -> dict:
+    """Journal-friendly values of the editable fields (names, ISO dates).
+
+    Resolved through the foreign keys: relationships may still be stale right
+    after an id was assigned.
+    """
+
+    def name(model, row_id):
+        row = session.get(model, row_id) if row_id is not None else None
+        return row.name if row is not None else None
+
+    def iso(value):
+        return value.isoformat() if value is not None else None
+
+    def short(text):
+        return (text or "")[:200]
+
+    return {
+        "kind": loan.kind,
+        "group": name(Group, loan.group_id),
+        "event": name(Event, loan.event_id),
+        "borrower": name(User, loan.borrower_user_id),
+        "contact": name(User, loan.contact_user_id),
+        "wishPickupOn": iso(loan.wish_pickup_on),
+        "wishReturnOn": iso(loan.wish_return_on),
+        "pickupOn": iso(loan.pickup_on),
+        "returnOn": iso(loan.return_on),
+        "pickupNote": short(loan.pickup_note),
+        "returnNote": short(loan.return_note),
+    }
 
 
 def piece_ids_marked_lost(session: Session, piece_ids: list[int]) -> set[int]:
@@ -524,7 +577,20 @@ def _place_set_stock(
     )
 
 
-def _add_set_lines(session: Session, loan: Loan, set_id: int, role: str) -> list[dict]:
+def _journal_added(session: Session, actor: User | None, loan: Loan, line: LoanLine, **extra) -> None:
+    if actor is None:
+        return
+    from lamathek.services.journal import journal_line_action
+
+    session.flush()
+    journal_line_action(
+        session, actor=actor, loan_id=loan.id, line=line, action="added", **extra
+    )
+
+
+def _add_set_lines(
+    session: Session, loan: Loan, set_id: int, role: str, *, actor: User | None = None
+) -> list[dict]:
     if not _loan_editable_for_lines(loan):
         raise ValueError("loan_not_editable")
     material_set = load_set_by_id(session, set_id)
@@ -552,6 +618,16 @@ def _add_set_lines(session: Session, loan: Loan, set_id: int, role: str) -> list
             status=status,
             origin=origin,
         )
+    if actor is not None:
+        from lamathek.services.journal import append_journal
+
+        append_journal(
+            session,
+            "set.added",
+            actor,
+            {"set": material_set.name, "role": role, "skipped": [p["pieceName"] for p in skipped]},
+            loan_id=loan.id,
+        )
     try:
         session.commit()
     except IntegrityError:
@@ -560,16 +636,22 @@ def _add_set_lines(session: Session, loan: Loan, set_id: int, role: str) -> list
     return skipped
 
 
-def add_set_assignment_lines(session: Session, loan: Loan, set_id: int) -> list[dict]:
+def add_set_assignment_lines(
+    session: Session, loan: Loan, set_id: int, *, actor: User | None = None
+) -> list[dict]:
     """Add the Set's Zuordnung; pieces that cannot go out are skipped and returned."""
-    return _add_set_lines(session, loan, set_id, ORIGIN_SET_ROLE_ASSIGNMENT)
+    return _add_set_lines(session, loan, set_id, ORIGIN_SET_ROLE_ASSIGNMENT, actor=actor)
 
 
-def add_set_optional_lines(session: Session, loan: Loan, set_id: int) -> list[dict]:
-    return _add_set_lines(session, loan, set_id, ORIGIN_SET_ROLE_OPTIONAL)
+def add_set_optional_lines(
+    session: Session, loan: Loan, set_id: int, *, actor: User | None = None
+) -> list[dict]:
+    return _add_set_lines(session, loan, set_id, ORIGIN_SET_ROLE_OPTIONAL, actor=actor)
 
 
-def add_piece_line(session: Session, loan: Loan, piece_id: int) -> LoanLine:
+def add_piece_line(
+    session: Session, loan: Loan, piece_id: int, *, actor: User | None = None
+) -> LoanLine:
     if not _loan_editable_for_lines(loan):
         raise ValueError("loan_not_editable")
     piece = session.get(Piece, piece_id)
@@ -580,6 +662,7 @@ def add_piece_line(session: Session, loan: Loan, piece_id: int) -> LoanLine:
     _assert_piece_lendable(session, piece)
     try:
         line = _place_piece_on_loan(session, loan, piece_id, status=status)
+        _journal_added(session, actor, loan, line)
         session.commit()
     except IntegrityError:
         session.rollback()
@@ -659,6 +742,7 @@ def add_stock_line(
         withdrawn.reason = ""
         withdrawn.request_notified = False
         withdrawn.mail_pending = False
+        _journal_added(session, actor, loan, withdrawn)
         session.commit()
         return withdrawn
     line = LoanLine(
@@ -668,6 +752,7 @@ def add_stock_line(
         status=status,
     )
     session.add(line)
+    _journal_added(session, actor, loan, line)
     session.commit()
     session.refresh(line)
     return line
@@ -684,6 +769,13 @@ def restore_withdrawn_line(
     assert_line_action_allowed(loan, line, "restore")
     if line.piece_id is not None:
         add_piece_line(session, loan, line.piece_id)
+        if actor is not None:
+            from lamathek.services.journal import journal_line_action
+
+            journal_line_action(
+                session, actor=actor, loan_id=loan.id, line=line, action="restore_withdrawn"
+            )
+            session.commit()
         return loan_by_id(session, loan.id)  # type: ignore[return-value]
     if line.material_type_id is None or line.quantity is None:
         raise ValueError("invalid_line")
@@ -718,13 +810,13 @@ def remove_line(
     if line.status != LINE_STATUS_DRAFT:
         raise ValueError("loan_not_editable")
     if actor is not None:
-        from lamathek.services.journal import append_journal
+        from lamathek.services.journal import append_journal, line_item_label
 
         append_journal(
             session,
             "line.removed",
             actor,
-            {"action": "removed", "item": _line_item_label(line)},
+            {"action": "removed", "item": line_item_label(line)},
             loan_id=loan.id,
             piece_id=line.piece_id,
         )
@@ -732,9 +824,3 @@ def remove_line(
     session.commit()
 
 
-def _line_item_label(line: LoanLine) -> str:
-    if line.piece is not None:
-        return line.piece.name
-    if line.material_type is not None:
-        return f"{line.quantity or 0} × {line.material_type.name}"
-    return ""

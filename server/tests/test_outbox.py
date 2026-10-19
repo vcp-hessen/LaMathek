@@ -200,3 +200,15 @@ def test_background_worker_sends_right_after_the_commit(tmp_path):
         assert [m["to"] for m in box.sent] == ["a@example.org"]
     finally:
         set_mail_sender_for_tests(None)
+
+
+def test_without_smtp_no_mail_is_queued_and_the_journal_says_so():
+    set_mail_sender_for_tests(None)  # the real sender, and no SMTP in tests
+    w = World()
+    try:
+        kohte = w.piece()
+        loan = w.loan([{"pieceId": kohte}], 5, 7)
+        assert _rows(w) == []
+        assert "mail.skipped" in _journal_kinds(w, loan)
+    finally:
+        w.close()

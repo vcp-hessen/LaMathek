@@ -42,6 +42,13 @@ def _default_sender(
 _mail_sender: MailSender = _default_sender
 
 
+def mail_delivery_possible() -> bool:
+    """False when nothing could ever be sent (no SMTP configured and no test sender)."""
+    from lamathek.services.mail import mail_configured
+
+    return _mail_sender is not _default_sender or mail_configured()
+
+
 def get_mail_sender() -> MailSender:
     return _mail_sender
 

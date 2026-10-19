@@ -33,23 +33,44 @@
     <table class="items">
       <thead>
         <tr>
-          <th style="width: 7mm;"></th>
-          <th style="width: 28%;">Stück / Menge</th>
+          {% for column in check_columns %}
+          <th class="check-col">{{ column }}</th>
+          {% endfor %}
+          <th style="width: 24%;">Einzelteil / Anzahl</th>
           <th>Materialart</th>
-          <th style="width: 26%;">Set</th>
+          <th style="width: 20%;">Set</th>
+          <th style="width: 18%;">Status</th>
         </tr>
       </thead>
       <tbody>
         {% for row in rows %}
         <tr>
-          <td><span class="checkbox"></span></td>
+          {% for column in check_columns %}
+          <td class="check-col"><span class="checkbox"></span></td>
+          {% endfor %}
           <td>{{ row.itemLabel }}</td>
           <td>{{ row.materialTypeName }}</td>
           <td class="set-cell">{% if row.setLabel %}{{ row.setLabel }}{% else %}<span class="muted">—</span>{% endif %}</td>
+          <td class="status-cell">{{ row.statusLabel }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
+    {% if ended_rows %}
+    <p class="ended-heading">Nicht ausgegeben</p>
+    <table class="items ended">
+      <tbody>
+        {% for row in ended_rows %}
+        <tr>
+          <td style="width: 24%;">{{ row.itemLabel }}</td>
+          <td>{{ row.materialTypeName }}</td>
+          <td style="width: 20%;" class="set-cell">{% if row.setLabel %}{{ row.setLabel }}{% else %}—{% endif %}</td>
+          <td style="width: 18%;">{{ row.statusLabel }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
   </div>
   {% if show_signature %}
   <div class="signature-block">
@@ -58,6 +79,11 @@
         <div class="field-input"></div>
         <div class="field-line"></div>
         <div class="field-label">Unterschrift Ausleihende*r</div>
+      </div>
+      <div class="signature-col">
+        <div class="field-input"></div>
+        <div class="field-line"></div>
+        <div class="field-label">Unterschrift Materialwart*in</div>
       </div>
       <div class="signature-col narrow">
         <div class="field-input"></div>

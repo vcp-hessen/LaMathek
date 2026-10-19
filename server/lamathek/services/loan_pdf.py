@@ -16,6 +16,10 @@ from weasyprint import HTML
 from lamathek.config import Config
 from lamathek.models.loan import (
     LINE_STATUS_DRAFT,
+    LINE_STATUS_NOT_PACKED,
+    LINE_STATUS_NOT_PICKED_UP,
+    LINE_STATUS_UNAVAILABLE,
+    LINE_STATUS_WITHDRAWN,
     LOAN_PHASE_CLOSED,
     LOAN_PHASE_HANDOVER,
     LOAN_PHASE_PACK,
@@ -78,7 +82,26 @@ class PdfRow:
     item_label: str
     material_type_name: str
     set_label: str
+    status_label: str
     sort_key: tuple[str, str]
+
+
+# Positions that ended before going out are listed apart (greyed), for the record.
+_ENDED_EARLY = frozenset(
+    {
+        LINE_STATUS_UNAVAILABLE,
+        LINE_STATUS_WITHDRAWN,
+        LINE_STATUS_NOT_PACKED,
+        LINE_STATUS_NOT_PICKED_UP,
+    }
+)
+
+# Tick-off columns per list (what the person holding the paper confirms).
+_CHECK_COLUMNS: dict[str, tuple[str, ...]] = {
+    "pack": ("gepackt",),
+    "handover": ("übergeben",),
+    "return": ("zurück", "fehlt"),
+}
 
 
 def _format_loan_date(value: date | None) -> str:
@@ -105,48 +128,49 @@ def _qr_data_uri(url: str) -> str:
     return f"data:image/png;base64,{encoded}"
 
 
-def pdf_rows_for_loan(loan: Loan) -> list[dict]:
-    rows: list[PdfRow] = []
-    for line in loan.lines:
-        if line.status == LINE_STATUS_DRAFT:
-            continue
-        origin = (line.origin_set_name or "").strip()
-        if line.piece is not None:
-            mt_name = (
-                line.piece.material_type.name.strip()
-                if line.piece.material_type is not None
-                else ""
-            )
-            item_label = line.piece.name.strip()
-            rows.append(
-                PdfRow(
-                    item_label=item_label,
-                    material_type_name=mt_name,
-                    set_label=origin,
-                    sort_key=(mt_name.casefold(), item_label.casefold()),
-                )
-            )
-        elif line.material_type is not None and line.quantity is not None:
-            mt_name = line.material_type.name.strip()
-            qty = line.quantity
-            item_label = f"{qty}×"
-            rows.append(
-                PdfRow(
-                    item_label=item_label,
-                    material_type_name=mt_name,
-                    set_label=origin,
-                    sort_key=(mt_name.casefold(), f"{qty:04d}"),
-                )
-            )
+def _pdf_row(line) -> PdfRow | None:
+    from lamathek.i18n import t
+
+    origin = (line.origin_set_name or "").strip()
+    status = t(f"mail.lineStatus.{line.status}")
+    if line.piece is not None:
+        mt = line.piece.material_type
+        mt_name = mt.name.strip() if mt is not None else ""
+        item_label = line.piece.name.strip()
+        return PdfRow(item_label, mt_name, origin, status, (mt_name.casefold(), item_label.casefold()))
+    if line.material_type is not None and line.quantity is not None:
+        mt_name = line.material_type.name.strip()
+        return PdfRow(
+            f"{line.quantity} ×", mt_name, origin, status, (mt_name.casefold(), f"{line.quantity:06d}")
+        )
+    return None
+
+
+def _rows_json(rows: list[PdfRow]) -> list[dict]:
     rows.sort(key=lambda row: row.sort_key)
     return [
         {
             "itemLabel": row.item_label,
             "materialTypeName": row.material_type_name,
             "setLabel": row.set_label,
+            "statusLabel": row.status_label,
         }
         for row in rows
     ]
+
+
+def pdf_rows_for_loan(loan: Loan) -> tuple[list[dict], list[dict]]:
+    """(rows to work through, rows that ended before going out). Drafts are left out."""
+    active: list[PdfRow] = []
+    ended: list[PdfRow] = []
+    for line in loan.lines:
+        if line.status == LINE_STATUS_DRAFT:
+            continue
+        row = _pdf_row(line)
+        if row is None:
+            continue
+        (ended if line.status in _ENDED_EARLY else active).append(row)
+    return _rows_json(active), _rows_json(ended)
 
 
 def pdf_filename(loan: Loan, kind: PdfKind) -> str:
@@ -225,6 +249,7 @@ def render_loan_pdf(session: Session, loan: Loan, kind: PdfKind) -> bytes:
         contact_name=contact_name,
         borrower_name=borrower_name,
     )
+    rows, ended_rows = pdf_rows_for_loan(loan)
     context = {
         "title": _PDF_TITLES[kind],
         **doc_meta,
@@ -236,7 +261,9 @@ def render_loan_pdf(session: Session, loan: Loan, kind: PdfKind) -> bytes:
         "pickup_on": _format_loan_date(loan.pickup_on),
         "return_on": _format_loan_date(loan.return_on),
         "instance_name": instance_name,
-        "rows": pdf_rows_for_loan(loan),
+        "rows": rows,
+        "ended_rows": ended_rows,
+        "check_columns": _CHECK_COLUMNS[kind],
         "show_signature": kind in {"handover", "return"},
         "qr_src": _qr_data_uri(detail_url),
         "detail_url": detail_url,

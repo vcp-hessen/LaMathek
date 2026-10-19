@@ -345,13 +345,16 @@
     }
   },
   "dashboard": {
-    "waiting": "Wartende Ausleihen",
+    "waiting": "Warten auf Materialwart*in",
     "openRequests": "Offene Anfragen",
     "returnsDue": "Rückgabe fällig",
     "overdue": "Überfällige Rückgaben",
-    "openActions": "Offene Aktionen",
-    "myLoans": "Eigene Ausleihen",
-    "untitled": "Verleih"
+    "openActions": "Änderungen noch nicht mitgeteilt",
+    "myLoans": "Eigene Verleihe",
+    "untitled": "Verleih",
+    "conflicts": "Konflikte bei der Belegung",
+    "stuckMails": "Mails nicht zugestellt",
+    "showMore": "{count} weitere anzeigen"
   },
   "calendar": {
     "hubSignIn": "Melde dich an, um deinen Kalender zu sehen.",
@@ -937,7 +940,44 @@
       "line.restore_withdrawn": "Zurückgezogene Position wieder da",
       "damage.created": "Schaden erfasst",
       "repair.created": "Reparatur erfasst",
-      "piece.found_again": "Wieder aufgetaucht"
-    }
+      "piece.found_again": "Wiedergefunden",
+      "loan.created": "Verleih angelegt",
+      "set.added": "Set hinzugefügt",
+      "line.added": "Position hinzugefügt",
+      "line.removed": "Position entfernt",
+      "line.quantity_changed": "Anzahl geändert",
+      "line.request": "Angefragt",
+      "line.cancel": "Mit Verleih abgebrochen",
+      "line.skip_pickup": "Abholung übersprungen",
+      "line.replacement": "Ersatz-Position",
+      "mail.sent": "Mail versendet",
+      "mail.failed": "Mail nicht zustellbar",
+      "mail.skipped": "Keine Mail möglich",
+      "piece.written_off": "Ausgebucht"
+    },
+    "audience": {
+      "borrower": "an Ausleihende*n",
+      "managers": "an Materialwart*innen"
+    },
+    "field": {
+      "kind": "Art",
+      "group": "Gruppe",
+      "event": "Titel",
+      "borrower": "Ausleihende*r",
+      "contact": "Ansprechperson",
+      "wishPickupOn": "Abholung (Wunsch)",
+      "wishReturnOn": "Rückgabe (Wunsch)",
+      "pickupOn": "Abholung",
+      "returnOn": "Rückgabe",
+      "pickupNote": "Abholinformation",
+      "returnNote": "Rückgabeinformation"
+    },
+    "skipReason": {
+      "no_address": "keine E-Mail-Adresse",
+      "smtp_not_configured": "Mailversand nicht eingerichtet"
+    },
+    "fromTo": "{field}: {from} → {to}",
+    "quantityChange": "{from} → {to}",
+    "empty_value": "leer"
   }
 }

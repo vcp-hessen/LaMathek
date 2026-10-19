@@ -71,7 +71,8 @@ const { data: loan, isLoading } = useQuery({
 })
 
 const { data: journalEntries, isLoading: journalLoading } = useQuery({
-  queryKey: ['loan-journal', loanId],
+  // Under ['loan', id] so every loan refresh reloads the journal too.
+  queryKey: ['loan', loanId, 'journal'],
   queryFn: () => fetchLoanJournal(loanId.value),
   enabled: () => Number.isFinite(loanId.value),
 })

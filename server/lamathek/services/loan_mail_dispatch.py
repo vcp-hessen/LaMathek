@@ -121,8 +121,19 @@ def enqueue_loan_receipt_mails(
     Without a usable address nothing is queued and the journal says so.
     """
     from lamathek.models.mail import OUTBOX_KIND_LOAN
+    from lamathek.services.loan_notifications import mail_delivery_possible
     from lamathek.services.outbox import enqueue
 
+    if not mail_delivery_possible():
+        # Installation without SMTP: the workflow runs, the journal says why no mail went out.
+        append_journal(
+            session,
+            "mail.skipped",
+            actor,
+            {"action": action, "reason": "smtp_not_configured"},
+            loan_id=loan.id,
+        )
+        return
     for audience in _LOAN_MAIL_AUDIENCES:
         recipients = recipients_for_audience(session, loan, audience)
         if recipients is None:

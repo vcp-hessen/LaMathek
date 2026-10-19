@@ -1,27 +1,13 @@
 <script setup lang="ts">
 import { useQuery } from '@tanstack/vue-query'
-import { computed, watchEffect } from 'vue'
+import { computed, reactive, watchEffect } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { fetchAuthMode } from '../api/authMode'
-import { api } from '../api/client'
+import { DASHBOARD_CARDS, fetchDashboard, type DashboardCard } from '../api/dashboard'
 import { fetchInstallationSettings } from '../api/settings'
 import { fetchMe } from '../api/me'
 import ContextHelp from '../components/ContextHelp.vue'
-
-type DashLoan = {
-  id: number
-  inventoryId: number
-  inventoryName: string
-  title: string
-  phase: string
-}
-
-type Dashboard = {
-  welcomeName: string
-  canManage: boolean
-  cards: Record<string, DashLoan[]>
-}
 
 const { t } = useI18n()
 const { data: settings, isLoading: settingsLoading } = useQuery({
@@ -41,10 +27,7 @@ const { data: me, isLoading: meLoading } = useQuery({
 
 const { data: dashboard } = useQuery({
   queryKey: ['dashboard'],
-  queryFn: async () => {
-    const response = await api.get('/api/dashboard')
-    return response.data as Dashboard
-  },
+  queryFn: fetchDashboard,
   enabled: () => Boolean(me.value),
 })
 
@@ -55,12 +38,21 @@ const displayName = computed(
 const title = computed(() => settings.value?.title ?? t('app.productName'))
 const subtitle = computed(() => settings.value?.subtitle ?? '')
 
-const cardOrder = ['waiting', 'openRequests', 'returnsDue', 'overdue', 'openActions', 'myLoans'] as const
+const CARD_PREVIEW = 8
+const expanded = reactive<Partial<Record<DashboardCard, boolean>>>({})
 
-const visibleCards = computed(() => {
-  if (dashboard.value?.canManage) return cardOrder
-  return ['myLoans'] as const
+/** Materialwart*innen see every card that has something; borrowers their own Verleihe. */
+const visibleCards = computed<DashboardCard[]>(() => {
+  if (!dashboard.value?.canManage) return ['myLoans']
+  return DASHBOARD_CARDS.filter(
+    (key) => (dashboard.value?.cards[key]?.length ?? 0) > 0 || !['conflicts', 'stuckMails'].includes(key),
+  )
 })
+
+function cardLoans(key: DashboardCard) {
+  const all = dashboard.value?.cards[key] ?? []
+  return expanded[key] ? all : all.slice(0, CARD_PREVIEW)
+}
 
 watchEffect(() => {
   if (settings.value?.title) {
@@ -88,19 +80,32 @@ watchEffect(() => {
     </header>
 
     <div v-if="me && dashboard" class="grid gap-4 md:grid-cols-2">
-      <section v-for="key in visibleCards" :key="key" class="rounded-lg border border-base-300 p-4">
+      <section
+        v-for="key in visibleCards"
+        :key="key"
+        class="rounded-lg border p-4"
+        :class="['conflicts', 'stuckMails'].includes(key) ? 'border-warning/60' : 'border-base-300'"
+      >
         <h2 class="font-medium">
           {{ t(`dashboard.${key}`) }}
           <span class="opacity-60">({{ dashboard.cards[key]?.length ?? 0 }})</span>
         </h2>
         <ul class="mt-2 space-y-1 text-sm">
-          <li v-for="loan in (dashboard.cards[key] ?? []).slice(0, 8)" :key="loan.id">
+          <li v-for="loan in cardLoans(key)" :key="loan.id">
             <RouterLink :to="`/inventories/${loan.inventoryId}/loans/${loan.id}`">
               {{ loan.title || t('dashboard.untitled') }}
             </RouterLink>
             <span class="ml-2 text-xs opacity-60">{{ loan.inventoryName }}</span>
           </li>
         </ul>
+        <button
+          v-if="!expanded[key] && (dashboard.cards[key]?.length ?? 0) > CARD_PREVIEW"
+          type="button"
+          class="btn btn-ghost btn-xs mt-1"
+          @click="expanded[key] = true"
+        >
+          {{ t('dashboard.showMore', { count: (dashboard.cards[key]?.length ?? 0) - CARD_PREVIEW }) }}
+        </button>
       </section>
     </div>
 

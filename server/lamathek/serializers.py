@@ -20,6 +20,7 @@ from lamathek.models.settings import InstallationSettings
 from lamathek.models.audit import AuditEvent
 from lamathek.models.user import User
 from lamathek.services.photos import photos_to_json
+from lamathek.timezone import utc_iso
 def user_ref_json(user: User) -> dict:
     """Name only, for actors in journals: no contact data (D0005)."""
     return {"id": user.id, "name": user.name}
@@ -53,7 +54,7 @@ def audit_event_to_json(event: AuditEvent, session: Session) -> dict:
         "action": event.action,
         "reason": event.reason,
         "detail": event.detail,
-        "createdAt": event.created_at.isoformat() if event.created_at else None,
+        "createdAt": utc_iso(event.created_at),
         "actor": user_to_json(actor, include_sub=True) if actor is not None else None,
         "targetUser": user_to_json(target, include_sub=True) if target is not None else None,
     }
@@ -449,7 +450,7 @@ def journal_entry_to_json(entry: LoanJournalEntry) -> dict:
     real_actor = entry.real_actor_user
     return {
         "id": entry.id,
-        "createdAt": entry.created_at.isoformat() if entry.created_at else None,
+        "createdAt": utc_iso(entry.created_at),
         "kind": entry.kind,
         "payload": payload,
         "loanId": entry.loan_id,

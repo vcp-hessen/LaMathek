@@ -18,7 +18,7 @@ from lamathek.serializers import (
     piece_to_json,
     stock_to_json,
 )
-from lamathek.services.journal import append_journal, list_piece_journal
+from lamathek.services.journal import list_piece_journal
 from lamathek.services.categories import list_categories
 from lamathek.services.damages import create_damage, create_repair, damage_by_id
 from lamathek.services.inventories import (
@@ -399,7 +399,6 @@ def post_piece_found_again(user, piece_id: int):
     if not user_can_manage_inventory(session, user, piece.material_type.inventory):
         return jsonify({"error": "forbidden"}), 403
 
-
     from lamathek.services.piece_availability import (
         piece_found_again_eligible,
         record_found_again_for_piece,
@@ -421,37 +420,12 @@ def post_piece_found_again(user, piece_id: int):
 
     try:
         record_found_again_for_piece(
-            session,
-            piece.id,
-            recorded_on=recorded_on,
-            reason=reason.strip(),
-        )
-        append_journal(
-            session,
-            "piece.found_again",
-            user,
-            {"reason": reason.strip(), "recordedOn": recorded_on.isoformat()},
-            piece_id=piece.id,
+            session, piece.id, recorded_on=recorded_on, reason=reason.strip(), actor=user
         )
         session.commit()
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
-
-    piece = piece_by_id(session, piece_id)
-    covers = cover_photo_ids_for_pieces(session, [piece])
-    from lamathek.services.loan_conflicts import piece_planned_loan_warnings
-    from lamathek.services.loans import piece_ids_marked_lost
-
-    lost = piece.id in piece_ids_marked_lost(session, [piece.id])
-    return jsonify(
-        piece_detail_to_json(
-            piece,
-            cover_photo_id=covers.get(piece.id),
-            lost=lost,
-            found_again_eligible=piece_found_again_eligible(session, piece.id),
-            warnings=piece_planned_loan_warnings(session, piece.id),
-        )
-    )
+    return get_piece(piece_id=piece_id)
 
 
 @material_bp.post("/pieces/<int:piece_id>/damages")
@@ -595,12 +569,13 @@ def post_piece_write_off(user, piece_id: int):
     if not isinstance(reason, str) or not reason.strip():
         return jsonify({"error": "reason_required"}), 400
     try:
-        write_off_piece(session, piece.id, recorded_on=instance_today(), reason=reason)
+        write_off_piece(
+            session, piece.id, recorded_on=instance_today(), reason=reason, actor=user
+        )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 409
-    append_journal(session, "piece.written_off", user, {"reason": reason.strip()}, piece_id=piece.id)
     session.commit()
-    return get_piece(piece_id)
+    return get_piece(piece_id=piece_id)
 
 
 @material_bp.get("/inventories/<int:inventory_id>/stocks/<int:material_type_id>/losses")

@@ -143,15 +143,15 @@ def _add_lines_from_body(session, loan, body: dict, actor):
                 return skipped, (jsonify({"error": "invalid_set"}), 400)
             scope = body.get("scope", "assignment")
             if scope == "optionals":
-                skipped = add_set_optional_lines(session, loan, body["setId"])
+                skipped = add_set_optional_lines(session, loan, body["setId"], actor=actor)
             elif scope == "assignment":
-                skipped = add_set_assignment_lines(session, loan, body["setId"])
+                skipped = add_set_assignment_lines(session, loan, body["setId"], actor=actor)
             else:
                 return skipped, (jsonify({"error": "invalid_scope"}), 400)
         elif "pieceId" in body:
             if not isinstance(body["pieceId"], int):
                 return skipped, (jsonify({"error": "invalid_piece"}), 400)
-            add_piece_line(session, loan, body["pieceId"])
+            add_piece_line(session, loan, body["pieceId"], actor=actor)
         elif "materialTypeId" in body:
             if not isinstance(body["materialTypeId"], int) or not isinstance(
                 body.get("quantity"), int
@@ -350,7 +350,7 @@ def post_draft_line(user, inventory_id: int):
     if not isinstance(group_name, str):
         return jsonify({"error": "invalid_group"}), 400
     loan = get_or_create_draft_loan(
-        session, inventory, borrower_user_id, group_name=group_name
+        session, inventory, borrower_user_id, group_name=group_name, actor=user
     )
     skipped, err = _add_lines_from_body(session, loan, body, user)
     if err:

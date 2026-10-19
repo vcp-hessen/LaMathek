@@ -56,6 +56,15 @@ def append_journal(
     return entry
 
 
+def line_item_label(line: LoanLine) -> str:
+    """What a Position is about, for journal readers (piece name or quantity × type)."""
+    if line.piece is not None:
+        return line.piece.name
+    if line.material_type is not None:
+        return f"{line.quantity or 0} × {line.material_type.name}"
+    return ""
+
+
 def journal_line_action(
     session: Session,
     *,
@@ -65,7 +74,12 @@ def journal_line_action(
     action: str,
     **extra: Any,
 ) -> None:
-    payload: dict[str, Any] = {"action": action, "status": line.status, **extra}
+    payload: dict[str, Any] = {
+        "action": action,
+        "status": line.status,
+        "item": line_item_label(line),
+        **extra,
+    }
     append_journal(
         session,
         f"line.{action}",

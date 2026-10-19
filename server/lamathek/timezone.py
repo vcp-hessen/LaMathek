@@ -39,3 +39,12 @@ def instance_now() -> datetime:
 def instance_today() -> date:
     """Calendar day of the instance; use instead of date.today()."""
     return instance_now().date()
+
+
+def utc_iso(value: datetime | None) -> str | None:
+    """ISO timestamp with offset for the API. SQLite returns naive UTC from func.now()."""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.isoformat()

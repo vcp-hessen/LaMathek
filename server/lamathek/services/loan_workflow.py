@@ -195,6 +195,7 @@ def submit_loan_request(
             line.status = LINE_STATUS_REQUESTED
             line.request_notified = True
             notified_ids.append(line.id)
+            journal_line_action(session, actor=actor, loan_id=loan.id, line=line, action="request")
     loan.phase = LOAN_PHASE_REVIEW
     notified_lines = [line for line in loan.lines if line.id in notified_ids]
     _queue_mail(loan, notified_lines)
@@ -908,6 +909,7 @@ def hand_draft_to_borrower(
             line.status = LINE_STATUS_REQUESTED
             line.request_notified = True
             line_ids.append(line.id)
+            journal_line_action(session, actor=actor, loan_id=loan.id, line=line, action="request")
     notified_lines = [line for line in loan.lines if line.id in line_ids]
     _queue_mail(loan, notified_lines)
     session.flush()
@@ -1077,6 +1079,7 @@ def cancel_unpacked_loan(session: Session, loan: Loan, *, actor: User) -> Loan:
             line.status = LINE_STATUS_WITHDRAWN
             _mark_line_mail_pending(loan, line)
             withdrawn_ids.append(line.id)
+            journal_line_action(session, actor=actor, loan_id=loan.id, line=line, action="cancel")
     if not loan.lines:
         loan.phase = LOAN_PHASE_CLOSED
     session.flush()
@@ -1113,6 +1116,9 @@ def skip_pickup_to_return(session: Session, loan: Loan, *, actor: User) -> Loan:
             line.status = LINE_STATUS_RETURN_REPORTED
             _mark_line_mail_pending(loan, line)
             line_ids.append(line.id)
+            journal_line_action(
+                session, actor=actor, loan_id=loan.id, line=line, action="skip_pickup"
+            )
     session.flush()
     refresh_loan_phase(session, loan)
     session.flush()

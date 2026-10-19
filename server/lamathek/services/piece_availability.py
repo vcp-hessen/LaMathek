@@ -149,27 +149,40 @@ def cancel_total_loss_for_line(
     )
 
 
+def _journal_piece(session: Session, kind: str, actor, piece_id: int, reason: str, on: date) -> None:
+    if actor is None:
+        return
+    from lamathek.services.journal import append_journal
+
+    append_journal(
+        session, kind, actor, {"reason": reason, "recordedOn": on.isoformat()}, piece_id=piece_id
+    )
+
+
 def record_found_again_for_piece(
     session: Session,
     piece_id: int,
     *,
     recorded_on: date,
     reason: str,
+    actor=None,
 ) -> Repair:
     damage = open_total_loss_for_piece(session, piece_id)
     if damage is None:
         raise ValueError("no_open_total_loss")
-    return _resolve_damage(
+    repair = _resolve_damage(
         session,
         damage,
         recorded_on=recorded_on,
         resolution_kind=RESOLUTION_FOUND_AGAIN,
         note=reason.strip(),
     )
+    _journal_piece(session, "piece.found_again", actor, piece_id, reason.strip(), recorded_on)
+    return repair
 
 
 def write_off_piece(
-    session: Session, piece_id: int, *, recorded_on: date, reason: str
+    session: Session, piece_id: int, *, recorded_on: date, reason: str, actor=None
 ) -> Repair:
     """The total loss is final: close it and retire the piece (D0009)."""
     from lamathek.models.damage import RESOLUTION_WRITTEN_OFF
@@ -186,6 +199,7 @@ def write_off_piece(
         note=reason.strip(),
     )
     session.get(Piece, piece_id).status = ITEM_STATUS_RETIRED
+    _journal_piece(session, "piece.written_off", actor, piece_id, reason.strip(), recorded_on)
     return repair
 
 

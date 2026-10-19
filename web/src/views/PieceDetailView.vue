@@ -56,7 +56,7 @@ const { data: piece, isLoading } = useQuery({
 })
 
 const { data: journalEntries, isLoading: journalLoading } = useQuery({
-  queryKey: ['piece-journal', pieceId],
+  queryKey: ['piece', pieceId, 'journal'],
   queryFn: () => fetchPieceJournal(pieceId.value),
   // The piece journal lists every Verleih with reasons: Materialwart*innen only.
   enabled: () => Number.isFinite(pieceId.value) && canManage.value,

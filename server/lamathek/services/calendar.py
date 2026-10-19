@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import secrets
-from datetime import timedelta
+from datetime import timedelta, timezone
 from urllib.parse import urlencode
 
 from sqlalchemy import select
@@ -18,6 +18,7 @@ from lamathek.models.calendar import (
 )
 from lamathek.models.loan import LOAN_KIND_PERMANENT, LOAN_PHASE_DRAFT, Loan
 from lamathek.models.user import User
+from lamathek.timezone import utc_iso
 from lamathek.services.inventories import inventory_by_id, user_can_manage_inventory
 from lamathek.services.loan_access import user_can_view_loan
 from lamathek.services.loan_display import (
@@ -135,7 +136,7 @@ def calendar_feed_to_json(session: Session, feed: CalendarFeed) -> dict:
         "scope": feed.scope,
         "inventoryId": feed.inventory_id,
         "inventoryName": inventory_name,
-        "createdAt": feed.created_at.isoformat() if feed.created_at else None,
+        "createdAt": utc_iso(feed.created_at),
     }
 
 
@@ -254,7 +255,27 @@ def loan_to_calendar_item(loan: Loan, *, viewer_id: int | None) -> dict:
     }
 
 
-def ics_for_loans(loans: list[Loan]) -> str:
+def ics_fold(line: str) -> list[str]:
+    """RFC 5545 §3.1: lines longer than 75 octets continue on lines starting with a space."""
+    out: list[str] = []
+    current = ""
+    for ch in line:
+        limit = 75 if not out else 74  # continuation lines carry the leading space
+        if len((current + ch).encode("utf-8")) > limit:
+            out.append(current)
+            current = ch
+        else:
+            current += ch
+    out.append(current)
+    return [out[0], *[f" {part}" for part in out[1:]]]
+
+
+def ics_for_loans(loans: list[Loan], *, now=None) -> str:
+    """All-day events, one per Verleih (D0015). A Dauerleihgabe is a single day
+    (its pickup); DTEND is exclusive, so a return day is included."""
+    from lamathek.timezone import instance_now
+
+    stamp = (now or instance_now()).astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
@@ -265,19 +286,15 @@ def ics_for_loans(loans: list[Loan]) -> str:
         if loan.pickup_on is None:
             continue
         start = loan.pickup_on
-        end = loan.return_on or (start + timedelta(days=1))
-        # iCal DTEND is exclusive
-        dtend = end + timedelta(days=1)
-        title = loan_display_title(loan)
-        if loan.kind == LOAN_KIND_PERMANENT:
-            title = f"Dauerleihgabe: {title}"
-        summary = ics_text_escape(title)
+        last_day = start if loan.kind == LOAN_KIND_PERMANENT else (loan.return_on or start)
+        dtend = last_day + timedelta(days=1)
         event_lines = [
             "BEGIN:VEVENT",
             f"UID:loan-{loan.id}@lamathek",
+            f"DTSTAMP:{stamp}",
             f"DTSTART;VALUE=DATE:{start.strftime('%Y%m%d')}",
             f"DTEND;VALUE=DATE:{dtend.strftime('%Y%m%d')}",
-            f"SUMMARY:{summary}",
+            f"SUMMARY:{ics_text_escape(loan_display_title(loan))}",
         ]
         description = ics_loan_description(loan)
         if description:
@@ -286,7 +303,8 @@ def ics_for_loans(loans: list[Loan]) -> str:
         if detail_url:
             event_lines.append(f"URL:{detail_url}")
         event_lines.append("END:VEVENT")
-        lines.extend(event_lines)
+        for raw in event_lines:
+            lines.extend(ics_fold(raw))
     lines.append("END:VCALENDAR")
     return "\r\n".join(lines) + "\r\n"
 

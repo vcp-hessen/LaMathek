@@ -17,6 +17,7 @@ from flask import Flask
 from sqlalchemy import event, or_, select, update
 from sqlalchemy.orm import Session
 
+from lamathek.timezone import utc_iso
 from lamathek.models.mail import (
     OUTBOX_FAILED,
     OUTBOX_KIND_LOAN,
@@ -192,11 +193,6 @@ def resend(session: Session, row: MailOutbox) -> MailOutbox:
 
 
 def outbox_to_json(row: MailOutbox) -> dict:
-    def iso(value: datetime | None) -> str | None:
-        if value is None:
-            return None
-        return (value if value.tzinfo else value.replace(tzinfo=timezone.utc)).isoformat()
-
     return {
         "id": row.id,
         "kind": row.kind,
@@ -208,9 +204,9 @@ def outbox_to_json(row: MailOutbox) -> dict:
         "status": row.status,
         "attempts": row.attempts,
         "lastError": row.last_error or None,
-        "createdAt": iso(row.created_at),
-        "sentAt": iso(row.sent_at),
-        "nextAttemptAt": iso(row.next_attempt_at) if row.status == OUTBOX_PENDING else None,
+        "createdAt": utc_iso(row.created_at),
+        "sentAt": utc_iso(row.sent_at),
+        "nextAttemptAt": utc_iso(row.next_attempt_at) if row.status == OUTBOX_PENDING else None,
     }
 
 
