@@ -626,6 +626,95 @@ def _reason_from_entry(entry: dict) -> str:
     return reason.strip()
 
 
+def _split_off(
+    session: Session, loan: Loan, line: LoanLine, quantity: int, *, status: str, reason: str
+) -> LoanLine:
+    """Move ``quantity`` of a stock line onto a new line that ends with ``status``.
+
+    The original keeps the rest and its status, so a partial loss or return
+    never marks the whole Position and can be corrected on its own.
+    """
+    line.quantity = (line.quantity or 0) - quantity
+    split = LoanLine(
+        loan_id=loan.id,
+        material_type_id=line.material_type_id,
+        quantity=quantity,
+        status=status,
+        status_before_end=line.status,
+        reason=reason,
+        split_from_line_id=line.id,
+        mail_pending=False,
+    )
+    _copy_line_origin(line, split)
+    session.add(split)
+    session.flush()
+    _mark_line_mail_pending(loan, split)
+    return split
+
+
+def _end_as_not_returned(line: LoanLine, reason: str) -> None:
+    line.status_before_end = line.status
+    line.status = LINE_STATUS_NOT_RETURNED
+    line.reason = reason
+
+
+def _restock_stock_line(
+    session: Session, loan: Loan, line: LoanLine, returned: int, entry: dict, *, actor: User
+) -> list[int]:
+    """Übernahme of a stock line. Consumables: the rest was used up (Verbrauch).
+    Others: the rest is lost and split onto its own line (Verlust, D0009)."""
+    from lamathek.models.material import STOCK_LOSS_CONSUMED
+    from lamathek.services.stock_losses import book_stock_loss
+
+    missing = line.quantity - returned
+    if missing == 0:
+        line.returned_quantity = returned
+        line.status = LINE_STATUS_RESTOCKED
+        journal_line_action(session, actor=actor, loan_id=loan.id, line=line, action="restock")
+        return [line.id]
+    if _material_type_consumable(session, line):
+        reason = _reason_from_entry(entry) if returned == 0 else (entry.get("reason") or "")
+        book_stock_loss(
+            session,
+            line.material_type_id,
+            missing,
+            kind=STOCK_LOSS_CONSUMED,
+            loan_line_id=line.id,
+            reason=reason,
+        )
+        line.returned_quantity = returned
+        if returned == 0:
+            _end_as_not_returned(line, reason)
+            journal_line_action(
+                session, actor=actor, loan_id=loan.id, line=line, action="restock_loss", reason=reason
+            )
+        else:
+            line.status = LINE_STATUS_RESTOCKED
+            journal_line_action(
+                session, actor=actor, loan_id=loan.id, line=line, action="restock", consumed=missing
+            )
+        return [line.id]
+    reason = _reason_from_entry(entry)
+    if returned == 0:
+        _end_as_not_returned(line, reason)
+        line.returned_quantity = 0
+        lost_line = line
+        ids = [line.id]
+    else:
+        lost_line = _split_off(
+            session, loan, line, missing, status=LINE_STATUS_NOT_RETURNED, reason=reason
+        )
+        line.returned_quantity = returned
+        line.status = LINE_STATUS_RESTOCKED
+        journal_line_action(session, actor=actor, loan_id=loan.id, line=line, action="restock")
+        ids = [line.id, lost_line.id]
+    book_stock_loss(session, line.material_type_id, missing, loan_line_id=lost_line.id, reason=reason)
+    journal_line_action(
+        session, actor=actor, loan_id=loan.id, line=lost_line, action="restock_loss", reason=reason
+    )
+    return ids
+
+
 def restock_lines(
     session: Session,
     loan: Loan,
@@ -635,8 +724,6 @@ def restock_lines(
 ) -> Loan:
     if not user_can_manage_inventory(session, actor, loan.inventory):
         raise ValueError("forbidden")
-    from lamathek.services.material import apply_stock_loss
-
     line_ids: list[int] = []
     for entry in entries:
         line_id = entry.get("lineId")
@@ -657,105 +744,12 @@ def restock_lines(
             continue
         if line.material_type_id is None or line.quantity is None:
             raise ValueError("invalid_line")
-        consumable = _material_type_consumable(session, line)
         returned = entry.get("returnedQuantity")
         if returned is None:
             returned = line.quantity
         if not isinstance(returned, int) or returned < 0 or returned > line.quantity:
             raise ValueError("invalid_entry")
-        if consumable:
-            if returned == 0:
-                reason = _reason_from_entry(entry)
-                apply_stock_loss(
-                    session, line.material_type_id, line.quantity, loan_line_id=line.id
-                )
-                line.status_before_end = line.status
-                line.status = LINE_STATUS_NOT_RETURNED
-                line.reason = reason
-                line.returned_quantity = 0
-                journal_line_action(
-                    session,
-                    actor=actor,
-                    loan_id=loan.id,
-                    line=line,
-                    action="restock_loss",
-                    reason=reason,
-                )
-            else:
-                consumed = line.quantity - returned
-                if consumed > 0:
-                    apply_stock_loss(
-                        session, line.material_type_id, consumed, loan_line_id=line.id
-                    )
-                line.returned_quantity = returned
-                line.status = LINE_STATUS_RESTOCKED
-                journal_line_action(
-                    session, actor=actor, loan_id=loan.id, line=line, action="restock"
-                )
-            line_ids.append(line_id)
-            continue
-        if returned == line.quantity:
-            line.returned_quantity = returned
-            line.status = LINE_STATUS_RESTOCKED
-            journal_line_action(
-                session, actor=actor, loan_id=loan.id, line=line, action="restock"
-            )
-            line_ids.append(line_id)
-            continue
-        if returned == 0:
-            reason = _reason_from_entry(entry)
-            apply_stock_loss(
-                session, line.material_type_id, line.quantity, loan_line_id=line.id
-            )
-            line.status_before_end = line.status
-            line.status = LINE_STATUS_NOT_RETURNED
-            line.reason = reason
-            line.returned_quantity = 0
-            journal_line_action(
-                session,
-                actor=actor,
-                loan_id=loan.id,
-                line=line,
-                action="restock_loss",
-                reason=reason,
-            )
-            line_ids.append(line_id)
-            continue
-        reason = _reason_from_entry(entry)
-        missing = line.quantity - returned
-        line.quantity = returned
-        line.returned_quantity = returned
-        line.status = LINE_STATUS_RESTOCKED
-        lost_line = LoanLine(
-            loan_id=loan.id,
-            material_type_id=line.material_type_id,
-            quantity=missing,
-            status=LINE_STATUS_NOT_RETURNED,
-            status_before_end=LINE_STATUS_RETURN_REPORTED,
-            reason=reason,
-            split_from_line_id=line.id,
-            mail_pending=False,
-        )
-        _copy_line_origin(line, lost_line)
-        session.add(lost_line)
-        session.flush()
-        apply_stock_loss(
-            session, line.material_type_id, missing, loan_line_id=lost_line.id
-        )
-        _mark_line_mail_pending(loan, lost_line)
-        journal_line_action(
-            session, actor=actor, loan_id=loan.id, line=line, action="restock"
-        )
-        journal_line_action(
-            session,
-            actor=actor,
-            loan_id=loan.id,
-            line=lost_line,
-            action="restock_loss",
-            reason=reason,
-        )
-        line_ids.append(line_id)
-        line_ids.append(lost_line.id)
+        line_ids.extend(_restock_stock_line(session, loan, line, returned, entry, actor=actor))
     for line in loan.lines:
         if line.id in line_ids:
             _mark_line_mail_pending(loan, line)
@@ -775,8 +769,8 @@ def record_loss_lines(
     if not user_can_manage_inventory(session, actor, loan.inventory):
         raise ValueError("forbidden")
 
-    from lamathek.services.material import apply_stock_loss
     from lamathek.services.piece_availability import create_total_loss_for_line
+    from lamathek.services.stock_losses import book_stock_loss
 
     line_ids: list[int] = []
     for entry in entries:
@@ -795,11 +789,26 @@ def record_loss_lines(
         assert_line_action_allowed(loan, line, "record_loss")
         reason = _reason_from_entry(entry)
         if line.material_type_id is not None and line.quantity is not None:
-            qty = quantity if isinstance(quantity, int) else line.quantity
-            apply_stock_loss(session, line.material_type_id, qty, loan_line_id=line.id)
-        line.status_before_end = line.status
-        line.status = LINE_STATUS_NOT_RETURNED
-        line.reason = reason
+            qty = line.quantity if quantity is None else quantity
+            if not isinstance(qty, int) or qty <= 0 or qty > line.quantity:
+                raise ValueError("invalid_quantity")
+            if qty < line.quantity:
+                # Only part is missing: the rest stays out and can still come back.
+                lost = _split_off(
+                    session, loan, line, qty, status=LINE_STATUS_NOT_RETURNED, reason=reason
+                )
+                book_stock_loss(
+                    session, line.material_type_id, qty, loan_line_id=lost.id, reason=reason
+                )
+                journal_line_action(
+                    session, actor=actor, loan_id=loan.id, line=lost, action="record_loss", reason=reason
+                )
+                line_ids.append(lost.id)
+                continue
+            book_stock_loss(
+                session, line.material_type_id, qty, loan_line_id=line.id, reason=reason
+            )
+        _end_as_not_returned(line, reason)
         if line.piece_id is not None:
             create_total_loss_for_line(
                 session,

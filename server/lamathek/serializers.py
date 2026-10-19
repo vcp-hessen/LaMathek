@@ -447,18 +447,27 @@ def stock_to_json(
     cover_photo_id: int | None = None,
     lot_cover_photo_ids: dict[int, int | None] | None = None,
 ) -> dict:
+    from sqlalchemy.orm import object_session
+
     from lamathek.models.material import ITEM_STATUS_ACTIVE
+    from lamathek.services.stock_losses import lot_available_quantity, open_lost_by_lot
 
     lots = list(material_type.stock_lots)
     lot_covers = lot_cover_photo_ids or {}
+    session = object_session(material_type)
+    lost = open_lost_by_lot(session, [lot.id for lot in lots]) if session else {}
     return {
         "materialTypeId": material_type.id,
         "materialTypeName": material_type.name,
         "unit": material_type.unit,
         "variants": variants_to_json(material_type),
+        # What can be lent: Soll-Anzahl of active lots minus open losses.
         "quantity": sum(
-            lot.quantity for lot in lots if lot.status == ITEM_STATUS_ACTIVE
+            lot_available_quantity(lot, lost.get(lot.id, 0))
+            for lot in lots
+            if lot.status == ITEM_STATUS_ACTIVE
         ),
+        "lostQuantity": sum(lost.values()),
         "coverPhotoId": cover_photo_id,
         "lots": [
             {
@@ -466,6 +475,7 @@ def stock_to_json(
                 "label": lot.label,
                 "variant": stock_lot_variant_to_json(lot),
                 "quantity": lot.quantity,
+                "lostQuantity": lost.get(lot.id, 0),
                 "coverPhotoId": lot_covers.get(lot.id),
                 "photos": photos_to_json(list(lot.photos)),
                 **material_item_fields_to_json(lot),

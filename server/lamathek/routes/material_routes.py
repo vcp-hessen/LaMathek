@@ -59,7 +59,7 @@ def _damage_status(code: str) -> int:
     status = 400
     if code == "not_found":
         status = 404
-    if code in ("already_repaired",):
+    if code in ("already_repaired", "total_loss_not_repairable"):
         status = 409
     return status
 
@@ -74,7 +74,7 @@ def _material_type_status(code: str) -> int:
         status = 404
     if code == "tracking_locked":
         status = 409
-    if code in ("piece_has_history", "below_loaned"):
+    if code in ("piece_has_history", "below_loaned", "lot_has_history", "loss_not_open"):
         status = 409
     if code in ("short_name_taken", "name_taken", "material_type_not_empty"):
         status = 409
@@ -576,6 +576,91 @@ def _optional_lot_text(body: dict, key: str) -> str | None:
     if not isinstance(value, str):
         raise ValueError("invalid_field")
     return value
+
+
+@material_bp.post("/pieces/<int:piece_id>/write-off")
+@require_login
+def post_piece_write_off(user, piece_id: int):
+    """Totalverlust endgültig: close it and retire the piece."""
+    from lamathek.services.piece_availability import write_off_piece
+
+    session = get_session()
+    piece = piece_by_id(session, piece_id)
+    if piece is None:
+        return jsonify({"error": "not_found"}), 404
+    if not user_can_manage_inventory(session, user, piece.material_type.inventory):
+        return jsonify({"error": "forbidden"}), 403
+    body = request.get_json(silent=True) or {}
+    reason = body.get("reason")
+    if not isinstance(reason, str) or not reason.strip():
+        return jsonify({"error": "reason_required"}), 400
+    try:
+        write_off_piece(session, piece.id, recorded_on=instance_today(), reason=reason)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
+    append_journal(session, "piece.written_off", user, {"reason": reason.strip()}, piece_id=piece.id)
+    session.commit()
+    return get_piece(piece_id)
+
+
+@material_bp.get("/inventories/<int:inventory_id>/stocks/<int:material_type_id>/losses")
+@require_inventory_manager()
+def get_stock_losses(_user, inventory, material_type_id: int):
+    from lamathek.services.stock_losses import losses_for_material_type, stock_loss_to_json
+
+    session = get_session()
+    material_type = material_type_by_id(session, material_type_id)
+    if material_type is None or material_type.inventory_id != inventory.id:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify([stock_loss_to_json(l) for l in losses_for_material_type(session, material_type_id)])
+
+
+def _stock_loss_action(user, inventory, loss_id: int, action):
+    from lamathek.models.material import StockLoss
+    from lamathek.services.stock_losses import stock_loss_to_json
+
+    session = get_session()
+    loss = session.get(StockLoss, loss_id)
+    if loss is None or loss.stock_lot.material_type.inventory_id != inventory.id:
+        return jsonify({"error": "not_found"}), 404
+    body = request.get_json(silent=True) or {}
+    reason = body.get("reason")
+    if not isinstance(reason, str):
+        reason = ""
+    try:
+        result = action(session, loss, body, reason.strip())
+    except ValueError as exc:
+        return _material_type_error(exc)
+    session.commit()
+    return jsonify(stock_loss_to_json(result))
+
+
+@material_bp.post("/inventories/<int:inventory_id>/stock-losses/<int:loss_id>/found-again")
+@require_inventory_manager()
+def post_stock_loss_found_again(user, inventory, loss_id: int):
+    """Part or all of a lost quantity is back in the Inventar."""
+    from lamathek.services.stock_losses import found_again
+
+    def act(session, loss, body, reason):
+        quantity = body.get("quantity", loss.quantity)
+        if not isinstance(quantity, int):
+            raise ValueError("invalid_quantity")
+        return found_again(session, loss.id, quantity, actor=user, reason=reason)
+
+    return _stock_loss_action(user, inventory, loss_id, act)
+
+
+@material_bp.post("/inventories/<int:inventory_id>/stock-losses/<int:loss_id>/write-off")
+@require_inventory_manager()
+def post_stock_loss_write_off(user, inventory, loss_id: int):
+    """The lost quantity will not come back: lower the Soll-Anzahl for good."""
+    from lamathek.services.stock_losses import write_off
+
+    return _stock_loss_action(
+        user, inventory, loss_id, lambda session, loss, _body, reason: write_off(
+            session, loss.id, actor=user, reason=reason
+        )
+    )
 
 
 @material_bp.get("/inventories/<int:inventory_id>/stocks")

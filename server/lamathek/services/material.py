@@ -1,6 +1,7 @@
-import json
 
 from sqlalchemy import func, select
+
+from lamathek.services.stock_losses import lot_has_losses
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -16,7 +17,6 @@ from lamathek.models.material import (
     MaterialType,
     Piece,
     StockLot,
-    StockLossEntry,
     VALID_TRACKING,
 )
 from lamathek.services.material_item_fields import (
@@ -554,8 +554,15 @@ def total_stock_quantity(session: Session, material_type_id: int) -> int:
 def assert_can_retire_stock_lot(session: Session, lot: StockLot) -> None:
     if lot.status != ITEM_STATUS_ACTIVE:
         return
-    active_total = total_stock_quantity(session, lot.material_type_id)
-    if active_total - lot.quantity < _stock_occupied_from_today(session, lot.material_type_id):
+    from lamathek.services.stock_losses import (
+        available_stock_quantity,
+        lot_available_quantity,
+        open_lost_by_lot,
+    )
+
+    lot_share = lot_available_quantity(lot, open_lost_by_lot(session, [lot.id]).get(lot.id, 0))
+    remaining = available_stock_quantity(session, lot.material_type_id) - lot_share
+    if remaining < _stock_occupied_from_today(session, lot.material_type_id):
         raise ValueError("below_loaned")
 
 
@@ -577,13 +584,19 @@ def _stock_occupied_from_today(session: Session, material_type_id: int) -> int:
     return stock_occupied_from(session, material_type_id, instance_today())
 
 
+def _lendable(session: Session, material_type_id: int) -> int:
+    from lamathek.services.stock_losses import available_stock_quantity
+
+    return available_stock_quantity(session, material_type_id)
+
+
 def _assert_stock_floor(session: Session, material_type_id: int, previous_total: int) -> None:
     """Lowering stock by hand must leave enough for every confirmed Verleih from today on.
 
     Only checked when the total goes down: renaming a lot or adding stock must
     never fail because of an earlier loss.
     """
-    new_total = total_stock_quantity(session, material_type_id)
+    new_total = _lendable(session, material_type_id)
     if new_total >= previous_total:
         return
     if new_total < _stock_occupied_from_today(session, material_type_id):
@@ -633,7 +646,7 @@ def create_stock_lot(
         raise ValueError("invalid_quantity")
     material_type = _stock_material_type(session, inventory, material_type_id)
     variant_map = validate_lot_variant_map(material_type, variant)
-    previous_total = total_stock_quantity(session, material_type.id)
+    previous_total = _lendable(session, material_type.id)
     if quantity > 0:
         lot = StockLot(
             material_type_id=material_type.id,
@@ -668,7 +681,7 @@ def update_stock_lot(
     material_type = _stock_material_type(session, inventory, lot.material_type_id)
     if lot.material_type_id != material_type.id:
         raise ValueError("not_found")
-    previous_total = total_stock_quantity(session, material_type.id)
+    previous_total = _lendable(session, material_type.id)
     if label_sent:
         lot.label = _normalize_optional_text(label)
     if variant_sent:
@@ -686,7 +699,8 @@ def update_stock_lot(
 
     lot.quantity = quantity
     session.flush()
-    if lot.quantity == 0:
+    if lot.quantity == 0 and not lot_has_losses(session, lot.id):
+        # An empty lot without history goes; one with losses stays as their record.
         session.delete(lot)
         session.flush()
     _assert_stock_floor(session, material_type.id, previous_total)
@@ -696,7 +710,9 @@ def update_stock_lot(
 
 def delete_stock_lot(session: Session, inventory: Inventory, lot: StockLot) -> MaterialType:
     material_type = _stock_material_type(session, inventory, lot.material_type_id)
-    previous_total = total_stock_quantity(session, material_type.id)
+    previous_total = _lendable(session, material_type.id)
+    if lot_has_losses(session, lot.id):
+        raise ValueError("lot_has_history")
     session.delete(lot)
     session.flush()
     _assert_stock_floor(session, material_type.id, previous_total)
@@ -704,135 +720,3 @@ def delete_stock_lot(session: Session, inventory: Inventory, lot: StockLot) -> M
     return _stock_material_type(session, inventory, material_type.id)
 
 
-def _lot_variant_signature(lot: StockLot) -> str:
-    mapping = {str(sel.variant_id): sel.value for sel in lot.variant_selections}
-    return json.dumps(mapping, sort_keys=True)
-
-
-def _lot_matching_signature(
-    session: Session, material_type_id: int, signature: str
-) -> StockLot | None:
-    lots = session.scalars(
-        select(StockLot)
-        .where(
-            StockLot.material_type_id == material_type_id,
-            StockLot.status == ITEM_STATUS_ACTIVE,
-        )
-        .options(selectinload(StockLot.variant_selections))
-        .order_by(StockLot.id.desc())
-    ).all()
-    for lot in lots:
-        if _lot_variant_signature(lot) == signature:
-            return lot
-    return None
-
-
-def _restore_lot_for_signature(
-    session: Session, material_type_id: int, signature: str
-) -> StockLot:
-    existing = _lot_matching_signature(session, material_type_id, signature)
-    if existing is not None:
-        return existing
-    lot = StockLot(material_type_id=material_type_id, quantity=0)
-    session.add(lot)
-    session.flush()
-    payload = json.loads(signature or "{}")
-    if payload:
-        variant_map = {int(key): value for key, value in payload.items()}
-        set_lot_variant_map(session, lot, variant_map)
-    return lot
-
-
-def apply_stock_loss(
-    session: Session,
-    material_type_id: int,
-    quantity: int,
-    *,
-    loan_line_id: int | None = None,
-) -> None:
-    if quantity <= 0:
-        raise ValueError("invalid_quantity")
-    lots = list(
-        session.scalars(
-            select(StockLot)
-            .where(StockLot.material_type_id == material_type_id)
-            .options(selectinload(StockLot.variant_selections))
-            .order_by(StockLot.id)
-        ).all()
-    )
-    remaining = quantity
-    for lot in lots:
-        if remaining <= 0:
-            break
-        if lot.status != ITEM_STATUS_ACTIVE:
-            continue
-        take = min(lot.quantity, remaining)
-        if take <= 0:
-            continue
-        if loan_line_id is not None:
-            session.add(
-                StockLossEntry(
-                    loan_line_id=loan_line_id,
-                    material_type_id=material_type_id,
-                    stock_lot_id=lot.id,
-                    quantity=take,
-                    variant_signature=_lot_variant_signature(lot),
-                )
-            )
-        lot.quantity -= take
-        remaining -= take
-        if lot.quantity == 0:
-            session.delete(lot)
-    if remaining > 0:
-        raise ValueError("invalid_loss")
-
-
-def restore_stock_quantity(
-    session: Session,
-    material_type_id: int,
-    quantity: int,
-    *,
-    loan_line_id: int | None = None,
-) -> None:
-    if quantity <= 0:
-        raise ValueError("invalid_quantity")
-    if loan_line_id is not None:
-        entries = list(
-            session.scalars(
-                select(StockLossEntry)
-                .where(StockLossEntry.loan_line_id == loan_line_id)
-                .order_by(StockLossEntry.id)
-            ).all()
-        )
-        if not entries:
-            raise ValueError("invalid_restore")
-        restored = 0
-        for entry in entries:
-            lot = (
-                session.get(StockLot, entry.stock_lot_id)
-                if entry.stock_lot_id is not None
-                else None
-            )
-            if lot is None or lot.material_type_id != material_type_id:
-                lot = _restore_lot_for_signature(
-                    session, material_type_id, entry.variant_signature
-                )
-            lot.quantity += entry.quantity
-            restored += entry.quantity
-            session.delete(entry)
-        if restored != quantity:
-            raise ValueError("invalid_restore")
-        return
-    lot = session.scalar(
-        select(StockLot)
-        .where(
-            StockLot.material_type_id == material_type_id,
-            StockLot.status == ITEM_STATUS_ACTIVE,
-        )
-        .order_by(StockLot.id.desc())
-        .limit(1)
-    )
-    if lot is not None:
-        lot.quantity += quantity
-        return
-    session.add(StockLot(material_type_id=material_type_id, quantity=quantity))

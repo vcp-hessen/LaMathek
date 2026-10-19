@@ -30,7 +30,7 @@ from lamathek.services.loan_workflow_steps import (
 from lamathek.services.journal import journal_line_action
 from lamathek.services.availability import assert_line_available, line_interval
 from lamathek.services.loans import loan_by_id, restore_withdrawn_line
-from lamathek.services.material import restore_stock_quantity
+from lamathek.services.stock_losses import cancel_line_losses
 from lamathek.timezone import instance_today
 
 
@@ -76,17 +76,11 @@ def restore_loan_line(session: Session, loan: Loan, line_id: int, *, actor: User
     if target is None:
         raise ValueError("invalid_line_status")
 
-    _validate_target_availability(session, loan, line, target)
-
-    if line.status == LINE_STATUS_NOT_RETURNED and line.material_type_id is not None:
-        qty = line.quantity
-        if qty is not None and qty > 0:
-            restore_stock_quantity(
-                session, line.material_type_id, qty, loan_line_id=line.id
-            )
-
+    # Undo the loss first (stock events, or the piece's total loss): that alone
+    # frees the material again, so the availability check below sees it.
+    if line.material_type_id is not None:
+        cancel_line_losses(session, line.id, actor=actor)
     if line.status == LINE_STATUS_NOT_RETURNED:
-
         from lamathek.services.piece_availability import cancel_total_loss_for_line
 
         if line.piece_id is not None:
@@ -97,6 +91,12 @@ def restore_loan_line(session: Session, loan: Loan, line_id: int, *, actor: User
                 note="Korrektur Verlust",
             )
         line.returned_quantity = None
+    session.flush()
+    try:
+        _validate_target_availability(session, loan, line, target)
+    except ValueError:
+        session.rollback()
+        raise
 
     line.status = target
     line.status_before_end = None

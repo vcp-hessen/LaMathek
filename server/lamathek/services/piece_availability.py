@@ -168,6 +168,27 @@ def record_found_again_for_piece(
     )
 
 
+def write_off_piece(
+    session: Session, piece_id: int, *, recorded_on: date, reason: str
+) -> Repair:
+    """The total loss is final: close it and retire the piece (D0009)."""
+    from lamathek.models.damage import RESOLUTION_WRITTEN_OFF
+    from lamathek.models.material import ITEM_STATUS_RETIRED, Piece
+
+    damage = open_total_loss_for_piece(session, piece_id)
+    if damage is None:
+        raise ValueError("no_open_total_loss")
+    repair = _resolve_damage(
+        session,
+        damage,
+        recorded_on=recorded_on,
+        resolution_kind=RESOLUTION_WRITTEN_OFF,
+        note=reason.strip(),
+    )
+    session.get(Piece, piece_id).status = ITEM_STATUS_RETIRED
+    return repair
+
+
 def piece_found_again_eligible(session: Session, piece_id: int) -> bool:
     if not piece_has_open_total_loss(session, piece_id):
         return False

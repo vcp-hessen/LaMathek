@@ -11,6 +11,7 @@ import {
   fetchPiece,
   fetchPieceJournal,
   postPieceFoundAgain,
+  postPieceWriteOff,
   updatePiece,
 } from '../api/material'
 import type { Damage, PieceDetail } from '../schemas/material'
@@ -204,10 +205,26 @@ const repairMutation = useMutation({
 })
 
 function damageStatusLabel(damage: Damage): string {
-  if (damage.open && damage.severe) return t('damage.statusOpenSevere')
-  if (damage.open) return t('damage.statusOpen')
-  return t('damage.statusRepaired')
+  if (damage.kind === 'total_loss') {
+    if (damage.open) return t('damage.statusTotalLossOpen')
+  } else {
+    if (damage.open && damage.severe) return t('damage.statusOpenSevere')
+    if (damage.open) return t('damage.statusOpen')
+  }
+  const resolution = damage.repair?.resolutionKind ?? 'repaired'
+  return t(`damage.resolution.${resolution}`)
 }
+
+const writeOffMutation = useMutation({
+  mutationFn: () => postPieceWriteOff(pieceId.value, { reason: foundAgainReason.value.trim() }),
+  onSuccess: async () => {
+    foundAgainReason.value = ''
+    await invalidatePiece()
+  },
+  onError: (error) => {
+    stammdatenError.value = messageFor(error)
+  },
+})
 </script>
 
 <template>
@@ -262,7 +279,7 @@ function damageStatusLabel(damage: Damage): string {
           <span class="badge badge-error badge-sm">{{ t('material.pieceLost') }}</span>
         </p>
         <div
-          v-if="canManage && piece.foundAgainEligible"
+          v-if="canManage && piece.lost"
           class="flex max-w-md flex-col gap-2 rounded-md border border-base-300 p-3"
         >
           <p class="text-sm font-medium">{{ t('material.foundAgainTitle') }}</p>
@@ -275,14 +292,28 @@ function damageStatusLabel(damage: Damage): string {
               required
             />
           </label>
-          <button
-            type="button"
-            class="btn btn-primary btn-sm w-fit"
-            :disabled="!foundAgainReason.trim() || foundAgainMutation.isPending.value"
-            @click="foundAgainMutation.mutate()"
-          >
-            {{ t('material.foundAgainAction') }}
-          </button>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-if="piece.foundAgainEligible"
+              type="button"
+              class="btn btn-primary btn-sm w-fit"
+              :disabled="!foundAgainReason.trim() || foundAgainMutation.isPending.value"
+              @click="foundAgainMutation.mutate()"
+            >
+              {{ t('material.foundAgainAction') }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline btn-sm w-fit"
+              :disabled="!foundAgainReason.trim() || writeOffMutation.isPending.value"
+              @click="writeOffMutation.mutate()"
+            >
+              {{ t('material.writeOffAction') }}
+            </button>
+          </div>
+          <p v-if="!piece.foundAgainEligible" class="text-xs opacity-70">
+            {{ t('material.foundAgainAfterLoan') }}
+          </p>
         </div>
         <MaterialItemMetadataFields
           v-model:acquired-year="editMeta.acquiredYear"
@@ -350,11 +381,11 @@ function damageStatusLabel(damage: Damage): string {
                 />
               </div>
               <p v-if="damage.repair" class="mt-2 text-xs opacity-80">
-                {{ t('damage.repairedOn', { date: damage.repair.recordedOn }) }}
+                {{ t('damage.resolvedOn', { date: damage.repair.recordedOn }) }}
                 <template v-if="damage.repair.note"> · {{ damage.repair.note }}</template>
               </p>
               <form
-                v-if="canManage && damage.open"
+                v-if="canManage && damage.open && damage.kind !== 'total_loss'"
                 class="mt-4 space-y-3 border-t border-base-200 pt-4"
                 @submit.prevent="repairMutation.mutate(damage)"
               >

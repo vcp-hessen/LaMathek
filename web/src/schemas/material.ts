@@ -103,7 +103,10 @@ export const stockLotSchema = z.object({
   id: z.number(),
   label: z.string().nullable(),
   variant: variantMapSchema,
+  /** Soll-Anzahl of the lot (never lowered by an open loss). */
   quantity: z.number(),
+  /** Part of it that is lost and not yet resolved. */
+  lostQuantity: z.number().optional(),
   coverPhotoId: z.number().nullish(),
   photos: z.array(photoMetaSchema).optional(),
   ...materialItemFieldsSchema.shape,
@@ -114,10 +117,31 @@ export const stockRowSchema = z.object({
   materialTypeName: z.string(),
   unit: z.string().nullable(),
   variants: z.array(variantAxisSchema),
+  /** What can be lent: active lots minus open losses. */
   quantity: z.number(),
+  lostQuantity: z.number().optional(),
   coverPhotoId: z.number().nullish(),
   lots: z.array(stockLotSchema),
 })
+
+/** Verlust or Verbrauch of a quantity, booked against a Mengenposten (D0009). */
+export const stockLossSchema = z.object({
+  id: z.number(),
+  stockLotId: z.number(),
+  materialTypeId: z.number(),
+  loanLineId: z.number().nullable(),
+  loanId: z.number().nullable(),
+  kind: z.enum(['lost', 'consumed']),
+  quantity: z.number(),
+  recordedOn: z.string(),
+  reason: z.string(),
+  open: z.boolean(),
+  resolution: z.string().nullable(),
+  resolvedOn: z.string().nullable(),
+  resolutionNote: z.string(),
+})
+
+export type StockLoss = z.infer<typeof stockLossSchema>
 
 export type StockLot = z.infer<typeof stockLotSchema>
 

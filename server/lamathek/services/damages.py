@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from lamathek.models.damage import (
+    DAMAGE_KIND_TOTAL_LOSS,
     DAMAGE_KIND_DAMAGE,
     RESOLUTION_REPAIRED,
     Damage,
@@ -73,6 +74,9 @@ def create_repair(
 ) -> Repair:
     if damage.repair is not None:
         raise ValueError("already_repaired")
+    if damage.kind == DAMAGE_KIND_TOTAL_LOSS:
+        # A total loss ends as found again, written off or a mistake – never "repaired".
+        raise ValueError("total_loss_not_repairable")
     repair = Repair(
         damage_id=damage.id,
         recorded_on=recorded_on,

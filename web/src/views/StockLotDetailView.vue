@@ -7,6 +7,7 @@ import { deleteStockLot, fetchStocks, updateStockLot } from '../api/material'
 import MaterialDetailsSection from '../components/material/MaterialDetailsSection.vue'
 import MaterialItemMetadataFields from '../components/material/MaterialItemMetadataFields.vue'
 import StockQuantityInput from '../components/material/StockQuantityInput.vue'
+import StockLossesSection from '../components/material/StockLossesSection.vue'
 import {
   emptyItemMetadataDraft,
   itemMetadataFromRecord,
@@ -161,6 +162,9 @@ const deleteMutation = useMutation({
           <label class="flex min-w-0 flex-col gap-1">
             <span class="text-xs opacity-80">{{ t('material.stockQuantity') }}</span>
             <StockQuantityInput v-model="draft.quantity" :unit="lot.unit" compact />
+            <span v-if="lot.lostQuantity" class="text-xs text-warning">
+              {{ t('material.lostOfLot', { count: lot.lostQuantity }) }}
+            </span>
           </label>
           <VariantAxisSelects
             v-if="lot.variants.length"
@@ -192,6 +196,13 @@ const deleteMutation = useMutation({
         </template>
       </MaterialDetailsSection>
 
+      <StockLossesSection
+        :inventory-id="inventoryId"
+        :material-type-id="lot.materialTypeId"
+        :lot-id="lot.id"
+        :can-manage="canManage"
+        @changed="refreshStocks"
+      />
       <section class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
         <h2 class="app-page-title text-base">{{ t('photos.heading') }}</h2>
         <PhotoGallery

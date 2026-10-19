@@ -249,7 +249,7 @@ def seed(app, session) -> None:
 
     jurte_line = [{"setId": jurte.id}]
 
-    # Abgeschlossen: Jurte war vor einem Monat draußen und ist vollständig zurück.
+    # Abgeschlossen: Jurte war vor einem Monat draußen, bis auf zwei Heringe zurück.
     closed = new_loan("Stamm Habicht", "Pfingstlager", lines=jurte_line)
     closed = request(closed, -40, -33)
     closed = confirm(closed)
@@ -257,10 +257,15 @@ def seed(app, session) -> None:
     closed = step(closed, "pickup", "packed", user=lea)
     closed = step(closed, "report-return", "picked_up", user=lea)
     api.as_user(mara)
-    closed = api.post(
-        f"/api/loans/{closed['id']}/actions/restock",
-        {"entries": [{"lineId": lid} for lid in line_ids(closed, "return_reported")]},
-    )
+    # Two Heringe did not come back: an open Verlust on the Mengenposten.
+    entries = [
+        {"lineId": ln["id"], "returnedQuantity": 10, "reason": "Im Wald geblieben"}
+        if ln.get("materialTypeId") == hering.id
+        else {"lineId": ln["id"]}
+        for ln in closed["lines"]
+        if ln["status"] == "return_reported"
+    ]
+    closed = api.post(f"/api/loans/{closed['id']}/actions/restock", {"entries": entries})
     api.post(f"/api/loans/{closed['id']}/actions/complete-step")
 
     # Packen nächste Woche: Jurte bestätigt.

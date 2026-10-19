@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 import { api } from './client'
 import { journalEntrySchema } from '../schemas/journal'
 import {
@@ -11,7 +13,9 @@ import {
   type MaterialType,
   type Piece,
   type PieceDetail,
+  type StockLoss,
   type StockRow,
+  stockLossSchema,
 } from '../schemas/material'
 
 export type MaterialItemWriteFields = {
@@ -96,6 +100,37 @@ export async function postPieceFoundAgain(
 ): Promise<PieceDetail> {
   const response = await api.post(`/api/pieces/${pieceId}/found-again`, payload)
   return pieceDetailSchema.parse(response.data)
+}
+
+export async function postPieceWriteOff(
+  pieceId: number,
+  payload: { reason: string },
+): Promise<PieceDetail> {
+  const response = await api.post(`/api/pieces/${pieceId}/write-off`, payload)
+  return pieceDetailSchema.parse(response.data)
+}
+
+export async function fetchStockLosses(
+  inventoryId: number,
+  materialTypeId: number,
+): Promise<StockLoss[]> {
+  const response = await api.get(
+    `/api/inventories/${inventoryId}/stocks/${materialTypeId}/losses`,
+  )
+  return z.array(stockLossSchema).parse(response.data)
+}
+
+export async function resolveStockLoss(
+  inventoryId: number,
+  lossId: number,
+  action: 'found-again' | 'write-off',
+  payload: { reason: string; quantity?: number },
+): Promise<StockLoss> {
+  const response = await api.post(
+    `/api/inventories/${inventoryId}/stock-losses/${lossId}/${action}`,
+    payload,
+  )
+  return stockLossSchema.parse(response.data)
 }
 
 export async function createDamageRepair(

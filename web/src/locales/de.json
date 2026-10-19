@@ -247,7 +247,7 @@
     "itemStatusActive": "Im Bestand",
     "itemStatusRetired": "Aussortiert",
     "pieceLost": "Verloren",
-    "foundAgainTitle": "Wieder im Bestand",
+    "foundAgainTitle": "Totalverlust",
     "foundAgainReason": "Grund",
     "foundAgainAction": "Wieder einbuchen",
     "acquiredYear": "Anschaffungsjahr",
@@ -294,8 +294,26 @@
       "invalid_new_value": "Neuwert ist ungültig.",
       "invalid_status": "Status ist ungültig.",
       "generic": "Speichern fehlgeschlagen ({code}).",
-      "piece_has_history": "Das Einzelteil war schon auf einem Verleih. Löschen würde die Verleih-Historie zerstören – bitte aussortieren."
-    }
+      "piece_has_history": "Das Einzelteil war schon auf einem Verleih. Löschen würde die Verleih-Historie zerstören – bitte aussortieren.",
+      "lot_has_history": "Dieser Mengenposten hat verbuchte Verluste und bleibt als deren Nachweis erhalten.",
+      "loss_not_open": "Dieser Verlust ist schon erledigt.",
+      "total_loss_not_repairable": "Ein Totalverlust wird nicht repariert, sondern wiedergefunden oder ausgebucht."
+    },
+    "writeOffAction": "Endgültig ausbuchen",
+    "foundAgainAfterLoan": "Wieder einbuchen geht, sobald der Verleih mit dem Verlust abgeschlossen ist.",
+    "lostOfLot": "davon {count} verloren",
+    "lossesHeading": "Verluste und Verbrauch",
+    "lossesEmpty": "Keine Verluste verbucht.",
+    "lossKind": {
+      "lost": "Verlust",
+      "consumed": "Verbrauch"
+    },
+    "lossOpen": "offen",
+    "lossFromLoan": "aus Verleih",
+    "lossResolveReason": "Grund",
+    "lossFoundQuantity": "Anzahl gefunden",
+    "lossFoundAction": "Wiedergefunden",
+    "lossWriteOffAction": "Ausbuchen"
   },
   "damage": {
     "historyHeading": "Schäden",
@@ -313,7 +331,15 @@
     "repairRecordedOn": "Reparatur-Datum",
     "repairNote": "Notiz zur Reparatur",
     "repairNoteOptional": "optional",
-    "submitRepair": "Reparatur buchen"
+    "submitRepair": "Reparatur buchen",
+    "statusTotalLossOpen": "Totalverlust, offen",
+    "resolvedOn": "Erledigt am {date}",
+    "resolution": {
+      "repaired": "Repariert",
+      "found_again": "Wiedergefunden",
+      "cancelled_mistake": "Irrtümlich erfasst",
+      "written_off": "Ausgebucht"
+    }
   },
   "dashboard": {
     "waiting": "Wartende Ausleihen",

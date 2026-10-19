@@ -177,10 +177,10 @@ def overlapping_blocking_lines(
 
 
 def available_stock_quantity(session: Session, material_type_id: int) -> int:
-    """Stock that can be lent at all (active lots)."""
-    from lamathek.services.material import total_stock_quantity
+    """Stock that can be lent at all (active lots minus open losses)."""
+    from lamathek.services.stock_losses import available_stock_quantity as available
 
-    return total_stock_quantity(session, material_type_id)
+    return available(session, material_type_id)
 
 
 def stock_peak(

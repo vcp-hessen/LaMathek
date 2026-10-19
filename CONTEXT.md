@@ -191,9 +191,19 @@ _English_: restock
 _Avoid_: Rückgabe
 
 **Verlust**:
-Material that was handed out and is recorded as not brought back.
+Material that was handed out and is recorded as not brought back. It is recorded as an event (on the Einzelteil as Totalverlust, on a Mengenposten with its Anzahl) and later found again, written off or cancelled as a mistake; material itself is never deleted for it.
 _English_: loss
 _Avoid_: Schwund, Fehlmenge, open loan
+
+**Verbrauch**:
+The part of a consumable Menge (for example Flyer) that a Verleih used up. Recorded at Übernahme; it lowers the Mengenposten's Anzahl at once.
+_English_: consumption
+_Avoid_: Verlust (for consumables), Schwund
+
+**Totalverlust**:
+The Verlust of an Einzelteil, recorded as an event on the piece. While open, the piece cannot be lent. It ends as found again, written off (the piece is retired) or a mistake.
+_English_: total loss
+_Avoid_: Schaden (for a lost piece), gelöscht
 
 **Grund** (am Verleih):
 The explanation required when a Position ends short of handover or return, or when its Anzahl shrinks.

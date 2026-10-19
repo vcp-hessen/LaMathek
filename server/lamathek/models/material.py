@@ -1,4 +1,15 @@
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, String, Text, UniqueConstraint
+from datetime import date
+
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    Date,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from lamathek.db import Base
@@ -230,18 +241,64 @@ class StockLotVariantValue(Base):
     variant: Mapped["MaterialTypeVariant"] = relationship()
 
 
-class StockLossEntry(Base):
-    __tablename__ = "stock_loss_entries"
+STOCK_LOSS_LOST = "lost"
+STOCK_LOSS_CONSUMED = "consumed"
+VALID_STOCK_LOSS_KINDS = (STOCK_LOSS_LOST, STOCK_LOSS_CONSUMED)
+
+LOSS_RESOLUTION_FOUND_AGAIN = "found_again"
+LOSS_RESOLUTION_WRITTEN_OFF = "written_off"
+LOSS_RESOLUTION_CANCELLED_MISTAKE = "cancelled_mistake"
+VALID_LOSS_RESOLUTIONS = (
+    LOSS_RESOLUTION_FOUND_AGAIN,
+    LOSS_RESOLUTION_WRITTEN_OFF,
+    LOSS_RESOLUTION_CANCELLED_MISTAKE,
+)
+
+
+class StockLoss(Base):
+    """Verlust oder Verbrauch einer Anzahl aus einem Mengenposten (event, never deletes the lot).
+
+    ``lost``: the lot keeps its Soll-Anzahl; while unresolved the quantity is
+    missing from what can be lent. ``found_again`` brings it back,
+    ``written_off`` lowers the Soll-Anzahl for good, ``cancelled_mistake``
+    undoes a wrong booking.
+    ``consumed``: used up on a Verleih; the Soll-Anzahl drops at once and the
+    row stays as history (``cancelled_mistake`` adds it back).
+    """
+
+    __tablename__ = "stock_losses"
+    __table_args__ = (
+        CheckConstraint("quantity > 0", name="ck_stock_loss_quantity_positive"),
+        CheckConstraint(
+            f"kind IN ('{STOCK_LOSS_LOST}', '{STOCK_LOSS_CONSUMED}')",
+            name="ck_stock_loss_kind",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    loan_line_id: Mapped[int | None] = mapped_column(
-        ForeignKey("loan_lines.id", ondelete="CASCADE"), nullable=True
+    stock_lot_id: Mapped[int] = mapped_column(
+        ForeignKey("stock_lots.id", ondelete="RESTRICT"), index=True
     )
     material_type_id: Mapped[int] = mapped_column(
-        ForeignKey("material_types.id", ondelete="CASCADE")
+        ForeignKey("material_types.id", ondelete="CASCADE"), index=True
     )
-    stock_lot_id: Mapped[int | None] = mapped_column(
-        ForeignKey("stock_lots.id", ondelete="SET NULL"), nullable=True
+    loan_line_id: Mapped[int | None] = mapped_column(
+        ForeignKey("loan_lines.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    kind: Mapped[str] = mapped_column(String(16))
     quantity: Mapped[int] = mapped_column(Integer)
-    variant_signature: Mapped[str] = mapped_column(Text(), default="{}", server_default="{}")
+    recorded_on: Mapped[date] = mapped_column(Date())
+    reason: Mapped[str] = mapped_column(Text(), default="", server_default="")
+    resolution_kind: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    resolved_on: Mapped[date | None] = mapped_column(Date(), nullable=True)
+    resolution_note: Mapped[str] = mapped_column(Text(), default="", server_default="")
+    resolved_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    stock_lot: Mapped["StockLot"] = relationship()
+    loan_line: Mapped["LoanLine | None"] = relationship()
+
+    @property
+    def is_open(self) -> bool:
+        return self.kind == STOCK_LOSS_LOST and self.resolution_kind is None
