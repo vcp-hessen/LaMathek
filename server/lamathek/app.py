@@ -125,6 +125,7 @@ def create_app(config: type[Config] = Config) -> Flask:
         from lamathek.testing import ApiTestClient
 
         app.test_client_class = ApiTestClient
+
     init_db(app)
     init_auth(app)
 
@@ -167,4 +168,9 @@ def create_app(config: type[Config] = Config) -> Flask:
             return send_from_directory(static_root, path)
         return send_from_directory(static_root, "index.html")
 
+    # Last: the worker needs the database set up above.
+    if not app.config.get("TESTING") and app.config.get("MAIL_OUTBOX_WORKER", True):
+        from lamathek.services.outbox import start_outbox_worker
+
+        start_outbox_worker(app)
     return app

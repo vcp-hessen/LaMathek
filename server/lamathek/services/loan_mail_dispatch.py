@@ -11,7 +11,6 @@ from lamathek.models.loan import Loan
 from lamathek.models.user import User
 from lamathek.services.inventories import permission_users, user_can_manage_inventory
 from lamathek.services.journal import append_journal
-from lamathek.services.loan_pdf import pdf_attachment_for_mail, pdf_kind_for_mail_step
 from lamathek.services.mail import is_valid_email
 from lamathek.services.mail_templates import render_loan_action_mail
 
@@ -105,26 +104,7 @@ def variant_for_action(
     return ""
 
 
-def reset_loan_mail_receipt_flags(loan: Loan) -> None:
-    loan.mail_sent_borrower = False
-    loan.mail_sent_managers = False
-
-
-def _audience_sent(loan: Loan, audience: Audience) -> bool:
-    if audience == "borrower":
-        return loan.mail_sent_borrower
-    return loan.mail_sent_managers
-
-
-def _mark_audience_sent(session: Session, loan: Loan, audience: Audience) -> None:
-    if audience == "borrower":
-        loan.mail_sent_borrower = True
-    else:
-        loan.mail_sent_managers = True
-    session.commit()
-
-
-def deliver_loan_receipt_mails(
+def enqueue_loan_receipt_mails(
     session: Session,
     loan: Loan,
     action: str,
@@ -132,19 +112,27 @@ def deliver_loan_receipt_mails(
     *,
     actor: User,
     mail_step: str | None = None,
+    pdf_kind: str | None = None,
     locale: str = "de",
 ) -> None:
-    """Send each receipt audience once; commit per success for safe retry."""
-    from lamathek.services.loan_notifications import get_mail_sender
+    """Put the mails for both audiences into the outbox (same transaction as the step).
 
-    sender = get_mail_sender()
-    pdf_attachment = pdf_attachment_for_mail(session, loan, mail_step)
+    The PDF list goes to Materialwart*innen only; Ausleihende open it in the app.
+    Without a usable address nothing is queued and the journal says so.
+    """
+    from lamathek.models.mail import OUTBOX_KIND_LOAN
+    from lamathek.services.outbox import enqueue
+
     for audience in _LOAN_MAIL_AUDIENCES:
-        if _audience_sent(loan, audience):
-            continue
         recipients = recipients_for_audience(session, loan, audience)
         if recipients is None:
-            _mark_audience_sent(session, loan, audience)
+            append_journal(
+                session,
+                "mail.skipped",
+                actor,
+                {"action": action, "audience": audience, "reason": "no_address"},
+                loan_id=loan.id,
+            )
             continue
         variant = variant_for_action(session, loan, actor, action, audience)
         subject, text, html = render_loan_action_mail(
@@ -158,43 +146,15 @@ def deliver_loan_receipt_mails(
             locale=locale,
             mail_step=mail_step,
         )
-        attachments = [pdf_attachment] if pdf_attachment is not None else None
-        try:
-            sender(recipients.to, subject, text, html, recipients.cc, attachments)
-        except Exception:
-            raise ValueError("mail_not_sent") from None
-        _mark_audience_sent(session, loan, audience)
-    append_journal(
-        session,
-        "mail.dispatched",
-        actor,
-        {
-            "action": action,
-            "mailStep": mail_step,
-            "pdfKind": pdf_kind_for_mail_step(mail_step),
-            "lineIds": line_ids,
-        },
-        loan_id=loan.id,
-    )
-    session.commit()
-
-
-def dispatch_loan_mail(
-    session: Session,
-    loan: Loan,
-    action: str,
-    line_ids: list[int],
-    *,
-    actor: User,
-    mail_step: str | None = None,
-    locale: str = "de",
-) -> None:
-    deliver_loan_receipt_mails(
-        session,
-        loan,
-        action,
-        line_ids,
-        actor=actor,
-        mail_step=mail_step,
-        locale=locale,
-    )
+        enqueue(
+            session,
+            kind=OUTBOX_KIND_LOAN,
+            to=recipients.to,
+            cc=recipients.cc,
+            subject=subject,
+            text=text,
+            html=html,
+            loan_id=loan.id,
+            audience=audience,
+            pdf_kind=pdf_kind if audience == "managers" else None,
+        )

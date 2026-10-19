@@ -2,7 +2,7 @@
 
 Revision ID: 20261020_0001
 Revises: 
-Create Date: 2026-10-19 23:21:03.664776
+Create Date: 2026-10-19 23:31:18.248578
 
 """
 from typing import Sequence, Union
@@ -142,8 +142,6 @@ def upgrade() -> None:
     sa.Column('return_on', sa.Date(), nullable=True),
     sa.Column('pickup_note', sa.Text(), server_default='', nullable=False),
     sa.Column('return_note', sa.Text(), server_default='', nullable=False),
-    sa.Column('mail_sent_borrower', sa.Boolean(), server_default='0', nullable=False),
-    sa.Column('mail_sent_managers', sa.Boolean(), server_default='0', nullable=False),
     sa.CheckConstraint("kind IN ('short', 'permanent')", name='ck_loan_kind'),
     sa.CheckConstraint("phase IN ('draft', 'review', 'pack', 'handover', 'return', 'restock', 'closed')", name='ck_loan_phase'),
     sa.ForeignKeyConstraint(['borrower_user_id'], ['users.id'], ondelete='RESTRICT'),
@@ -181,6 +179,34 @@ def upgrade() -> None:
     sa.UniqueConstraint('inventory_id', 'name', name='uq_set_per_inventory'),
     sa.UniqueConstraint('inventory_id', 'short_name', name='uq_set_short_name_per_inventory')
     )
+    op.create_table('mail_outbox',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('kind', sa.String(length=16), nullable=False),
+    sa.Column('loan_id', sa.Integer(), nullable=True),
+    sa.Column('audience', sa.String(length=16), nullable=True),
+    sa.Column('requested_by_user_id', sa.Integer(), nullable=True),
+    sa.Column('to_address', sa.String(length=320), nullable=False),
+    sa.Column('cc', sa.JSON(), nullable=False),
+    sa.Column('subject', sa.Text(), nullable=False),
+    sa.Column('text_body', sa.Text(), nullable=False),
+    sa.Column('html_body', sa.Text(), nullable=True),
+    sa.Column('pdf_kind', sa.String(length=16), nullable=True),
+    sa.Column('status', sa.String(length=16), nullable=False),
+    sa.Column('attempts', sa.Integer(), nullable=False),
+    sa.Column('max_attempts', sa.Integer(), nullable=False),
+    sa.Column('next_attempt_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('locked_until', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('last_error', sa.Text(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('sent_at', sa.DateTime(timezone=True), nullable=True),
+    sa.ForeignKeyConstraint(['loan_id'], ['loans.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['requested_by_user_id'], ['users.id'], ondelete='SET NULL'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    with op.batch_alter_table('mail_outbox', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_mail_outbox_loan_id'), ['loan_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_mail_outbox_status'), ['status'], unique=False)
+
     op.create_table('material_type_variants',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('material_type_id', sa.Integer(), nullable=False),
@@ -405,6 +431,11 @@ def downgrade() -> None:
     op.drop_table('set_stock_lines')
     op.drop_table('pieces')
     op.drop_table('material_type_variants')
+    with op.batch_alter_table('mail_outbox', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_mail_outbox_status'))
+        batch_op.drop_index(batch_op.f('ix_mail_outbox_loan_id'))
+
+    op.drop_table('mail_outbox')
     op.drop_table('sets')
     op.drop_table('material_types')
     op.drop_table('loans')

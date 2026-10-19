@@ -115,7 +115,10 @@
     "mailTestSuccess": "Testmail wurde gesendet.",
     "mailTestFailed": "Testmail konnte nicht gesendet werden.",
     "mailTestFailedDetail": "Testmail konnte nicht gesendet werden: {detail}",
-    "mailTestInvalidRecipient": "Bitte eine gültige E-Mail-Adresse eingeben."
+    "mailTestInvalidRecipient": "Bitte eine gültige E-Mail-Adresse eingeben.",
+    "failedMailsHeading": "Nicht zugestellte Mails",
+    "failedMailsEmpty": "Keine aufgegebenen Mails.",
+    "failedMailsLoan": "Verleih #{id}"
   },
   "impressum": {
     "nav": "Impressum",
@@ -457,7 +460,6 @@
       "workflow_step_mismatch": "Diese Aktion gehört zu einem anderen Verleihschritt. Bitte den aktuellen Schritt oben zu Ende führen.",
       "invalid_loan_state": "Für diesen Verleih ist die Aktion im aktuellen Stand nicht möglich.",
       "step_incomplete": "Noch nicht alle Positionen dieses Schritts sind bearbeitet.",
-      "mail_not_sent": "Die Benachrichtigungs-Mail konnte nicht versendet werden. Bitte erneut versuchen.",
       "loan_not_editable": "Dieser Verleih kann nicht mehr bearbeitet werden.",
       "set_already_added": "Dieses Set ist schon in der Box.",
       "dates_conflict": "Die neuen Termine passen nicht: Bestätigtes Material ist im neuen Zeitraum schon vergeben.",
@@ -648,7 +650,25 @@
     "actionBlockedWrongStep": "Erst den aktuellen Verleihschritt oben abschließen oder alle Positionen in diesem Schritt bearbeiten.",
     "restockConsumableHint": "Wie viele Stück sind tatsächlich zurückgekommen?",
     "restockReturnedOf": "zurück von {total}",
-    "lineReturnedPartial": "{returned} von {total} zurück"
+    "lineReturnedPartial": "{returned} von {total} zurück",
+    "mails": {
+      "heading": "Mails zu diesem Verleih",
+      "stuck": "{count} Mail(s) noch nicht zugestellt",
+      "status": {
+        "pending": "wartet",
+        "sending": "wird gesendet",
+        "sent": "gesendet",
+        "failed": "aufgegeben"
+      },
+      "audience": {
+        "borrower": "an Ausleihende*n",
+        "managers": "an Materialwart*innen"
+      },
+      "attempts": "{count} Versuch(e)",
+      "nextAttempt": "nächster Versuch {time}",
+      "resend": "Erneut senden",
+      "showAll": "Alle Mails anzeigen"
+    }
   },
   "sets": {
     "heading": "Sets",

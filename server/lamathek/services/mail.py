@@ -2,9 +2,6 @@ import email.utils
 import logging
 import re
 import smtplib
-import threading
-import uuid
-from dataclasses import dataclass
 from email.message import EmailMessage
 from typing import Literal
 
@@ -23,20 +20,6 @@ def _cfg(name: str, default=None):
     return getattr(Config, name, default)
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-
-JobStatus = Literal["pending", "sent", "failed"]
-
-
-@dataclass
-class MailTestJob:
-    owner_user_id: int
-    status: JobStatus = "pending"
-    detail: str = ""
-
-
-_jobs: dict[str, MailTestJob] = {}
-_jobs_lock = threading.Lock()
-
 
 def is_valid_email(address: str) -> bool:
     return bool(_EMAIL_RE.match(address.strip()))
@@ -160,101 +143,42 @@ def send_mail(
         raise MailDeliveryError(detail) from exc
 
 
-def _run_send(
-    to: str,
-    subject: str,
-    text: str,
-    html: str | None = None,
-    job_id: str | None = None,
-) -> None:
-    try:
-        send_mail(to, subject, text, html)
-    except MailDeliveryError as exc:
-        if job_id is not None:
-            with _jobs_lock:
-                job = _jobs.get(job_id)
-                if job is not None:
-                    job.status = "failed"
-                    job.detail = exc.detail
-        return
+def start_test_mail(session, owner_user_id: int, to: str) -> int:
+    """Queue a test mail through the outbox (one attempt, the result shows the error)."""
+    from lamathek.models.mail import OUTBOX_KIND_TEST
+    from lamathek.services.mail_templates import render_mail
+    from lamathek.services.outbox import enqueue
 
-    if job_id is not None:
-        with _jobs_lock:
-            job = _jobs.get(job_id)
-            if job is not None:
-                job.status = "sent"
-
-
-def enqueue_mail(
-    to: str,
-    template: str,
-    job_id: str | None = None,
-    **context,
-) -> None:
-    if not is_valid_email(to):
-        logger.warning("Skipping mail to invalid address")
-        if job_id is not None:
-            with _jobs_lock:
-                job = _jobs.get(job_id)
-                if job is not None:
-                    job.status = "failed"
-                    job.detail = "invalid_recipient"
-        return
-
-    if not mail_configured():
-        logger.info("SMTP not configured; skipping mail to %s", to)
-        if job_id is not None:
-            with _jobs_lock:
-                job = _jobs.get(job_id)
-                if job is not None:
-                    job.status = "failed"
-                    job.detail = "smtp_not_configured"
-        return
-
-    app = current_app._get_current_object()
-
-    def worker() -> None:
-        from lamathek.services.mail_templates import render_mail
-
-        with app.app_context():
-            subject, text, html = render_mail(template, **context)
-            _run_send(to, subject, text, html, job_id)
-
-    thread = threading.Thread(target=worker, daemon=True)
-    thread.start()
-
-
-def start_test_mail(owner_user_id: int, to: str) -> str:
-    job_id = uuid.uuid4().hex
-    with _jobs_lock:
-        _jobs[job_id] = MailTestJob(owner_user_id=owner_user_id)
-
-    enqueue_mail(
-        to,
+    subject, text, html = render_mail(
         "test",
-        job_id=job_id,
         heading="Testmail",
         paragraphs=[
             "Dies ist eine Testnachricht von LaMathek.",
-            (
-                "Wenn Sie diese E-Mail erhalten, ist der SMTP-Versand "
-                "korrekt konfiguriert."
-            ),
+            "Wenn Sie diese E-Mail erhalten, ist der SMTP-Versand korrekt konfiguriert.",
         ],
     )
-    return job_id
+    row = enqueue(
+        session,
+        kind=OUTBOX_KIND_TEST,
+        to=to,
+        subject=subject,
+        text=text,
+        html=html,
+        requested_by_user_id=owner_user_id,
+        max_attempts=1,
+    )
+    session.commit()
+    return row.id
 
 
-def get_test_job(job_id: str, owner_user_id: int) -> MailTestJob | None:
-    with _jobs_lock:
-        job = _jobs.get(job_id)
-    if job is None or job.owner_user_id != owner_user_id:
+def test_mail_status(session, row_id: int, owner_user_id: int) -> dict | None:
+    from lamathek.models.mail import OUTBOX_FAILED, OUTBOX_SENT, MailOutbox
+
+    row = session.get(MailOutbox, row_id)
+    if row is None or row.kind != "test" or row.requested_by_user_id != owner_user_id:
         return None
-    return job
-
-
-def test_job_to_json(job: MailTestJob) -> dict:
-    payload: dict = {"status": job.status}
-    if job.status == "failed" and job.detail:
-        payload["detail"] = job.detail
-    return payload
+    if row.status == OUTBOX_SENT:
+        return {"status": "sent"}
+    if row.status == OUTBOX_FAILED:
+        return {"status": "failed", "detail": row.last_error}
+    return {"status": "pending"}

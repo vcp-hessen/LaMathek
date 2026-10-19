@@ -134,6 +134,11 @@ export async function restoreLoanLine(loanId: number, lineId: number): Promise<L
   return loanDetailSchema.parse(response.data)
 }
 
+export async function resendLoanMail(loanId: number, mailId: number): Promise<LoanDetail> {
+  const response = await api.post(`/api/loans/${loanId}/mails/${mailId}/resend`)
+  return loanDetailSchema.parse(response.data)
+}
+
 export async function removeLoanLine(loanId: number, lineId: number): Promise<void> {
   await api.delete(`/api/loans/${loanId}/lines/${lineId}`)
 }

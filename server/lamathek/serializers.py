@@ -413,7 +413,26 @@ def loan_detail_to_json(
         "hasUnnotifiedRequestedLines": any(
             line.status == "requested" and not line.request_notified for line in loan.lines
         ),
+        "mails": _loan_mails_json(loan, viewer=viewer, session=session),
     }
+
+
+def _loan_mails_json(loan: Loan, *, viewer: User | None, session: Session | None) -> list[dict]:
+    """Outbox rows of this Verleih for its Materialwart*innen (stuck mails, resend)."""
+    if viewer is None or session is None:
+        return []
+    from sqlalchemy import select
+
+    from lamathek.models.mail import MailOutbox
+    from lamathek.services.inventories import user_can_manage_inventory
+    from lamathek.services.outbox import outbox_to_json
+
+    if not user_can_manage_inventory(session, viewer, loan.inventory):
+        return []
+    rows = session.scalars(
+        select(MailOutbox).where(MailOutbox.loan_id == loan.id).order_by(MailOutbox.id.desc())
+    ).all()
+    return [outbox_to_json(row) for row in rows]
 
 
 def journal_entry_to_json(entry: LoanJournalEntry) -> dict:

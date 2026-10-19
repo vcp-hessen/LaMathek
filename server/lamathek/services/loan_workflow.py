@@ -31,7 +31,6 @@ from lamathek.services.loan_access import user_is_borrower
 from lamathek.services.availability import assert_line_available
 from lamathek.services.loans import loan_by_id
 from lamathek.services.journal import append_journal, journal_line_action
-from lamathek.services.loan_mail_dispatch import reset_loan_mail_receipt_flags
 from lamathek.services.loan_notifications import notify_loan_action
 from lamathek.services.loan_workflow_steps import (
     assert_line_action_allowed,
@@ -151,12 +150,11 @@ _STEP_MAIL_ACTION = {
 def _queue_mail(loan: Loan, lines: list[LoanLine]) -> None:
     for line in lines:
         line.mail_pending = True
-    reset_loan_mail_receipt_flags(loan)
 
 
 def _mark_line_mail_pending(loan: Loan, line: LoanLine) -> None:
+    del loan
     line.mail_pending = True
-    reset_loan_mail_receipt_flags(loan)
 
 
 def _clear_mail(lines: list[LoanLine]) -> None:
@@ -970,7 +968,16 @@ def _complete_step_receipt(
     actor: User,
     action: str,
     line_ids: list[int],
+    pdf_step: str | None = None,
 ) -> None:
+    """Journal, queue the mails and advance the phase — all in one commit.
+
+    ``pdf_step`` is the workflow step being closed, if any; its PDF list goes to
+    the Materialwart*innen (closing review → Packliste, pack → Abholliste,
+    handover → Rückgabeliste). A request or a cancellation attaches nothing.
+    """
+    from lamathek.services.loan_pdf import pdf_kind_for_mail_step
+
     mail_step = loan.phase if is_workflow_loan_phase(loan.phase) else None
     append_journal(
         session,
@@ -991,6 +998,7 @@ def _complete_step_receipt(
         actor=actor,
         line_ids=line_ids,
         mail_step=mail_step,
+        pdf_kind=pdf_kind_for_mail_step(pdf_step),
     )
     pending = [line for line in loan.lines if line.mail_pending]
     _clear_mail(pending)
@@ -1025,6 +1033,7 @@ def complete_loan_step(session: Session, loan: Loan, *, actor: User) -> Loan:
         actor=actor,
         action=_receipt_action(step, pending),
         line_ids=[line.id for line in pending],
+        pdf_step=step,
     )
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
@@ -1070,11 +1079,13 @@ def cancel_unpacked_loan(session: Session, loan: Loan, *, actor: User) -> Loan:
             withdrawn_ids.append(line.id)
     if not loan.lines:
         loan.phase = LOAN_PHASE_CLOSED
-    session.commit()
+    session.flush()
     refresh_loan_phase(session, loan)
     if not loan.lines and loan.phase != LOAN_PHASE_CLOSED:
         loan.phase = LOAN_PHASE_CLOSED
-    session.commit()
+    session.flush()
+    if not withdrawn_ids:
+        session.commit()
     if withdrawn_ids:
         _complete_step_receipt(
             session,
@@ -1102,9 +1113,9 @@ def skip_pickup_to_return(session: Session, loan: Loan, *, actor: User) -> Loan:
             line.status = LINE_STATUS_RETURN_REPORTED
             _mark_line_mail_pending(loan, line)
             line_ids.append(line.id)
-    session.commit()
+    session.flush()
     refresh_loan_phase(session, loan)
-    session.commit()
+    session.flush()
     if line_ids:
         _complete_step_receipt(
             session,

@@ -273,63 +273,6 @@ def test_quiet_line_change_is_listed_in_the_step_mail():
         tmp.cleanup()
 
 
-def test_mail_partial_failure_retries_without_duplicate():
-    app, tmp = _app_with_db()
-    sent_to: list[str] = []
-
-    def flaky(to, subject, text, html, cc, attachments=None):
-        del subject, text, html, cc
-        sent_to.append(to)
-        if len(sent_to) == 2:
-            raise RuntimeError("smtp down")
-
-    set_mail_sender_for_tests(flaky)
-    try:
-        _bootstrap(app)
-        client = app.test_client()
-        inv_id = setup_inventory(client)
-        bor_id = borrower_id(client)
-        mgr_id = manager_id(client)
-        mt = client.post(
-            f"/api/inventories/{inv_id}/material-types",
-            json={"name": "Brettspiel", "tracking": "piece"},
-        ).get_json()["id"]
-        piece_id = client.post(
-            f"/api/inventories/{inv_id}/pieces",
-            json={"materialTypeId": mt, "name": "Catan"},
-        ).get_json()["id"]
-        loan_id = create_loan(client, inv_id, bor_id).get_json()["id"]
-        add_piece_line(client, loan_id, piece_id)
-        submit_request(client, loan_id)
-        sent_to.clear()
-
-        _login(client, "mgr")
-        declined = client.post(
-            f"/api/loans/{loan_id}/actions/decline",
-            json={"entries": [{"lineId": client.get(f"/api/loans/{loan_id}").get_json()["lines"][0]["id"], "reason": "kaputt"}]},
-        )
-        assert declined.status_code == 200
-        phase_before = declined.get_json()["phase"]
-
-        failed = client.post(f"/api/loans/{loan_id}/actions/complete-step")
-        assert failed.status_code == 409
-        assert failed.get_json()["error"] == "mail_not_sent"
-        assert len(sent_to) == 2
-        assert client.get(f"/api/loans/{loan_id}").get_json()["phase"] == phase_before
-
-        sent_to.clear()
-        set_mail_sender_for_tests(
-            lambda to, subject, text, html, cc, attachments=None: sent_to.append(to)
-        )
-        ok = client.post(f"/api/loans/{loan_id}/actions/complete-step")
-        assert ok.status_code == 200, ok.get_json()
-        assert len(sent_to) == 1
-        assert sent_to[0] == "mgr@test.example"
-    finally:
-        set_mail_sender_for_tests(None)
-        tmp.cleanup()
-
-
 def test_unknown_mail_locale_stays_german():
     assert resolve_locale("en") == "de"
     assert resolve_locale(None) == "de"

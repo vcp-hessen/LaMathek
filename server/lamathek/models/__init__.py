@@ -18,6 +18,7 @@ from lamathek.models.audit import AuditEvent
 from lamathek.models.settings import InstallationSettings
 from lamathek.models.user import User
 from lamathek.models.calendar import CalendarFeed
+from lamathek.models.mail import MailOutbox
 
 __all__ = [
     "AuditEvent",
@@ -28,6 +29,7 @@ __all__ = [
     "Loan",
     "LoanJournalEntry",
     "LoanLine",
+    "MailOutbox",
     "Category",
     "Damage",
     "Inventory",

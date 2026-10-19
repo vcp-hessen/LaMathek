@@ -122,3 +122,6 @@ class Config:
     SMTP_TIMEOUT = float(os.environ.get("SMTP_TIMEOUT", "15"))
 
     INSTANCE_TIMEZONE = _instance_timezone_from_env()
+
+    # Background sender for the mail outbox; off in tests and for the seed script.
+    MAIL_OUTBOX_WORKER = _env_bool("MAIL_OUTBOX_WORKER", default=True)

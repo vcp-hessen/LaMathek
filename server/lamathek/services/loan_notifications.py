@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from lamathek.models.loan import Loan
 from lamathek.models.user import User
-from lamathek.services.loan_mail_dispatch import dispatch_loan_mail
+from lamathek.services.loan_mail_dispatch import enqueue_loan_receipt_mails
 from lamathek.services.mail import send_mail
 
 MailSender = Callable[
@@ -59,13 +59,15 @@ def notify_loan_action(
     actor: User,
     line_ids: list[int],
     mail_step: str | None = None,
+    pdf_kind: str | None = None,
 ) -> None:
-    dispatch_loan_mail(
+    enqueue_loan_receipt_mails(
         session,
         loan,
         action,
         line_ids,
         actor=actor,
         mail_step=mail_step,
+        pdf_kind=pdf_kind,
         locale="de",
     )

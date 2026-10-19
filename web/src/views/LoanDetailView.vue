@@ -20,6 +20,7 @@ import LoanLinesSection from '../components/loans/LoanLinesSection.vue'
 import LoanPrimaryActions from '../components/loans/LoanPrimaryActions.vue'
 import ActionFeedbackBanner from '../components/ActionFeedbackBanner.vue'
 import LoanConflictWarnings from '../components/loans/LoanConflictWarnings.vue'
+import LoanMailStatus from '../components/loans/LoanMailStatus.vue'
 import LoanStatusHeader from '../components/loans/LoanStatusHeader.vue'
 import { LOAN_DETAIL_SECTION } from '../components/loans/loanDetailLayout'
 import { useActiveBox } from '../composables/useActiveBox'
@@ -445,6 +446,7 @@ const globalActionError = computed(() => {
     <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
     <template v-else-if="loan">
       <LoanConflictWarnings v-if="loan.warnings?.length" :warnings="loan.warnings" />
+      <LoanMailStatus v-if="loan.mails?.length" :loan-id="loan.id" :mails="loan.mails" />
 
       <LoanStatusHeader
         :loan="loan"

@@ -244,13 +244,3 @@ def render_loan_pdf(session: Session, loan: Loan, kind: PdfKind) -> bytes:
     env = current_app.jinja_env
     html = env.get_template(f"pdf/{kind}_list.html").render(context)
     return HTML(string=html, base_url=_PDF_TEMPLATE_DIR.as_uri() + "/").write_pdf()
-
-
-def pdf_attachment_for_mail(
-    session: Session, loan: Loan, mail_step: str | None
-) -> tuple[str, bytes, str] | None:
-    kind = pdf_kind_for_mail_step(mail_step)
-    if kind is None or not pdf_access_allowed(loan, kind, mail_step=mail_step):
-        return None
-    data = render_loan_pdf(session, loan, kind)
-    return (pdf_filename(loan, kind), data, "application/pdf")

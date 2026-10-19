@@ -18,7 +18,6 @@ from lamathek.models.loan import (
 )
 from lamathek.models.user import User
 from lamathek.services.inventories import user_can_manage_inventory
-from lamathek.services.loan_mail_dispatch import reset_loan_mail_receipt_flags
 from lamathek.services.loan_workflow import refresh_loan_phase
 from lamathek.services.loan_workflow_steps import (
     RESTORABLE_TERMINAL_STATUSES,
@@ -102,7 +101,6 @@ def restore_loan_line(session: Session, loan: Loan, line_id: int, *, actor: User
     line.status_before_end = None
     line.reason = ""
     line.mail_pending = True
-    reset_loan_mail_receipt_flags(loan)
     journal_line_action(
         session, actor=actor, loan_id=loan.id, line=line, action="restore"
     )

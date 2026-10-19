@@ -4,6 +4,8 @@ import tempfile
 # Before any lamathek import: never read a developer's .env/.env.local (SMTP
 # credentials, database path) during tests.
 os.environ["LAMATHEK_SKIP_DOTENV"] = "1"
+# Tests send mail synchronously via process_outbox_once, never from a thread.
+os.environ["MAIL_OUTBOX_WORKER"] = "0"
 for _name in [n for n in os.environ if n.startswith(("SMTP_", "AUTH_DEV_"))]:
     del os.environ[_name]
 

@@ -34,6 +34,25 @@ const loanLineOriginSchema = z.object({
   originSetRole: z.enum(['assignment', 'optional']).nullable(),
 })
 
+/** A mail in the outbox (D0012): queued with the step, sent by the server. */
+export const outboxMailSchema = z.object({
+  id: z.number(),
+  kind: z.string(),
+  loanId: z.number().nullable(),
+  audience: z.string().nullable(),
+  to: z.string(),
+  subject: z.string(),
+  pdfKind: z.string().nullable(),
+  status: z.enum(['pending', 'sending', 'sent', 'failed']),
+  attempts: z.number(),
+  lastError: z.string().nullable(),
+  createdAt: z.string().nullable(),
+  sentAt: z.string().nullable(),
+  nextAttemptAt: z.string().nullable(),
+})
+
+export type OutboxMail = z.infer<typeof outboxMailSchema>
+
 /** A conflict or hint from the availability check (D0007); also inside 409 errors. */
 export const loanWarningSchema = z.object({
   code: z.string(),
@@ -127,6 +146,8 @@ export const loanDetailSchema = loanSchema.extend({
     .optional(),
   hasUnnotifiedRequestedLines: z.boolean().optional(),
   hasPendingMailChanges: z.boolean().optional(),
+  /** Outbox rows of this Verleih; only sent to its Materialwart*innen. */
+  mails: z.array(outboxMailSchema).optional(),
 })
 
 export const groupSchema = z.object({ id: z.number(), name: z.string() })

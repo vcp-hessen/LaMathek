@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { api } from './client'
+import { outboxMailSchema, type OutboxMail } from '../schemas/loan'
 
 const mailStatusSchema = z.object({
   configured: z.boolean(),
@@ -35,4 +36,10 @@ export async function startMailTest(to: string): Promise<string> {
 export async function fetchMailTestJob(id: string): Promise<MailTestJob> {
   const response = await api.get(`/api/mail/test/${id}`)
   return mailTestJobSchema.parse(response.data)
+}
+
+/** Mails that gave up after all retries (superusers). */
+export async function fetchFailedOutbox(): Promise<OutboxMail[]> {
+  const response = await api.get('/api/mail/outbox')
+  return z.array(outboxMailSchema).parse(response.data)
 }

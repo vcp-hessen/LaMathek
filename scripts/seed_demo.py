@@ -21,6 +21,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "server"))
 os.environ.setdefault("LAMATHEK_ENV", "dev")
+# Demo mails go to example addresses: never start the sender, drop them at the end.
+os.environ["MAIL_OUTBOX_WORKER"] = "0"
 
 DEMO_PHONE = "+49 6421 000000"
 
@@ -307,6 +309,10 @@ def seed(app, session) -> None:
     # Entwurf: Lea plant das Sommerlager.
     new_loan("Stamm Habicht", "Sommerlager", lines=[{"pieceId": dvs[6].id}, {"pieceId": dvs[7].id}])
 
+    from lamathek.models.mail import MailOutbox
+
+    session.query(MailOutbox).delete()
+    session.commit()
     set_mail_sender_for_tests(None)
     print(
         "Demo data ready: 2 Inventare, Set „Jurte 1“, 6 Verleihe.\n"

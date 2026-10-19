@@ -98,7 +98,6 @@ def _loan_status(code: str) -> int:
         "step_incomplete",
         "workflow_step_mismatch",
         "replacement_blocks_reopen",
-        "mail_not_sent",
         "dates_conflict",
         "piece_has_history",
     ):
@@ -405,6 +404,31 @@ def loan_pdf(user, loan_id: int, kind: str):
         download_name=pdf_filename(loan, kind),  # type: ignore[arg-type]
         max_age=0,
     )
+
+
+@loans_bp.post("/loans/<int:loan_id>/mails/<int:mail_id>/resend")
+@require_login
+def resend_loan_mail(user, loan_id: int, mail_id: int):
+    """Queue a stuck or failed mail of this Verleih again (Materialwart*innen)."""
+    from lamathek.models.mail import MailOutbox
+    from lamathek.services.outbox import resend
+
+    session = get_session()
+    loan, err = _require_loan_access(session, user, loan_id)
+    if err:
+        return err
+    if not user_can_manage_inventory(session, user, loan.inventory):
+        return jsonify({"error": "forbidden"}), 403
+    row = session.get(MailOutbox, mail_id)
+    if row is None or row.loan_id != loan.id:
+        return jsonify({"error": "not_found"}), 404
+    try:
+        resend(session, row)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
+    session.commit()
+    loan = loan_by_id(session, loan_id)
+    return jsonify(loan_detail_to_json(loan, viewer=user, session=session))
 
 
 @loans_bp.get("/loans/<int:loan_id>/journal")

@@ -1,12 +1,14 @@
 import os
 import tempfile
-import time
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from lamathek.app import create_app
 from lamathek.config import Config
 from lamathek.db import get_session
-from lamathek.services.mail import enqueue_mail, mail_configured, send_mail
+from lamathek.services.mail import send_mail
+from lamathek.services.outbox import process_outbox_once
 from lamathek.services.mail_templates import render_mail
 from lamathek.services.settings import update_installation_settings
 from lamathek.services.users import upsert_user_from_oidc
@@ -37,6 +39,20 @@ def _app_with_smtp(**smtp_overrides):
             Base.metadata.create_all(engine)
 
         yield app, TestConfig
+
+
+@pytest.fixture(autouse=True)
+def _real_sender():
+    """These tests exercise send_mail itself (SMTP is patched)."""
+    from lamathek.services.loan_notifications import set_mail_sender_for_tests
+
+    set_mail_sender_for_tests(None)
+    yield
+
+
+def _drain(app) -> None:
+    with app.app_context():
+        process_outbox_once(get_session())
 
 
 def _login_superuser(client, app, sub: str = "mail-su"):
@@ -89,18 +105,9 @@ def test_mail_test_flow_success():
             )
             assert start.status_code == 202
             job_id = start.get_json()["id"]
-
-            deadline = time.time() + 3
-            final = None
-            while time.time() < deadline:
-                poll = client.get(f"/api/mail/test/{job_id}")
-                assert poll.status_code == 200
-                final = poll.get_json()
-                if final["status"] != "pending":
-                    break
-                time.sleep(0.05)
-
-            assert final is not None
+            poll = client.get(f"/api/mail/test/{job_id}")
+            assert poll.status_code == 200
+            final = poll.get_json()
             assert final["status"] == "sent"
             mock_smtp.starttls.assert_called_once()
             mock_smtp.send_message.assert_called_once()
@@ -155,16 +162,9 @@ def test_mail_test_smtp_failure_detail():
         with patch("lamathek.services.mail.smtplib.SMTP", return_value=mock_smtp):
             start = client.post("/api/mail/test", json={"to": "a@example.com"})
             job_id = start.get_json()["id"]
-
-            deadline = time.time() + 3
-            final = None
-            while time.time() < deadline:
-                poll = client.get(f"/api/mail/test/{job_id}")
-                final = poll.get_json()
-                if final["status"] != "pending":
-                    break
-                time.sleep(0.05)
-
+            _drain(app)
+            final = client.get(f"/api/mail/test/{job_id}").get_json()
+            # A test mail gets one attempt, so the error shows at once.
             assert final["status"] == "failed"
             assert "Authentication" in final["detail"]
     finally:
@@ -205,23 +205,6 @@ def test_mail_test_job_not_visible_to_other_user():
 
         response = client.get(f"/api/mail/test/{job_id}")
         assert response.status_code == 404
-    finally:
-        gen.close()
-
-
-def test_enqueue_mail_skips_when_not_configured():
-    gen = _app_with_smtp(SMTP_HOST="")
-    app, _ = next(gen)
-    try:
-        with app.app_context():
-            assert mail_configured() is False
-            enqueue_mail(
-                "a@example.com",
-                "test",
-                heading="Test",
-                paragraphs=["Body"],
-            )
-            time.sleep(0.1)
     finally:
         gen.close()
 
