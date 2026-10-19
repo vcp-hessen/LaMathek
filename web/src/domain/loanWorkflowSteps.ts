@@ -18,29 +18,13 @@ const WORKFLOW_PHASES = new Set<WorkflowStep>([
   'restock',
 ])
 
-const HANDOVER_OR_LATER = new Set(['packed', 'picked_up', 'return_reported'])
+const HANDOVER_OR_LATER = new Set<string>(workflowGates.handoverOrLaterStatuses)
 
-export const RESTORABLE_TERMINAL_STATUSES = new Set([
-  'unavailable',
-  'not_packed',
-  'not_picked_up',
-  'not_returned',
-])
+const RESTORE_TARGET_FALLBACK: Record<string, string> = workflowGates.restore.fallbackTarget
 
-const RESTORE_TARGET_FALLBACK: Record<string, string> = {
-  unavailable: 'requested',
-  not_packed: 'packed',
-  not_picked_up: 'packed',
-  not_returned: 'picked_up',
-}
+export const RESTORABLE_TERMINAL_STATUSES = new Set(Object.keys(RESTORE_TARGET_FALLBACK))
 
-const RESTORE_VALID_TARGETS = new Set([
-  'requested',
-  'confirmed',
-  'packed',
-  'picked_up',
-  'return_reported',
-])
+const RESTORE_VALID_TARGETS = new Set<string>(workflowGates.restore.validTargets)
 
 const LINE_STATUS_TO_STEP = workflowGates.lineStatusToStep as Record<string, WorkflowStep>
 

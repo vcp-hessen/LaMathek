@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath } from 'node:url'
@@ -14,6 +15,10 @@ export default defineConfig({
       // Rules shared with the API (server/lamathek/domain), single source of truth.
       '@shared': fileURLToPath(new URL('../server/lamathek/domain', import.meta.url)),
     },
+  },
+  test: {
+    environment: 'jsdom',
+    include: ['src/**/*.spec.ts'],
   },
   server: {
     proxy: {

@@ -14,23 +14,159 @@
     "return_reported"
   ],
   "lineActions": [
-    { "action": "confirm", "lineStatus": "requested", "steps": ["review", "pack"] },
-    { "action": "decline", "lineStatus": "requested", "steps": ["review", "pack"] },
-    { "action": "decline", "lineStatus": "confirmed", "steps": ["review", "pack"] },
-    { "action": "withdraw", "lineStatus": "requested", "steps": ["review", "pack"] },
-    { "action": "withdraw", "lineStatus": "confirmed", "steps": ["review", "pack"] },
-    { "action": "replace", "lineStatus": "requested", "steps": ["review", "pack"] },
-    { "action": "replace", "lineStatus": "confirmed", "steps": ["review", "pack"] },
-    { "action": "pack", "lineStatus": "confirmed", "steps": ["pack"] },
-    { "action": "unpack", "lineStatus": "packed", "steps": ["pack", "handover"] },
-    { "action": "mark_not_packed", "lineStatus": "packed", "steps": ["handover"] },
-    { "action": "pickup", "lineStatus": "packed", "steps": ["handover"] },
-    { "action": "mark_not_picked_up", "lineStatus": "packed", "steps": ["handover"] },
-    { "action": "undo_pickup", "lineStatus": "picked_up", "steps": ["handover"] },
-    { "action": "report_return", "lineStatus": "picked_up", "steps": ["return"] },
-    { "action": "restock", "lineStatus": "return_reported", "steps": ["restock"] },
-    { "action": "record_loss", "lineStatus": "picked_up", "steps": ["return"] },
-    { "action": "record_loss", "lineStatus": "return_reported", "steps": ["restock"] },
-    { "action": "remove", "lineStatus": "draft", "steps": ["draft"] }
+    {
+      "action": "confirm",
+      "lineStatus": "requested",
+      "steps": [
+        "review",
+        "pack"
+      ]
+    },
+    {
+      "action": "decline",
+      "lineStatus": "requested",
+      "steps": [
+        "review",
+        "pack"
+      ]
+    },
+    {
+      "action": "decline",
+      "lineStatus": "confirmed",
+      "steps": [
+        "review",
+        "pack"
+      ]
+    },
+    {
+      "action": "withdraw",
+      "lineStatus": "requested",
+      "steps": [
+        "review",
+        "pack"
+      ]
+    },
+    {
+      "action": "withdraw",
+      "lineStatus": "confirmed",
+      "steps": [
+        "review",
+        "pack"
+      ]
+    },
+    {
+      "action": "replace",
+      "lineStatus": "requested",
+      "steps": [
+        "review",
+        "pack"
+      ]
+    },
+    {
+      "action": "replace",
+      "lineStatus": "confirmed",
+      "steps": [
+        "review",
+        "pack"
+      ]
+    },
+    {
+      "action": "pack",
+      "lineStatus": "confirmed",
+      "steps": [
+        "pack"
+      ]
+    },
+    {
+      "action": "unpack",
+      "lineStatus": "packed",
+      "steps": [
+        "pack",
+        "handover"
+      ]
+    },
+    {
+      "action": "mark_not_packed",
+      "lineStatus": "packed",
+      "steps": [
+        "handover"
+      ]
+    },
+    {
+      "action": "pickup",
+      "lineStatus": "packed",
+      "steps": [
+        "handover"
+      ]
+    },
+    {
+      "action": "mark_not_picked_up",
+      "lineStatus": "packed",
+      "steps": [
+        "handover"
+      ]
+    },
+    {
+      "action": "undo_pickup",
+      "lineStatus": "picked_up",
+      "steps": [
+        "handover"
+      ]
+    },
+    {
+      "action": "report_return",
+      "lineStatus": "picked_up",
+      "steps": [
+        "return"
+      ]
+    },
+    {
+      "action": "restock",
+      "lineStatus": "return_reported",
+      "steps": [
+        "restock"
+      ]
+    },
+    {
+      "action": "record_loss",
+      "lineStatus": "picked_up",
+      "steps": [
+        "return"
+      ]
+    },
+    {
+      "action": "record_loss",
+      "lineStatus": "return_reported",
+      "steps": [
+        "restock"
+      ]
+    },
+    {
+      "action": "remove",
+      "lineStatus": "draft",
+      "steps": [
+        "draft"
+      ]
+    }
+  ],
+  "restore": {
+    "fallbackTarget": {
+      "unavailable": "requested",
+      "not_packed": "packed",
+      "not_picked_up": "packed",
+      "not_returned": "picked_up"
+    },
+    "validTargets": [
+      "requested",
+      "confirmed",
+      "packed",
+      "picked_up",
+      "return_reported"
+    ]
+  },
+  "handoverOrLaterStatuses": [
+    "packed",
+    "picked_up",
+    "return_reported"
   ]
 }

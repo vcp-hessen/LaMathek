@@ -3,16 +3,7 @@
 from __future__ import annotations
 
 from lamathek.models.loan import (
-    LINE_STATUS_CONFIRMED,
     LINE_STATUS_DRAFT,
-    LINE_STATUS_NOT_PACKED,
-    LINE_STATUS_NOT_PICKED_UP,
-    LINE_STATUS_NOT_RETURNED,
-    LINE_STATUS_PACKED,
-    LINE_STATUS_PICKED_UP,
-    LINE_STATUS_REQUESTED,
-    LINE_STATUS_RETURN_REPORTED,
-    LINE_STATUS_UNAVAILABLE,
     LINE_STATUS_WITHDRAWN,
     LINE_STATUSES_TERMINAL,
     LOAN_PHASE_CLOSED,
@@ -24,35 +15,16 @@ from lamathek.models.loan import (
 )
 from lamathek.services.workflow_gates import (
     line_action_steps,
+    workflow_gates,
     open_workflow_step_from_open_statuses,
     workflow_step_for_line_status as _step_for_status,
 )
 
-RESTORABLE_TERMINAL_STATUSES = frozenset(
-    {
-        LINE_STATUS_UNAVAILABLE,
-        LINE_STATUS_NOT_PACKED,
-        LINE_STATUS_NOT_PICKED_UP,
-        LINE_STATUS_NOT_RETURNED,
-    }
-)
-
-_RESTORE_TARGET_FALLBACK = {
-    LINE_STATUS_UNAVAILABLE: LINE_STATUS_REQUESTED,
-    LINE_STATUS_NOT_PACKED: LINE_STATUS_PACKED,
-    LINE_STATUS_NOT_PICKED_UP: LINE_STATUS_PACKED,
-    LINE_STATUS_NOT_RETURNED: LINE_STATUS_PICKED_UP,
-}
-
-_RESTORE_VALID_TARGETS = frozenset(
-    {
-        LINE_STATUS_REQUESTED,
-        LINE_STATUS_CONFIRMED,
-        LINE_STATUS_PACKED,
-        LINE_STATUS_PICKED_UP,
-        LINE_STATUS_RETURN_REPORTED,
-    }
-)
+_RESTORE = workflow_gates()["restore"]
+# Shared with web/src/domain/loanWorkflowSteps.ts through workflow_gates.json.
+_RESTORE_TARGET_FALLBACK: dict[str, str] = dict(_RESTORE["fallbackTarget"])
+RESTORABLE_TERMINAL_STATUSES = frozenset(_RESTORE_TARGET_FALLBACK)
+_RESTORE_VALID_TARGETS = frozenset(_RESTORE["validTargets"])
 
 WORKFLOW_STEPS = WORKFLOW_LOAN_PHASES
 
@@ -68,13 +40,7 @@ _WORKFLOW_PHASE_ORDER = (
 def _workflow_phase_rank(phase: str) -> int:
     return _WORKFLOW_PHASE_ORDER.index(phase)
 
-_HANDOVER_OR_LATER = frozenset(
-    {
-        LINE_STATUS_PACKED,
-        LINE_STATUS_PICKED_UP,
-        LINE_STATUS_RETURN_REPORTED,
-    }
-)
+_HANDOVER_OR_LATER = frozenset(workflow_gates()["handoverOrLaterStatuses"])
 
 
 def open_workflow_step_from_lines(loan: Loan) -> str | None:
