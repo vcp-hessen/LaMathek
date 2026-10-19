@@ -20,20 +20,31 @@ from lamathek.models.settings import InstallationSettings
 from lamathek.models.audit import AuditEvent
 from lamathek.models.user import User
 from lamathek.services.photos import photos_to_json
-def user_to_json(user: User) -> dict:
-    return {
+def user_ref_json(user: User) -> dict:
+    """Name only, for actors in journals: no contact data (D0005)."""
+    return {"id": user.id, "name": user.name}
+
+
+def user_to_json(user: User, *, include_phone: bool = True, include_sub: bool = False) -> dict:
+    """Contact view of a user. The OIDC subject is only for the user themself and superusers."""
+    body = {
         "id": user.id,
-        "sub": user.oidc_sub,
         "name": user.name,
         "email": user.email,
-        "phone": user.phone or "",
         "isSuperuser": user.is_superuser,
         "hasLogin": not (user.oidc_sub or "").startswith("local:"),
     }
+    if include_phone:
+        body["phone"] = user.phone or ""
+    if include_sub:
+        body["sub"] = user.oidc_sub
+    return body
 
 
 def audit_event_to_json(event: AuditEvent, session: Session) -> dict:
-    actor = session.get(User, event.actor_user_id)
+    actor = (
+        session.get(User, event.actor_user_id) if event.actor_user_id is not None else None
+    )
     target = (
         session.get(User, event.target_user_id) if event.target_user_id is not None else None
     )
@@ -43,8 +54,8 @@ def audit_event_to_json(event: AuditEvent, session: Session) -> dict:
         "reason": event.reason,
         "detail": event.detail,
         "createdAt": event.created_at.isoformat() if event.created_at else None,
-        "actor": user_to_json(actor) if actor is not None else None,
-        "targetUser": user_to_json(target) if target is not None else None,
+        "actor": user_to_json(actor, include_sub=True) if actor is not None else None,
+        "targetUser": user_to_json(target, include_sub=True) if target is not None else None,
     }
 
 
@@ -416,6 +427,7 @@ def journal_entry_to_json(entry: LoanJournalEntry) -> dict:
     except json.JSONDecodeError:
         payload = {"raw": entry.payload}
     actor = entry.actor_user
+    real_actor = entry.real_actor_user
     return {
         "id": entry.id,
         "createdAt": entry.created_at.isoformat() if entry.created_at else None,
@@ -424,7 +436,8 @@ def journal_entry_to_json(entry: LoanJournalEntry) -> dict:
         "loanId": entry.loan_id,
         "pieceId": entry.piece_id,
         "loanLineId": entry.loan_line_id,
-        "actor": user_to_json(actor) if actor is not None else None,
+        "actor": user_ref_json(actor) if actor is not None else None,
+        "realActor": user_ref_json(real_actor) if real_actor is not None else None,
     }
 
 

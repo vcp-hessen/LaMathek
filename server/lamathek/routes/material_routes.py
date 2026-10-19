@@ -356,7 +356,8 @@ def get_piece_journal(user, piece_id: int):
     piece = piece_by_id(session, piece_id)
     if piece is None:
         return jsonify({"error": "not_found"}), 404
-    if not user_can_view_inventory(session, user, piece.material_type.inventory):
+    # Lists every Verleih of the piece with reasons: Materialwart*innen only.
+    if not user_can_manage_inventory(session, user, piece.material_type.inventory):
         return jsonify({"error": "forbidden"}), 403
     entries = list_piece_journal(session, piece_id)
     return jsonify([journal_entry_to_json(entry) for entry in entries])

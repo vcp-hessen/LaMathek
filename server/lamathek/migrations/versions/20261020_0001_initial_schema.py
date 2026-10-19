@@ -2,7 +2,7 @@
 
 Revision ID: 20261020_0001
 Revises: 
-Create Date: 2026-10-19 22:38:05.129382
+Create Date: 2026-10-19 22:56:21.344325
 
 """
 from typing import Sequence, Union
@@ -89,13 +89,13 @@ def upgrade() -> None:
 
     op.create_table('audit_events',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('actor_user_id', sa.Integer(), nullable=False),
+    sa.Column('actor_user_id', sa.Integer(), nullable=True),
     sa.Column('action', sa.String(length=64), nullable=False),
     sa.Column('target_user_id', sa.Integer(), nullable=True),
     sa.Column('reason', sa.Text(), nullable=True),
     sa.Column('detail', sa.JSON(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.ForeignKeyConstraint(['actor_user_id'], ['users.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['actor_user_id'], ['users.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['target_user_id'], ['users.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id')
     )
@@ -312,6 +312,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('actor_user_id', sa.Integer(), nullable=True),
+    sa.Column('real_actor_user_id', sa.Integer(), nullable=True),
     sa.Column('kind', sa.String(length=64), nullable=False),
     sa.Column('payload', sa.Text(), server_default='{}', nullable=False),
     sa.Column('loan_id', sa.Integer(), nullable=True),
@@ -321,6 +322,7 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['loan_id'], ['loans.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['loan_line_id'], ['loan_lines.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['piece_id'], ['pieces.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['real_actor_user_id'], ['users.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('stock_loss_entries',

@@ -45,8 +45,10 @@ def create_calendar_feed(
     elif scope == CALENDAR_SCOPE_CONTACT:
         if inventory_id is None:
             raise ValueError("inventory_required")
-        if inventory_by_id(session, inventory_id) is None:
+        inventory = inventory_by_id(session, inventory_id)
+        if inventory is None:
             raise ValueError("not_found")
+        assert_inventory_calendar(session, user, inventory)
     elif scope == CALENDAR_SCOPE_INVENTORY:
         if inventory_id is None:
             raise ValueError("inventory_required")
@@ -82,17 +84,10 @@ def list_calendar_feeds(session: Session, user: User) -> list[CalendarFeed]:
 
 
 def delete_calendar_feed(session: Session, user: User, feed_id: int) -> bool:
+    """Owners can always revoke their own feeds, also after losing the role."""
     feed = session.get(CalendarFeed, feed_id)
     if feed is None or feed.user_id != user.id:
         return False
-    if feed.scope == CALENDAR_SCOPE_INVENTORY and feed.inventory_id is not None:
-        inventory = inventory_by_id(session, feed.inventory_id)
-        if inventory is None:
-            return False
-        try:
-            assert_inventory_calendar(session, user, inventory)
-        except ValueError:
-            return False
     session.delete(feed)
     session.commit()
     return True
@@ -202,6 +197,18 @@ def loans_for_contact_in_inventory(
             .order_by(Loan.pickup_on)
         ).all()
     )
+
+
+def feed_still_permitted(session: Session, feed: CalendarFeed, owner: User) -> bool:
+    """Re-checked on every fetch: a token must not outlive the owner's role."""
+    if feed.scope in (CALENDAR_SCOPE_CONTACT, CALENDAR_SCOPE_INVENTORY):
+        inventory = (
+            inventory_by_id(session, feed.inventory_id)
+            if feed.inventory_id is not None
+            else None
+        )
+        return inventory is not None and user_can_manage_inventory(session, owner, inventory)
+    return True
 
 
 def loans_for_feed(session: Session, feed: CalendarFeed, owner: User) -> list[Loan]:

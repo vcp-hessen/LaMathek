@@ -39,10 +39,19 @@ def _photo_json_error(exc: ValueError):
 
 
 def _require_photo_view(user, photo):
+    """Loan photos (Abholung/Rückgabe) only for people who see that Verleih;
+    everything else for anyone who may view the Inventar."""
+    from lamathek.services.loan_access import user_can_view_loan
+
     session = get_session()
     inventory = inventory_for_photo(session, photo)
     if inventory is None:
         return None, (jsonify({"error": "not_found"}), 404)
+    if photo.loan_id is not None:
+        loan = loan_by_id(session, photo.loan_id)
+        if loan is None or not user_can_view_loan(session, user, loan):
+            return None, (jsonify({"error": "forbidden"}), 403)
+        return inventory, None
     if not user_can_view_inventory(session, user, inventory):
         return None, (jsonify({"error": "forbidden"}), 403)
     return inventory, None

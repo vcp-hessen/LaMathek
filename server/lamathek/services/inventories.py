@@ -48,17 +48,10 @@ def users_with_inventory_permission(session: Session) -> list[User]:
 
 
 def format_content_responsible_users(users: list[User]) -> str:
-    lines: list[str] = []
-    for user in users:
-        name = (user.name or "").strip()
-        email = (user.email or "").strip()
-        if name and email:
-            lines.append(f"{name} ({email})")
-        elif name:
-            lines.append(name)
-        elif email:
-            lines.append(email)
-    return "\n".join(lines)
+    """Names for the public Impressum (no login needed): no personal email addresses.
+    The installation's own contact address is a separate setting."""
+    names = [(user.name or "").strip() for user in users]
+    return "\n".join(name for name in names if name)
 
 
 def inventory_by_id(session: Session, inventory_id: int) -> Inventory | None:
@@ -228,7 +221,7 @@ def grant_inventory_permission(
     if not user_has_login(user):
         raise ValueError("local_user")
     existing = session.scalar(
-        select(InventoryPermission.id).where(
+        select(InventoryPermission).where(
             InventoryPermission.user_id == user.id,
             InventoryPermission.inventory_id == inventory.id,
         )
@@ -241,7 +234,10 @@ def grant_inventory_permission(
                 role=PERMISSION_ROLE_MANAGE,
             )
         )
-        session.commit()
+    else:
+        # A read grant is upgraded, not silently kept.
+        existing.role = PERMISSION_ROLE_MANAGE
+    session.commit()
     return inventory_ids_for_user(session, user.id)
 
 
@@ -259,7 +255,7 @@ def revoke_inventory_permission(
     if row is None:
         return inventory_ids_for_user(session, user.id)
 
-    remaining = session.scalar(
+    remaining = None if row.role != PERMISSION_ROLE_MANAGE else session.scalar(
         select(func.count())
         .select_from(InventoryPermission)
         .where(
@@ -267,7 +263,7 @@ def revoke_inventory_permission(
             InventoryPermission.role == PERMISSION_ROLE_MANAGE,
         )
     )
-    if (remaining or 0) <= 1 and count_superusers(session) == 0:
+    if remaining is not None and remaining <= 1 and count_superusers(session) == 0:
         raise ValueError("cannot_clear_permissions")
 
     session.delete(row)
@@ -324,6 +320,17 @@ def _require_users(session: Session, user_ids: list[int]) -> None:
         raise ValueError("invalid_user_ids")
 
 
+def _require_login_users(session: Session, user_ids: list[int]) -> None:
+    """Local users cannot sign in, so a Berechtigung would be meaningless."""
+    if not user_ids:
+        return
+    local = session.scalar(
+        select(User.id).where(User.id.in_(user_ids), User.oidc_sub.like("local:%"))
+    )
+    if local is not None:
+        raise ValueError("local_user")
+
+
 def replace_permissions(
     session: Session,
     inventory: Inventory,
@@ -349,6 +356,7 @@ def replace_permissions(
 
     _require_users(session, manage_ids)
     _require_users(session, read_ids)
+    _require_login_users(session, [*manage_ids, *read_ids])
 
     session.execute(
         delete(InventoryPermission).where(InventoryPermission.inventory_id == inventory.id)

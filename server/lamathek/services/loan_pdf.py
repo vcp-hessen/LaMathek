@@ -150,7 +150,10 @@ def pdf_rows_for_loan(loan: Loan) -> list[dict]:
 
 
 def pdf_filename(loan: Loan, kind: PdfKind) -> str:
-    title = loan_display_title(loan).replace("/", "-")[:40]
+    raw = loan_display_title(loan)
+    title = "".join(
+        "-" if ch in '/\\"' else ch for ch in raw if ch.isprintable()
+    ).strip()[:40]
     return f"lamathek-{kind}-{loan.id}-{title}.pdf"
 
 

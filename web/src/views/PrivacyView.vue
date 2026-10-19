@@ -111,7 +111,8 @@ const showAuthSameHostNote = computed(
       <h2 class="text-lg font-medium">3. Cookies und lokaler Speicher</h2>
       <p>
         Für die Anmeldung setzt der Server ein Sitzungs-Cookie. Skripte im Browser können es
-        nicht auslesen (HttpOnly). Es wird mit SameSite Lax gesendet und endet mit dem
+        nicht auslesen (HttpOnly). Es wird mit SameSite Lax und bei HTTPS nur verschlüsselt
+        (Secure) gesendet und endet mit dem
         Schließen des Browsers bzw. mit dem Abmelden. Darin stehen die für die Sitzung nötigen
         Anmeldedaten (Kennung, Name, E-Mail), signiert durch den Server.
       </p>

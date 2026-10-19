@@ -16,7 +16,10 @@ const sorted = computed(() => props.entries ?? [])
 function actorLabel(entry: JournalEntry): string {
   const actor = entry.actor
   if (!actor) return t('journal.systemActor')
-  return (actor.name || actor.email || `#${actor.id}`).trim()
+  const name = (actor.name || actor.email || `#${actor.id}`).trim()
+  const real = entry.realActor
+  if (!real) return name
+  return t('journal.impersonatedBy', { name, realName: (real.name || `#${real.id}`).trim() })
 }
 
 function kindLabel(kind: string): string {

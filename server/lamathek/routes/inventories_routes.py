@@ -151,8 +151,8 @@ def get_permissions(_user, inventory):
     readers = permission_users(session, inventory.id, role=PERMISSION_ROLE_READ)
     return jsonify(
         {
-            "users": [user_to_json(u) for u in users],
-            "readers": [user_to_json(u) for u in readers],
+            "users": [user_to_json(u, include_phone=False) for u in users],
+            "readers": [user_to_json(u, include_phone=False) for u in readers],
         }
     )
 
@@ -185,6 +185,8 @@ def put_permissions(_user, inventory):
             return jsonify({"error": "cannot_clear_permissions"}), 409
         if str(exc) == "invalid_user_ids":
             return jsonify({"error": "invalid_user_ids"}), 400
+        if str(exc) == "local_user":
+            return jsonify({"error": "local_user"}), 409
         raise
     from lamathek.models.inventory import PERMISSION_ROLE_READ
 
@@ -194,7 +196,7 @@ def put_permissions(_user, inventory):
         {
             "userIds": manage_ids,
             "readerUserIds": saved_reader_ids,
-            "users": [user_to_json(u) for u in users],
-            "readers": [user_to_json(u) for u in readers],
+            "users": [user_to_json(u, include_phone=False) for u in users],
+            "readers": [user_to_json(u, include_phone=False) for u in readers],
         }
     )

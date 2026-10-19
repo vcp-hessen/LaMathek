@@ -26,7 +26,7 @@ def auth_mode():
 @api_bp.get("/me")
 @require_login
 def me(user):
-    body = user_to_json(user)
+    body = user_to_json(user, include_sub=True)
     imp = session_impersonation()
     if imp is None:
         body["impersonation"] = None
@@ -35,7 +35,7 @@ def me(user):
         actor_sub = session_actor_sub()
         actor = user_by_oidc_sub(db, actor_sub) if actor_sub else None
         body["impersonation"] = {
-            "actor": user_to_json(actor) if actor is not None else None,
+            "actor": user_to_json(actor, include_sub=True) if actor is not None else None,
             "reason": imp.get("reason"),
             "startedAt": imp.get("startedAt"),
         }

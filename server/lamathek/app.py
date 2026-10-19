@@ -58,6 +58,28 @@ def validate_secret_key(app: Flask) -> None:
         raise RuntimeError("SECRET_KEY must be set to a random value in production.")
 
 
+CSRF_HEADER = "X-Requested-With"
+CSRF_HEADER_VALUE = "lamathek"
+_SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+
+def _register_csrf_guard(app: Flask) -> None:
+    """State-changing /api requests must carry a custom header.
+
+    Browsers only send custom headers cross-site after a CORS preflight, which
+    this API never grants, so a forged form or image request is rejected even
+    where SameSite=Lax does not apply (top-level POST, older browsers).
+    """
+
+    @app.before_request
+    def _csrf_guard():
+        if request.method in _SAFE_METHODS or not request.path.startswith("/api/"):
+            return None
+        if request.headers.get(CSRF_HEADER) != CSRF_HEADER_VALUE:
+            return jsonify({"error": "csrf_header_missing"}), 403
+        return None
+
+
 def _register_api_error_handlers(app: Flask) -> None:
     def _wants_json() -> bool:
         return request.path.startswith("/api/")
@@ -98,6 +120,11 @@ def create_app(config: type[Config] = Config) -> Flask:
     validate_secret_key(app)
     validate_dev_bypass_config(app)
     _register_api_error_handlers(app)
+    _register_csrf_guard(app)
+    if app.config.get("TESTING"):
+        from lamathek.testing import ApiTestClient
+
+        app.test_client_class = ApiTestClient
     init_db(app)
     init_auth(app)
 

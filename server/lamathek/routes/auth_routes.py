@@ -28,6 +28,12 @@ def _start_session(
         email=email,
         force_superuser=force_superuser,
     )
+    _set_signed_in_user(sub, name, email)
+
+
+def _set_signed_in_user(sub: str, name: str | None, email: str | None) -> None:
+    # A new sign-in never inherits another person's impersonation.
+    session.pop("impersonation", None)
     session["user"] = {"sub": sub, "name": name, "email": email}
 
 
@@ -68,7 +74,7 @@ def auth_callback():
     email = userinfo.get("email")
     db = get_session()
     upsert_user_from_oidc(db, sub=sub, name=name, email=email)
-    session["user"] = {"sub": sub, "name": name, "email": email}
+    _set_signed_in_user(sub, name, email)
     return redirect(current_app.config["FRONTEND_URL"])
 
 

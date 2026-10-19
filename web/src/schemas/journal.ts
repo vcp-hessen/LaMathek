@@ -17,6 +17,8 @@ export const journalEntrySchema = z.object({
   pieceId: z.number().nullable(),
   loanLineId: z.number().nullable(),
   actor: journalActorSchema,
+  /** Superuser who acted while impersonating ``actor``. */
+  realActor: journalActorSchema.optional(),
 })
 
 export type JournalEntry = z.infer<typeof journalEntrySchema>

@@ -15,6 +15,7 @@ from lamathek.services.calendar import (
     delete_calendar_feed,
     feed_by_token,
     feed_matches_ics_route,
+    feed_still_permitted,
     ics_for_loans,
     list_calendar_feeds,
     loan_to_calendar_item,
@@ -134,7 +135,7 @@ def _calendar_ics_response(scope: str, inventory_id: int | None):
     if feed is None or not feed_matches_ics_route(feed, scope, inventory_id):
         return jsonify({"error": "not_found"}), 404
     owner = user_by_id(session, feed.user_id)
-    if owner is None:
+    if owner is None or not feed_still_permitted(session, feed, owner):
         return jsonify({"error": "not_found"}), 404
     loans = loans_for_feed(session, feed, owner)
     body = ics_for_loans(loans)

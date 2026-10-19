@@ -1,4 +1,6 @@
-from flask import Blueprint, Response, jsonify, request
+import io
+
+from flask import Blueprint, jsonify, request, send_file
 
 from lamathek.models.loan import LINE_STATUS_DRAFT, is_workflow_loan_phase
 from lamathek.services.mail_templates import preview_loan_action_mail
@@ -138,41 +140,11 @@ def get_groups(_user):
     return jsonify([group_to_json(g) for g in list_groups(session)])
 
 
-@loans_bp.post("/groups")
-@require_login
-def post_group(_user):
-    body = request.get_json(silent=True) or {}
-    name = body.get("name")
-    if not isinstance(name, str) or not name.strip():
-        return jsonify({"error": "invalid_name"}), 400
-    from lamathek.services.loans import get_or_create_group
-
-    session = get_session()
-    group = get_or_create_group(session, name)
-    session.commit()
-    return jsonify(group_to_json(group)), 201
-
-
 @loans_bp.get("/events")
 @require_login
 def get_events(_user):
     session = get_session()
     return jsonify([event_to_json(e) for e in list_events(session)])
-
-
-@loans_bp.post("/events")
-@require_login
-def post_event(_user):
-    body = request.get_json(silent=True) or {}
-    name = body.get("name")
-    if not isinstance(name, str) or not name.strip():
-        return jsonify({"error": "invalid_name"}), 400
-    from lamathek.services.loans import get_or_create_event
-
-    session = get_session()
-    event = get_or_create_event(session, name)
-    session.commit()
-    return jsonify(event_to_json(event)), 201
 
 
 @loans_bp.get("/users/borrowers")
@@ -184,7 +156,7 @@ def get_borrowers(user):
     if not user_can_manage_any_inventory(session, user):
         return jsonify({"error": "forbidden"}), 403
     users = session.scalars(select(User).order_by(User.name, User.email)).all()
-    return jsonify([user_to_json(u) for u in users])
+    return jsonify([user_to_json(u, include_phone=False) for u in users])
 
 
 @loans_bp.get("/me/loans")
@@ -406,11 +378,13 @@ def loan_pdf(user, loan_id: int, kind: str):
         pdf_bytes = render_loan_pdf(session, loan, kind)  # type: ignore[arg-type]
     except Exception:
         return jsonify({"error": "pdf_render_failed"}), 500
-    filename = pdf_filename(loan, kind)  # type: ignore[arg-type]
-    return Response(
-        pdf_bytes,
+    # send_file encodes non-ASCII names per RFC 5987 (filename*=UTF-8''…).
+    return send_file(
+        io.BytesIO(pdf_bytes),
         mimetype="application/pdf",
-        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+        as_attachment=False,
+        download_name=pdf_filename(loan, kind),  # type: ignore[arg-type]
+        max_age=0,
     )
 
 

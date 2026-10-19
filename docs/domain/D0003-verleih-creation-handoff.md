@@ -21,7 +21,7 @@ Ein Verleih gehört zu einem Inventar, einer Gruppe und meist einer Veranstaltun
 
 - Ein **Verleih** gehört zu genau einem **Inventar**, ist Material für eine*n **Ausleihende*n** im Namen einer **Gruppe**, und gehört meist zu einer **Veranstaltung** (kann auch ohne).
 - **Ausleihende*r** kann auf Inventar mit Freigabe **aktiv** einen Verleih eröffnen.
-- **Materialwart*in** kann Verleihe auch auf Inventar mit Freigabe **intern** starten.
+- Auf Inventar mit Freigabe **intern** eröffnen **Materialwart*innen** und Personen mit **Leserecht** (siehe D0001) Verleihe; Lesen heißt auch Anfragen.
 - **Archiviertes** Inventar: keine neuen Verleihe.
 - Mehrere **Entwürfe** und mehrere laufende Verleihe pro Person/Inventar sind erlaubt.
 

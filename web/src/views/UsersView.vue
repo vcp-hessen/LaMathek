@@ -505,6 +505,7 @@ function onStartImpersonation(user: ManagedUser) {
                 <td colspan="4" class="pb-4 pt-3">
                   <div class="flex flex-col gap-3 pl-5">
                     <form
+                      v-if="row.original.canEditContact !== false"
                       class="flex flex-wrap items-end gap-2"
                       @submit.prevent="onSaveContact(row.original.id)"
                     >
@@ -585,7 +586,7 @@ function onStartImpersonation(user: ManagedUser) {
                       </label>
                     </div>
                     <div
-                      v-if="row.original.hasLogin === false"
+                      v-if="me?.isSuperuser && row.original.hasLogin === false"
                       class="flex flex-wrap items-end gap-2 border-t border-base-200 pt-3"
                     >
                       <label class="flex min-w-48 flex-col gap-1">

@@ -56,7 +56,8 @@ const { data: piece, isLoading } = useQuery({
 const { data: journalEntries, isLoading: journalLoading } = useQuery({
   queryKey: ['piece-journal', pieceId],
   queryFn: () => fetchPieceJournal(pieceId.value),
-  enabled: () => Number.isFinite(pieceId.value),
+  // The piece journal lists every Verleih with reasons: Materialwart*innen only.
+  enabled: () => Number.isFinite(pieceId.value) && canManage.value,
 })
 
 const editPieceName = ref('')
@@ -309,7 +310,10 @@ function damageStatusLabel(damage: Damage): string {
           />
       </section>
 
-      <section class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0">
+      <section
+        v-if="canManage"
+        class="app-section gap-4 border-b border-base-200 pb-6 last:border-b-0"
+      >
         <JournalSection
           :title="t('journal.pieceHeading')"
           :entries="journalEntries"

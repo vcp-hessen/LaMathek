@@ -10,13 +10,17 @@ from lamathek.db import Base
 AUDIT_IMPERSONATION_STARTED = "impersonation_started"
 AUDIT_IMPERSONATION_ENDED = "impersonation_ended"
 AUDIT_INSTALLATION_SETTINGS_UPDATED = "installation_settings_updated"
+AUDIT_USER_MERGED = "user_merged"
 
 
 class AuditEvent(Base):
     __tablename__ = "audit_events"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    actor_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    # SET NULL: deleting or merging a user must not erase the audit trail.
+    actor_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     action: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     target_user_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True

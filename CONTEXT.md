@@ -46,7 +46,7 @@ _English_: category
 _Avoid_: Gruppe, Sorte, Bereich
 
 **Inventar**:
-A collection of material kept at one place. The Landesmaterial on Donnerskopf is one Inventar; the Landesbüro is another. An Inventar may have an optional address, map coordinates, and a note (for access, keys, and on-site hints). Each Inventar has a **Freigabe**: **intern** (only users with a Berechtigung on that Inventar), **aktiv** (any signed-in user may read material, Sets, photos, and notes; only Materialwart*innen manage Verleih and data), or **archiviert** (like intern; kept for history, not offered in the active catalogue). Material requests and anonymous access are not part of the app yet.
+A collection of material kept at one place. The Landesmaterial on Donnerskopf is one Inventar; the Landesbüro is another. An Inventar may have an optional address, map coordinates, and a note (for access, keys, and on-site hints). Each Inventar has a **Freigabe**: **intern** (only users with a Berechtigung on that Inventar, either to manage or a Leserecht), **aktiv** (any signed-in user may read material, Sets, photos, and notes; only Materialwart*innen manage Verleih and data), or **archiviert** (like intern; kept for history, not offered in the active catalogue). Material requests and anonymous access are not part of the app yet.
 _English_: inventory
 _Avoid_: Standort, Lager, location
 
@@ -216,6 +216,11 @@ _English_: quartermaster
 _Avoid_: Beauftragte für Landesmaterial, Materialteam, admin, staff
 
 **Berechtigung**:
-A user's right to manage one Inventar (a user–Inventar pair). Superusers and Materialwarte who already have a Berechtigung on that Inventar may grant or revoke Berechtigungen there. A job such as Jugendbildungsreferent, Geschäftsführerin, or FSJler is not a role; that person gets a Berechtigung on the Landesbüro Inventar. **Ausleihende*r** on a Verleih is the person the material is for, not a user role in the database.
+A user's right on one Inventar (a user–Inventar pair), either to **manage** it or a **Leserecht**. Only users with a login get one. Superusers and Materialwarte who already have a Berechtigung on that Inventar may grant or revoke Berechtigungen there. A job such as Jugendbildungsreferent, Geschäftsführerin, or FSJler is not a role; that person gets a Berechtigung on the Landesbüro Inventar. **Ausleihende*r** on a Verleih is the person the material is for, not a user role in the database.
 _English_: permission
 _Avoid_: Rolle, job title
+
+**Leserecht**:
+A Berechtigung to read an internal Inventar (material, Sets, photos) and to request Verleihe from it, without managing anything. Active Inventare need no Leserecht.
+_English_: read permission
+_Avoid_: Gastzugang, viewer role

@@ -220,7 +220,8 @@ def test_local_user_has_no_oidc_login_and_can_borrow():
         )
         assert created_user.status_code == 201
         body = created_user.get_json()
-        assert body["sub"].startswith("local:")
+        assert body["hasLogin"] is False
+        assert "sub" not in body
         assert body["name"] == "Ohne Konto"
         local_id = body["id"]
 

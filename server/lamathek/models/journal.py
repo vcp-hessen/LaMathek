@@ -18,6 +18,11 @@ class LoanJournalEntry(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
+    # Superuser behind an impersonated action; actor_user_id is the impersonated user.
+    real_actor_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     kind: Mapped[str] = mapped_column(String(64))
     payload: Mapped[str] = mapped_column(Text(), default="{}", server_default="{}")
     loan_id: Mapped[int | None] = mapped_column(
@@ -34,6 +39,7 @@ class LoanJournalEntry(Base):
     )
 
     actor_user: Mapped["User | None"] = relationship(foreign_keys=[actor_user_id])
+    real_actor_user: Mapped["User | None"] = relationship(foreign_keys=[real_actor_user_id])
     loan: Mapped["Loan"] = relationship()
     piece: Mapped["Piece | None"] = relationship()
     loan_line: Mapped["LoanLine | None"] = relationship()

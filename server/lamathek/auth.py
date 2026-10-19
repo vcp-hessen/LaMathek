@@ -72,12 +72,3 @@ def session_actor_sub() -> str | None:
 
 def session_impersonation() -> dict | None:
     return session.get("impersonation")
-
-
-def effective_oidc_sub() -> str | None:
-    imp = session_impersonation()
-    if imp is not None:
-        sub = imp.get("sub")
-        if sub:
-            return sub
-    return session_actor_sub()

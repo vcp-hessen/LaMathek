@@ -13,6 +13,18 @@ from lamathek.models.loan import LoanLine
 from lamathek.models.user import User
 
 
+def _real_actor_id(actor: User | None) -> int | None:
+    """Superuser impersonating ``actor`` in this request (set by require_login)."""
+    from flask import g, has_request_context
+
+    if actor is None or not has_request_context():
+        return None
+    real = getattr(g, "real_actor", None)
+    if real is None or real.id == actor.id:
+        return None
+    return real.id
+
+
 def append_journal(
     session: Session,
     kind: str,
@@ -33,6 +45,7 @@ def append_journal(
         raise ValueError("journal_target_required")
     entry = LoanJournalEntry(
         kind=kind,
+        real_actor_user_id=_real_actor_id(actor),
         payload=json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
         loan_id=loan_id,
         piece_id=piece_id,
@@ -69,7 +82,10 @@ def list_loan_journal(session: Session, loan_id: int) -> list[LoanJournalEntry]:
         session.scalars(
             select(LoanJournalEntry)
             .where(LoanJournalEntry.loan_id == loan_id)
-            .options(selectinload(LoanJournalEntry.actor_user))
+            .options(
+                selectinload(LoanJournalEntry.actor_user),
+                selectinload(LoanJournalEntry.real_actor_user),
+            )
             .order_by(LoanJournalEntry.created_at.desc(), LoanJournalEntry.id.desc())
         ).all()
     )
@@ -88,7 +104,10 @@ def list_piece_journal(session: Session, piece_id: int) -> list[LoanJournalEntry
         session.scalars(
             select(LoanJournalEntry)
             .where(or_(*clauses))
-            .options(selectinload(LoanJournalEntry.actor_user))
+            .options(
+                selectinload(LoanJournalEntry.actor_user),
+                selectinload(LoanJournalEntry.real_actor_user),
+            )
             .order_by(LoanJournalEntry.created_at.desc(), LoanJournalEntry.id.desc())
         ).all()
     )

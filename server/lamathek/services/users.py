@@ -99,9 +99,25 @@ def merge_local_user_into_login(
         raise ValueError("not_found")
     if user_has_login(source) or not user_has_login(target):
         raise ValueError("invalid_merge")
-    for loan in session.scalars(select(Loan).where(Loan.borrower_user_id == source.id)):
-        loan.borrower_user_id = target.id
+    from sqlalchemy import update
+
+    from lamathek.models.audit import AuditEvent
+    from lamathek.models.journal import LoanJournalEntry
+
+    # Re-point every reference so nothing is lost to CASCADE or SET NULL.
+    for model, column in (
+        (Loan, Loan.borrower_user_id),
+        (Loan, Loan.contact_user_id),
+        (LoanJournalEntry, LoanJournalEntry.actor_user_id),
+        (LoanJournalEntry, LoanJournalEntry.real_actor_user_id),
+        (AuditEvent, AuditEvent.actor_user_id),
+        (AuditEvent, AuditEvent.target_user_id),
+    ):
+        session.execute(
+            update(model).where(column == source.id).values({column.key: target.id})
+        )
     session.flush()
+    session.expire_all()
     session.delete(source)
     session.commit()
     return target

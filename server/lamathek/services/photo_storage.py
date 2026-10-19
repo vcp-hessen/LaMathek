@@ -9,6 +9,11 @@ WEBP_QUALITY = 85
 MAX_FULL_EDGE = 2560
 THUMB_SIZES = (160, 640)
 
+# Pillow decoders matching ALLOWED_UPLOAD_MIME; nothing else is ever parsed.
+ALLOWED_IMAGE_FORMATS = ("JPEG", "PNG", "WEBP")
+# 64 MP covers phone cameras (48/50 MP) while capping decode memory (~200 MB RGB).
+MAX_IMAGE_PIXELS = 64_000_000
+
 ALLOWED_UPLOAD_MIME = frozenset(
     {
         "image/jpeg",
@@ -69,10 +74,14 @@ def _to_rgb(image: Image.Image) -> Image.Image:
 
 def save_photo_variants(photo_id: int, raw_bytes: bytes) -> None:
     try:
-        image = Image.open(BytesIO(raw_bytes))
+        image = Image.open(BytesIO(raw_bytes), formats=ALLOWED_IMAGE_FORMATS)
+        width, height = image.size
+        if width * height > MAX_IMAGE_PIXELS:
+            raise ValueError("image_too_large")
         image.verify()
-        image = Image.open(BytesIO(raw_bytes))
-    except OSError as exc:
+        image = Image.open(BytesIO(raw_bytes), formats=ALLOWED_IMAGE_FORMATS)
+        image.load()
+    except (OSError, Image.DecompressionBombError) as exc:
         raise ValueError("invalid_image") from exc
 
     image = ImageOps.exif_transpose(image)

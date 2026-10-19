@@ -152,8 +152,19 @@ def list_events(session: Session) -> list[Event]:
     return list(session.scalars(select(Event).order_by(Event.name)).all())
 
 
+MAX_LABEL_LENGTH = 120
+
+
+def normalize_label(name: str) -> str:
+    """One line, single spaces: names end up in mail subjects and PDF file names."""
+    cleaned = " ".join("".join(ch if ch.isprintable() else " " for ch in name).split())
+    if not cleaned or len(cleaned) > MAX_LABEL_LENGTH:
+        raise ValueError("invalid_name")
+    return cleaned
+
+
 def get_or_create_group(session: Session, name: str) -> Group:
-    trimmed = name.strip()
+    trimmed = normalize_label(name)
     group = session.scalar(select(Group).where(Group.name == trimmed))
     if group is not None:
         return group
@@ -164,7 +175,7 @@ def get_or_create_group(session: Session, name: str) -> Group:
 
 
 def get_or_create_event(session: Session, name: str) -> Event:
-    trimmed = name.strip()
+    trimmed = normalize_label(name)
     event = session.scalar(select(Event).where(Event.name == trimmed))
     if event is not None:
         return event

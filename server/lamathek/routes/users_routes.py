@@ -12,6 +12,9 @@ from lamathek.services.inventories import (
     revoke_inventory_permission,
     user_can_manage_any_inventory,
 )
+from lamathek.services.audit import record_audit_event
+from lamathek.models.audit import AUDIT_USER_MERGED
+from lamathek.services.loan_access import user_can_edit_contact
 from lamathek.services.users import (
     create_local_user,
     merge_local_user_into_login,
@@ -31,9 +34,12 @@ def _require_can_grant_permissions(user):
     return None
 
 
-def _managed_user_json(user: User, inventory_ids: list[int]) -> dict:
-    body = user_to_json(user)
+def _managed_user_json(
+    user: User, inventory_ids: list[int], *, can_edit_contact: bool = True
+) -> dict:
+    body = user_to_json(user, include_phone=can_edit_contact)
     body["inventoryIds"] = inventory_ids
+    body["canEditContact"] = can_edit_contact
     return body
 
 
@@ -71,7 +77,17 @@ def list_users(user):
         return jsonify({"error": "forbidden"}), 403
     users = session.scalars(select(User).order_by(User.id)).all()
     by_user = inventory_ids_by_user(session)
-    return jsonify([_managed_user_json(u, by_user.get(u.id, [])) for u in users])
+    # Phones only where the viewer may edit them (D0005); superusers see all.
+    return jsonify(
+        [
+            _managed_user_json(
+                u,
+                by_user.get(u.id, []),
+                can_edit_contact=user_can_edit_contact(session, user, u),
+            )
+            for u in users
+        ]
+    )
 
 
 @users_bp.get("/users/search")
@@ -85,7 +101,7 @@ def search_users_route(user):
         query = ""
     session = get_session()
     users = search_users(session, query)
-    return jsonify([user_to_json(u) for u in users])
+    return jsonify([user_to_json(u, include_phone=False) for u in users])
 
 
 @users_bp.patch("/users/<int:user_id>")
@@ -93,23 +109,9 @@ def search_users_route(user):
 def patch_user(actor, user_id: int):
     body = request.get_json(silent=True) or {}
     session = get_session()
-    if not actor.is_superuser and not user_can_manage_any_inventory(session, actor):
-        return jsonify({"error": "forbidden"}), 403
     target = user_by_id(session, user_id)
     if target is None:
         return jsonify({"error": "not_found"}), 404
-
-    if "isSuperuser" in body:
-        if not actor.is_superuser:
-            return jsonify({"error": "forbidden"}), 403
-        if not isinstance(body["isSuperuser"], bool):
-            return jsonify({"error": "invalid_is_superuser"}), 400
-        try:
-            set_superuser(session, target, body["isSuperuser"])
-        except ValueError as exc:
-            if str(exc) == "cannot_remove_last_superuser":
-                return jsonify({"error": "cannot_remove_last_superuser"}), 409
-            raise
 
     phone = body.get("phone") if "phone" in body else None
     email = body.get("email") if "email" in body else None
@@ -119,6 +121,23 @@ def patch_user(actor, user_id: int):
         return jsonify({"error": "invalid_user"}), 400
     if "isSuperuser" not in body and phone is None and email is None:
         return jsonify({"error": "nothing_to_update"}), 400
+    if "isSuperuser" in body:
+        if not actor.is_superuser:
+            return jsonify({"error": "forbidden"}), 403
+        if not isinstance(body["isSuperuser"], bool):
+            return jsonify({"error": "invalid_is_superuser"}), 400
+    if (phone is not None or email is not None) and not user_can_edit_contact(
+        session, actor, target
+    ):
+        return jsonify({"error": "forbidden"}), 403
+
+    if "isSuperuser" in body:
+        try:
+            set_superuser(session, target, body["isSuperuser"])
+        except ValueError as exc:
+            if str(exc) == "cannot_remove_last_superuser":
+                return jsonify({"error": "cannot_remove_last_superuser"}), 409
+            raise
     if phone is not None or email is not None:
         try:
             update_user_contact(session, target, phone=phone, email=email)
@@ -177,11 +196,9 @@ def revoke_user_inventory(_actor, user_id: int, inventory_id: int):
 
 
 @users_bp.post("/users/<int:user_id>/merge")
-@require_login
+@require_superuser
 def merge_user(user, user_id: int):
     session = get_session()
-    if not user.is_superuser and not user_can_manage_any_inventory(session, user):
-        return jsonify({"error": "forbidden"}), 403
     body = request.get_json(silent=True) or {}
     target_id = body.get("targetUserId")
     if not isinstance(target_id, int):
@@ -197,4 +214,11 @@ def merge_user(user, user_id: int):
         if code == "invalid_merge":
             return jsonify({"error": "invalid_merge"}), 409
         raise
+    record_audit_event(
+        session,
+        actor_user_id=user.id,
+        action=AUDIT_USER_MERGED,
+        target_user_id=target.id,
+        detail={"mergedUserId": user_id},
+    )
     return jsonify(user_to_json(target))

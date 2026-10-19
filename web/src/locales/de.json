@@ -856,6 +856,7 @@
     "pieceHeading": "Journal",
     "empty": "Noch keine Einträge.",
     "systemActor": "System",
+    "impersonatedBy": "{name} (durch {realName})",
     "pdfKind": {
       "pack": "Packliste",
       "handover": "Abholliste",

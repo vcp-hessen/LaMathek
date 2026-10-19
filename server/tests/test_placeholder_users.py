@@ -109,6 +109,13 @@ def test_merge_rewrites_loans_and_deletes_placeholder():
         )
         assert loan.status_code == 201, loan.get_json()
         loan_id = loan.get_json()["id"]
+        # Merging moves Verleihe across Inventare: superusers only.
+        denied = client.post(
+            f"/api/users/{placeholder['id']}/merge",
+            json={"targetUserId": bor_id},
+        )
+        assert denied.status_code == 403
+        _login(client, "su")
         merged = client.post(
             f"/api/users/{placeholder['id']}/merge",
             json={"targetUserId": bor_id},
@@ -170,11 +177,16 @@ def test_phone_lives_on_the_user_and_can_be_changed():
         assert loan.status_code == 201
         loan_id = loan.get_json()["id"]
         assert loan.get_json()["borrowerPhone"] == "+491234567890"
+        # A login user's contact belongs to them: Materialwart*innen cannot change it.
+        denied = client.patch(f"/api/users/{bor_id}", json={"phone": "0999"})
+        assert denied.status_code == 403
+        _login(client, "borrower")
         patched = client.patch(
             f"/api/users/{bor_id}",
             json={"phone": "0999", "email": "borrower@test.example"},
         )
         assert patched.status_code == 200, patched.get_json()
+        _login(client, "mgr")
         detail = client.get(f"/api/loans/{loan_id}")
         assert detail.get_json()["borrowerPhone"] == "0999"
         missing = client.post(

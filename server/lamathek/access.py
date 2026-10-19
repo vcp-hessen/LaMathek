@@ -1,8 +1,8 @@
 from functools import wraps
 
-from flask import jsonify
+from flask import g, jsonify, session
 
-from lamathek.auth import effective_oidc_sub
+from lamathek.auth import session_actor_sub, session_impersonation
 from lamathek.db import get_session
 from lamathek.services.inventories import (
     inventory_by_id,
@@ -12,14 +12,37 @@ from lamathek.services.inventories import (
 from lamathek.services.users import user_by_oidc_sub
 
 
+def resolve_request_user(db):
+    """User the request acts as, re-checking an active impersonation every time.
+
+    The signed-in actor must still exist and still be a superuser, and the target
+    must not have become one; otherwise the impersonation ends silently and the
+    request runs as the actor. ``g.real_actor`` is the superuser while
+    impersonating, so the journal can name who actually acted.
+    """
+    g.real_actor = None
+    actor_sub = session_actor_sub()
+    if not actor_sub:
+        return None
+    actor = user_by_oidc_sub(db, actor_sub)
+    if actor is None:
+        session.pop("impersonation", None)
+        return None
+    imp = session_impersonation()
+    if imp is None:
+        return actor
+    target = user_by_oidc_sub(db, imp.get("sub") or "")
+    if not actor.is_superuser or target is None or target.is_superuser:
+        session.pop("impersonation", None)
+        return actor
+    g.real_actor = actor
+    return target
+
+
 def require_login(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        sub = effective_oidc_sub()
-        if not sub:
-            return jsonify({"error": "unauthorized"}), 401
-        db = get_session()
-        user = user_by_oidc_sub(db, sub)
+        user = resolve_request_user(get_session())
         if user is None:
             return jsonify({"error": "unauthorized"}), 401
         return fn(user, *args, **kwargs)
