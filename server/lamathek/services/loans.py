@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -9,7 +9,6 @@ from lamathek.models.loan import (
     LINE_STATUS_DRAFT,
     LINE_STATUS_REQUESTED,
     LINE_STATUS_WITHDRAWN,
-    LINE_STATUSES_BLOCKING,
     LOAN_KIND_PERMANENT,
     LOAN_KIND_SHORT,
     LOAN_PHASE_CLOSED,
@@ -24,37 +23,25 @@ from lamathek.models.loan import (
     Loan,
     LoanLine,
 )
-from lamathek.models.material import ITEM_STATUS_RETIRED, Piece
+from lamathek.models.material import Piece
 from lamathek.models.set import (
     SET_ROLE_ASSIGNMENT,
     SET_ROLE_OPTIONAL,
     MaterialSet,
-    SetStockLine,
 )
 from lamathek.models.user import User
 from lamathek.services.piece_availability import (
     piece_ids_with_open_total_loss,
-    piece_is_blocked_for_lending,
 )
 from lamathek.services.inventories import user_can_manage_inventory
 from lamathek.services.loan_workflow_steps import assert_line_action_allowed
+from lamathek.services.sets import set_by_id as load_set_by_id
+
+
 def new_line_status_for_loan(loan: Loan) -> str:
     if loan.phase == LOAN_PHASE_DRAFT:
         return LINE_STATUS_DRAFT
     return LINE_STATUS_REQUESTED
-
-
-def piece_blocked_on_loan(
-    session: Session, piece_id: int, *, exclude_loan_id: int | None = None
-) -> bool:
-    stmt = select(LoanLine).join(Loan).where(LoanLine.piece_id == piece_id)
-    if exclude_loan_id is not None:
-        stmt = stmt.where(Loan.id != exclude_loan_id)
-    for line in session.scalars(stmt).all():
-        if line.status in LINE_STATUSES_BLOCKING:
-            return True
-    return False
-from lamathek.services.sets import set_by_id as load_set_by_id
 
 
 def _loan_query():
@@ -72,16 +59,6 @@ def _loan_query():
 
 def loan_by_id(session: Session, loan_id: int) -> Loan | None:
     return session.scalar(_loan_query().where(Loan.id == loan_id))
-
-
-def list_loans(session: Session, inventory_id: int) -> list[Loan]:
-    return list(
-        session.scalars(
-            _loan_query()
-            .where(Loan.inventory_id == inventory_id)
-            .order_by(Loan.id.desc())
-        ).all()
-    )
 
 
 def list_loans_for_manager(
@@ -311,6 +288,7 @@ def update_loan(
         if kind == LOAN_KIND_PERMANENT:
             loan.event_id = None
             loan.return_on = None
+            loan.wish_return_on = None
     effective_kind = loan.kind
     if effective_kind == LOAN_KIND_PERMANENT:
         if event_name is not None and event_name.strip():
@@ -385,6 +363,22 @@ def update_loan(
                 raise ValueError("invalid_contact")
             loan.contact_user_id = contact_user_id
         updated_fields.append("contact")
+    dates_changed = any(
+        field in updated_fields for field in ("kind", "pickupOn", "returnOn")
+    )
+    if dates_changed and loan.phase != LOAN_PHASE_DRAFT:
+        # D0004: lifting the Dauerleihgabe needs a return date.
+        if loan.kind != LOAN_KIND_PERMANENT and loan.return_on is None:
+            raise ValueError("return_required")
+        # Confirmed material must still be free in the new period (D0007).
+        from lamathek.services.availability import assert_loan_lines_available
+
+        session.flush()
+        try:
+            assert_loan_lines_available(session, loan)
+        except ValueError:
+            session.rollback()
+            raise
     if update_pickup_note:
         loan.pickup_note = (pickup_note or "").strip()
         updated_fields.append("pickupNote")
@@ -409,173 +403,13 @@ def piece_ids_marked_lost(session: Session, piece_ids: list[int]) -> set[int]:
     return piece_ids_with_open_total_loss(session, piece_ids)
 
 
-def _stock_quantity(session: Session, material_type_id: int) -> int:
-    from lamathek.services.material import total_stock_quantity
+def _assert_piece_lendable(session: Session, piece: Piece) -> None:
+    """Retired, lost or severely damaged pieces never go on a Verleih (date-independent)."""
+    from lamathek.services.availability import AvailabilityError, piece_state_conflicts
 
-    return total_stock_quantity(session, material_type_id)
-
-
-def _set_reserved_stock(session: Session, inventory_id: int, material_type_id: int) -> int:
-    total = session.scalar(
-        select(func.coalesce(func.sum(SetStockLine.quantity), 0))
-        .join(MaterialSet)
-        .where(
-            MaterialSet.inventory_id == inventory_id,
-            SetStockLine.material_type_id == material_type_id,
-        )
-    )
-    return int(total or 0)
-
-
-def _set_reserved_stock_for_role(
-    session: Session, inventory_id: int, material_type_id: int, role: str
-) -> int:
-    total = session.scalar(
-        select(func.coalesce(func.sum(SetStockLine.quantity), 0))
-        .join(MaterialSet)
-        .where(
-            MaterialSet.inventory_id == inventory_id,
-            SetStockLine.material_type_id == material_type_id,
-            SetStockLine.role == role,
-        )
-    )
-    return int(total or 0)
-
-
-def _committed_set_origin_stock(
-    session: Session,
-    inventory_id: int,
-    material_type_id: int,
-    origin_role: str,
-    *,
-    exclude_loan_id: int | None = None,
-) -> int:
-    stmt = (
-        select(LoanLine)
-        .join(Loan)
-        .where(
-            Loan.inventory_id == inventory_id,
-            LoanLine.material_type_id == material_type_id,
-            LoanLine.origin_set_id.is_not(None),
-            LoanLine.origin_set_role == origin_role,
-            LoanLine.status.in_(LINE_STATUSES_BLOCKING),
-        )
-    )
-    if exclude_loan_id is not None:
-        stmt = stmt.where(Loan.id != exclude_loan_id)
-    total = 0
-    for line in session.scalars(stmt).all():
-        if line.quantity is not None:
-            total += line.quantity
-    return total
-
-
-def _committed_set_origin_stock_total(
-    session: Session,
-    inventory_id: int,
-    material_type_id: int,
-    *,
-    exclude_loan_id: int | None = None,
-) -> int:
-    stmt = (
-        select(LoanLine)
-        .join(Loan)
-        .where(
-            Loan.inventory_id == inventory_id,
-            LoanLine.material_type_id == material_type_id,
-            LoanLine.origin_set_id.is_not(None),
-            LoanLine.status.in_(LINE_STATUSES_BLOCKING),
-        )
-    )
-    if exclude_loan_id is not None:
-        stmt = stmt.where(Loan.id != exclude_loan_id)
-    total = 0
-    for line in session.scalars(stmt).all():
-        total += line.quantity or 0
-    return total
-
-
-def _loaned_stock_loose(
-    session: Session,
-    inventory_id: int,
-    material_type_id: int,
-    *,
-    exclude_loan_id: int | None = None,
-) -> int:
-    stmt = (
-        select(LoanLine)
-        .join(Loan)
-        .where(
-            Loan.inventory_id == inventory_id,
-            LoanLine.material_type_id == material_type_id,
-            LoanLine.origin_set_id.is_(None),
-            LoanLine.status.in_(LINE_STATUSES_BLOCKING),
-        )
-    )
-    if exclude_loan_id is not None:
-        stmt = stmt.where(Loan.id != exclude_loan_id)
-    total = 0
-    for line in session.scalars(stmt).all():
-        total += line.quantity or 0
-    return total
-
-
-def minimum_stock_quantity(
-    session: Session, inventory_id: int, material_type_id: int
-) -> int:
-    reserved = _set_reserved_stock(session, inventory_id, material_type_id)
-    committed_sets = _committed_set_origin_stock_total(
-        session, inventory_id, material_type_id
-    )
-    loaned_loose = _loaned_stock_loose(session, inventory_id, material_type_id)
-    return max(reserved, committed_sets) + loaned_loose
-
-
-def piece_on_open_loan(session: Session, piece_id: int) -> bool:
-    stmt = select(LoanLine).join(Loan).where(LoanLine.piece_id == piece_id)
-    for line in session.scalars(stmt).all():
-        if line.status in LINE_STATUSES_BLOCKING:
-            return True
-        if line.status == LINE_STATUS_DRAFT:
-            return True
-    return False
-
-
-def _validate_stock_available(
-    session: Session,
-    inventory_id: int,
-    material_type_id: int,
-    additional_quantity: int,
-    *,
-    exclude_loan_id: int | None = None,
-    from_set_origin: bool = False,
-) -> None:
-    available = _stock_quantity(session, material_type_id)
-    committed_sets = _committed_set_origin_stock_total(
-        session, inventory_id, material_type_id, exclude_loan_id=exclude_loan_id
-    )
-    loaned_loose = _loaned_stock_loose(
-        session, inventory_id, material_type_id, exclude_loan_id=exclude_loan_id
-    )
-    if from_set_origin:
-        needed = committed_sets + loaned_loose + additional_quantity
-    else:
-        reserved_sets = _set_reserved_stock(session, inventory_id, material_type_id)
-        needed = max(reserved_sets, committed_sets) + loaned_loose + additional_quantity
-    if needed > available:
-        raise ValueError("over_loaned")
-
-
-def _validate_piece_available(
-    session: Session, piece_id: int, *, exclude_loan_id: int | None = None
-) -> None:
-    piece = session.get(Piece, piece_id)
-    if piece is not None and piece.status == ITEM_STATUS_RETIRED:
-        raise ValueError("piece_unavailable")
-    if piece_is_blocked_for_lending(session, piece_id):
-        raise ValueError("piece_unavailable")
-    if piece_blocked_on_loan(session, piece_id, exclude_loan_id=exclude_loan_id):
-        raise ValueError("piece_unavailable")
+    conflicts = piece_state_conflicts(session, piece)
+    if conflicts:
+        raise AvailabilityError("piece_unavailable", conflicts)
 
 
 def _origin_fields(material_set: MaterialSet, role: str) -> dict:
@@ -634,15 +468,22 @@ def _place_piece_on_loan(
 def _place_set_piece(
     session: Session,
     loan: Loan,
-    piece_id: int,
+    piece: Piece,
     *,
     status: str,
     origin: dict,
-) -> None:
-    existing = _piece_line_on_loan(session, loan.id, piece_id)
+) -> dict | None:
+    """Put one Set piece on the loan; returns why it was skipped, if it was (D0011)."""
+    from lamathek.services.availability import piece_state_conflicts
+
+    existing = _piece_line_on_loan(session, loan.id, piece.id)
     if existing is not None and existing.status != LINE_STATUS_WITHDRAWN:
-        return
-    _place_piece_on_loan(session, loan, piece_id, status=status, origin=origin)
+        return None
+    conflicts = piece_state_conflicts(session, piece)
+    if conflicts:
+        return {"pieceId": piece.id, "pieceName": piece.name, "code": conflicts[0].code}
+    _place_piece_on_loan(session, loan, piece.id, status=status, origin=origin)
+    return None
 
 
 def _place_set_stock(
@@ -683,21 +524,25 @@ def _place_set_stock(
     )
 
 
-def add_set_assignment_lines(session: Session, loan: Loan, set_id: int) -> None:
+def _add_set_lines(session: Session, loan: Loan, set_id: int, role: str) -> list[dict]:
     if not _loan_editable_for_lines(loan):
         raise ValueError("loan_not_editable")
     material_set = load_set_by_id(session, set_id)
     if material_set is None or material_set.inventory_id != loan.inventory_id:
         raise ValueError("invalid_set")
 
+    set_role = SET_ROLE_ASSIGNMENT if role == ORIGIN_SET_ROLE_ASSIGNMENT else SET_ROLE_OPTIONAL
     status = new_line_status_for_loan(loan)
-    origin = _origin_fields(material_set, ORIGIN_SET_ROLE_ASSIGNMENT)
+    origin = _origin_fields(material_set, role)
+    skipped: list[dict] = []
     for piece in material_set.pieces:
-        if piece.set_role != SET_ROLE_ASSIGNMENT:
+        if piece.set_role != set_role:
             continue
-        _place_set_piece(session, loan, piece.id, status=status, origin=origin)
+        reason = _place_set_piece(session, loan, piece, status=status, origin=origin)
+        if reason is not None:
+            skipped.append(reason)
     for stock_line in material_set.stock_lines:
-        if stock_line.role != SET_ROLE_ASSIGNMENT:
+        if stock_line.role != set_role:
             continue
         _place_set_stock(
             session,
@@ -712,33 +557,16 @@ def add_set_assignment_lines(session: Session, loan: Loan, set_id: int) -> None:
     except IntegrityError:
         session.rollback()
         raise ValueError("line_exists") from None
+    return skipped
 
 
-def add_set_optional_lines(session: Session, loan: Loan, set_id: int) -> None:
-    if not _loan_editable_for_lines(loan):
-        raise ValueError("loan_not_editable")
-    material_set = load_set_by_id(session, set_id)
-    if material_set is None or material_set.inventory_id != loan.inventory_id:
-        raise ValueError("invalid_set")
+def add_set_assignment_lines(session: Session, loan: Loan, set_id: int) -> list[dict]:
+    """Add the Set's Zuordnung; pieces that cannot go out are skipped and returned."""
+    return _add_set_lines(session, loan, set_id, ORIGIN_SET_ROLE_ASSIGNMENT)
 
-    status = new_line_status_for_loan(loan)
-    origin = _origin_fields(material_set, ORIGIN_SET_ROLE_OPTIONAL)
-    for piece in material_set.pieces:
-        if piece.set_role != SET_ROLE_OPTIONAL:
-            continue
-        _place_set_piece(session, loan, piece.id, status=status, origin=origin)
-    for stock_line in material_set.stock_lines:
-        if stock_line.role != SET_ROLE_OPTIONAL:
-            continue
-        _place_set_stock(
-            session,
-            loan,
-            material_type_id=stock_line.material_type_id,
-            quantity=stock_line.quantity,
-            status=status,
-            origin=origin,
-        )
-    session.commit()
+
+def add_set_optional_lines(session: Session, loan: Loan, set_id: int) -> list[dict]:
+    return _add_set_lines(session, loan, set_id, ORIGIN_SET_ROLE_OPTIONAL)
 
 
 def add_piece_line(session: Session, loan: Loan, piece_id: int) -> LoanLine:
@@ -748,15 +576,8 @@ def add_piece_line(session: Session, loan: Loan, piece_id: int) -> LoanLine:
     if piece is None or piece.material_type.inventory_id != loan.inventory_id:
         raise ValueError("invalid_piece")
     status = new_line_status_for_loan(loan)
-    piece = session.get(Piece, piece_id)
-    if piece is not None and piece.status == ITEM_STATUS_RETIRED:
-        raise ValueError("piece_unavailable")
-    if piece_is_blocked_for_lending(session, piece_id):
-        raise ValueError("piece_unavailable")
-    if status != LINE_STATUS_DRAFT and piece_blocked_on_loan(
-        session, piece_id, exclude_loan_id=loan.id
-    ):
-        raise ValueError("piece_unavailable")
+    # Only the piece's state blocks here; date conflicts are warnings until confirmation.
+    _assert_piece_lendable(session, piece)
     try:
         line = _place_piece_on_loan(session, loan, piece_id, status=status)
         session.commit()
@@ -770,7 +591,15 @@ def add_piece_line(session: Session, loan: Loan, piece_id: int) -> LoanLine:
     return line
 
 
-def add_stock_line(session: Session, loan: Loan, material_type_id: int, quantity: int) -> LoanLine:
+def add_stock_line(
+    session: Session,
+    loan: Loan,
+    material_type_id: int,
+    quantity: int,
+    *,
+    reason: str | None = None,
+    actor: User | None = None,
+) -> LoanLine:
     if not _loan_editable_for_lines(loan):
         raise ValueError("loan_not_editable")
     if quantity <= 0:
@@ -790,9 +619,30 @@ def add_stock_line(session: Session, loan: Loan, material_type_id: int, quantity
         )
     )
     if existing is not None:
+        previous = existing.quantity or 0
+        if (
+            existing.status == LINE_STATUS_REQUESTED
+            and quantity < previous
+            and not (reason or "").strip()
+        ):
+            # D0006: shrinking a requested quantity needs a Grund.
+            raise ValueError("reason_required")
         if existing.quantity != quantity and existing.request_notified:
             existing.request_notified = False
         existing.quantity = quantity
+        if actor is not None and quantity != previous:
+            from lamathek.services.journal import journal_line_action
+
+            journal_line_action(
+                session,
+                actor=actor,
+                loan_id=loan.id,
+                line=existing,
+                action="quantity_changed",
+                fromQuantity=previous,
+                toQuantity=quantity,
+                **({"reason": reason.strip()} if (reason or "").strip() else {}),
+            )
         session.commit()
         return existing
     withdrawn = session.scalar(
@@ -857,7 +707,9 @@ def restore_withdrawn_line(
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
 
-def remove_line(session: Session, loan: Loan, line_id: int) -> None:
+def remove_line(
+    session: Session, loan: Loan, line_id: int, *, actor: User | None = None
+) -> None:
     if loan.phase == LOAN_PHASE_CLOSED:
         raise ValueError("loan_not_editable")
     line = session.get(LoanLine, line_id)
@@ -865,5 +717,24 @@ def remove_line(session: Session, loan: Loan, line_id: int) -> None:
         raise ValueError("not_found")
     if line.status != LINE_STATUS_DRAFT:
         raise ValueError("loan_not_editable")
+    if actor is not None:
+        from lamathek.services.journal import append_journal
+
+        append_journal(
+            session,
+            "line.removed",
+            actor,
+            {"action": "removed", "item": _line_item_label(line)},
+            loan_id=loan.id,
+            piece_id=line.piece_id,
+        )
     session.delete(line)
     session.commit()
+
+
+def _line_item_label(line: LoanLine) -> str:
+    if line.piece is not None:
+        return line.piece.name
+    if line.material_type is not None:
+        return f"{line.quantity or 0} × {line.material_type.name}"
+    return ""

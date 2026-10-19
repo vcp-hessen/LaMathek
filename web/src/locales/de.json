@@ -274,9 +274,8 @@
     "errors": {
       "tracking_locked": "Einzelteil- oder Mengen-Erfassung lässt sich nicht mehr ändern, solange Material existiert.",
       "material_type_locked": "Die Materialart eines Einzelteils lässt sich nicht ändern.",
-      "piece_on_loan": "Einzelteil steht auf einem offenen Verleih und kann nicht entfernt werden.",
       "material_type_not_empty": "Materialart ist nicht leer (Einzelteile, Mengen oder Set-Zuordnung).",
-      "below_loaned": "Anzahl liegt unter reservierter oder ausgeliehener Menge.",
+      "below_loaned": "So wenig reicht nicht: Ab heute ist für bestätigte Verleihe mehr eingeplant.",
       "name_taken": "Name ist bereits vergeben.",
       "invalid_variants": "Variantenangaben sind ungültig.",
       "duplicate_variant_label": "Variantenbezeichner ist doppelt vergeben.",
@@ -294,7 +293,8 @@
       "invalid_acquired_year": "Anschaffungsjahr ist ungültig.",
       "invalid_new_value": "Neuwert ist ungültig.",
       "invalid_status": "Status ist ungültig.",
-      "generic": "Speichern fehlgeschlagen ({code})."
+      "generic": "Speichern fehlgeschlagen ({code}).",
+      "piece_has_history": "Das Einzelteil war schon auf einem Verleih. Löschen würde die Verleih-Historie zerstören – bitte aussortieren."
     }
   },
   "damage": {
@@ -401,14 +401,19 @@
     "contactRequiredForConfirm": "Bitte eine zuständige Materialwart*in auswählen und speichern.",
     "confirmDatesRequired": "Bitte Abhol- und Rückgabedatum setzen und speichern (Wunschtermine oder Termine unter Betreuung).",
     "warnings": {
-      "piece_date_overlap": "Termin überschneidet sich mit Verleih #{otherLoanId} (gleiches Einzelteil).",
-      "stock_date_overlap": "Im Zeitraum ist mehr Menge bestätigt als Bestand (siehe Verleih #{otherLoanId}).",
-      "piece_wish_overlap": "Wunschtermin überschneidet sich mit bestätigtem Verleih #{otherLoanId}.",
-      "piece_total_loss": "Einzelteil ist als Totalverlust verbucht.",
-      "piece_severe_damage": "Schwerer offener Schaden am Einzelteil.",
-      "piece_mild_damage": "Offener Schaden (Hinweis) am Einzelteil.",
-      "planned_loan_total_loss": "Totalverlust – Eintrag in Verleih #{loanId}.",
-      "planned_loan_severe_damage": "Schwerer Schaden – Eintrag in Verleih #{loanId}."
+      "piece_booked": "im Zeitraum schon vergeben an {other}",
+      "piece_overdue": "noch nicht zurück von {other} (überfällig)",
+      "piece_requested_elsewhere": "im Zeitraum auch angefragt von {other}",
+      "piece_retired": "ist aussortiert",
+      "piece_total_loss": "ist als Totalverlust verbucht",
+      "piece_severe_damage": "hat einen offenen schweren Schaden",
+      "piece_mild_damage": "hat einen offenen Schaden (Hinweis)",
+      "stock_short": "nur {free} von {available} frei im Zeitraum, {requested} gewünscht",
+      "planned_loan_total_loss": "Totalverlust, aber noch eingeplant in {other}",
+      "planned_loan_severe_damage": "schwer beschädigt, aber noch eingeplant in {other}",
+      "skippedHeading": "Nicht hinzugefügt, weil nicht verleihbar:",
+      "unknownLoan": "einem anderen Verleih",
+      "heading": "Hinweise zur Belegung"
     },
     "errors": {
       "pickup_required": "Abholung fehlt. Bitte Datum setzen und speichern.",
@@ -417,9 +422,9 @@
       "invalid_permanent_fields": "Dauerleihgabe erlaubt keinen Titel und kein Rückgabedatum.",
       "invalid_contact": "Zuständige Person muss Materialwart*in für dieses Inventar sein.",
       "borrower_phone_required": "Ausleihende*r braucht eine Telefonnummer für die Anfrage.",
-      "piece_unavailable": "Stück ist nicht freigebbar.",
-      "piece_unavailable_detail": "Das Stück ist gerade nicht freigebbar, z. B. weil es:\n• ausgemustert ist oder schwer beschädigt\n• als verloren verbucht ist\n• in einem anderen Verleih noch läuft (bestätigt, gepackt, abgeholt oder Rückgabe noch nicht übernommen)",
-      "over_loaned": "Menge nicht verfügbar – zu wenig Bestand oder bereits in anderen Verleihen reserviert.",
+      "piece_unavailable": "Einzelteil ist im Zeitraum nicht frei.",
+      "piece_unavailable_detail": "Das Einzelteil kann nicht verliehen werden: Es ist aussortiert, als Totalverlust verbucht, schwer beschädigt oder im Zeitraum schon an einen anderen Verleih vergeben.",
+      "over_loaned": "Im Zeitraum ist nicht genug von dieser Menge frei.",
       "line_exists": "Diese Position ist schon in der Box.",
       "set_unavailable": "Set kann nicht hinzugefügt werden (Bestand oder Verfügbarkeit).",
       "invalid_line_status": "Für die gewählten Positionen ist diese Aktion gerade nicht möglich.",
@@ -428,7 +433,9 @@
       "step_incomplete": "Noch nicht alle Positionen dieses Schritts sind bearbeitet.",
       "mail_not_sent": "Die Benachrichtigungs-Mail konnte nicht versendet werden. Bitte erneut versuchen.",
       "loan_not_editable": "Dieser Verleih kann nicht mehr bearbeitet werden.",
-      "set_already_added": "Dieses Set ist schon in der Box."
+      "set_already_added": "Dieses Set ist schon in der Box.",
+      "dates_conflict": "Die neuen Termine passen nicht: Bestätigtes Material ist im neuen Zeitraum schon vergeben.",
+      "reason_required": "Bitte einen Grund angeben."
     },
     "pickContact": "Materialwart*in wählen",
     "title": "Titel",

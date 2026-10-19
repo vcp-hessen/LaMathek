@@ -99,6 +99,8 @@ def _loan_status(code: str) -> int:
         "workflow_step_mismatch",
         "replacement_blocks_reopen",
         "mail_not_sent",
+        "dates_conflict",
+        "piece_has_history",
     ):
         status = 409
     if code in ("invalid_permanent_fields", "invalid_date_range", "invalid_scope"):
@@ -131,6 +133,45 @@ def _line_ids_from_body(body: dict) -> list[int]:
             raise ValueError("invalid_line_ids")
         ids.append(item)
     return ids
+
+
+def _add_lines_from_body(session, loan, body: dict, actor):
+    """Add a Set, a piece or a stock quantity; returns (skipped Set pieces, error response)."""
+    skipped: list[dict] = []
+    try:
+        if "setId" in body:
+            if not isinstance(body["setId"], int):
+                return skipped, (jsonify({"error": "invalid_set"}), 400)
+            scope = body.get("scope", "assignment")
+            if scope == "optionals":
+                skipped = add_set_optional_lines(session, loan, body["setId"])
+            elif scope == "assignment":
+                skipped = add_set_assignment_lines(session, loan, body["setId"])
+            else:
+                return skipped, (jsonify({"error": "invalid_scope"}), 400)
+        elif "pieceId" in body:
+            if not isinstance(body["pieceId"], int):
+                return skipped, (jsonify({"error": "invalid_piece"}), 400)
+            add_piece_line(session, loan, body["pieceId"])
+        elif "materialTypeId" in body:
+            if not isinstance(body["materialTypeId"], int) or not isinstance(
+                body.get("quantity"), int
+            ):
+                return skipped, (jsonify({"error": "invalid_material_type"}), 400)
+            reason = body.get("reason")
+            add_stock_line(
+                session,
+                loan,
+                body["materialTypeId"],
+                body["quantity"],
+                reason=reason if isinstance(reason, str) else None,
+                actor=actor,
+            )
+        else:
+            return skipped, (jsonify({"error": "invalid_line"}), 400)
+    except ValueError as exc:
+        return skipped, _loan_error(exc)
+    return skipped, None
 
 
 @loans_bp.get("/groups")
@@ -312,38 +353,16 @@ def post_draft_line(user, inventory_id: int):
     loan = get_or_create_draft_loan(
         session, inventory, borrower_user_id, group_name=group_name
     )
-    try:
-        if "setId" in body:
-            if not isinstance(body["setId"], int):
-                return jsonify({"error": "invalid_set"}), 400
-            scope = body.get("scope", "assignment")
-            if scope == "optionals":
-                add_set_optional_lines(session, loan, body["setId"])
-            elif scope == "assignment":
-                add_set_assignment_lines(session, loan, body["setId"])
-            else:
-                return jsonify({"error": "invalid_scope"}), 400
-        elif "pieceId" in body:
-            if not isinstance(body["pieceId"], int):
-                return jsonify({"error": "invalid_piece"}), 400
-            add_piece_line(session, loan, body["pieceId"])
-        elif "materialTypeId" in body:
-            if not isinstance(body["materialTypeId"], int) or not isinstance(
-                body.get("quantity"), int
-            ):
-                return jsonify({"error": "invalid_material_type"}), 400
-            add_stock_line(session, loan, body["materialTypeId"], body["quantity"])
-        else:
-            return jsonify({"error": "invalid_line"}), 400
-    except ValueError as exc:
-        return _loan_error(exc)
+    skipped, err = _add_lines_from_body(session, loan, body, user)
+    if err:
+        return err
     loan = loan_by_id(session, loan.id)
     covers = cover_photo_ids_for_loans(session, [loan.id])
-    return jsonify(
-        loan_detail_to_json(
-            loan, cover_photo_id=covers.get(loan.id), viewer=user, session=session
-        )
-    ), 201
+    body = loan_detail_to_json(
+        loan, cover_photo_id=covers.get(loan.id), viewer=user, session=session
+    )
+    body["skippedPieces"] = skipped
+    return jsonify(body), 201
 
 
 @loans_bp.delete("/loans/<int:loan_id>")
@@ -876,36 +895,15 @@ def post_loan_line(user, loan_id: int):
 
     body = request.get_json(silent=True) or {}
     loan = loan_by_id(session, loan_id)
-    try:
-        if "setId" in body:
-            if not isinstance(body["setId"], int):
-                return jsonify({"error": "invalid_set"}), 400
-            scope = body.get("scope", "assignment")
-            if scope == "optionals":
-                add_set_optional_lines(session, loan, body["setId"])
-            elif scope == "assignment":
-                add_set_assignment_lines(session, loan, body["setId"])
-            else:
-                return jsonify({"error": "invalid_scope"}), 400
-        elif "pieceId" in body:
-            if not isinstance(body["pieceId"], int):
-                return jsonify({"error": "invalid_piece"}), 400
-            add_piece_line(session, loan, body["pieceId"])
-        elif "materialTypeId" in body:
-            if not isinstance(body["materialTypeId"], int) or not isinstance(
-                body.get("quantity"), int
-            ):
-                return jsonify({"error": "invalid_material_type"}), 400
-            add_stock_line(session, loan, body["materialTypeId"], body["quantity"])
-        else:
-            return jsonify({"error": "invalid_line"}), 400
-    except ValueError as exc:
-        return _loan_error(exc)
+    skipped, err = _add_lines_from_body(session, loan, body, user)
+    if err:
+        return err
     loan = loan_by_id(session, loan_id)
-    return jsonify(loan_detail_to_json(loan, viewer=user, session=session)), 201
+    body = loan_detail_to_json(loan, viewer=user, session=session)
+    body["skippedPieces"] = skipped
+    return jsonify(body), 201
 
 
-@loans_bp.delete("/loans/<int:loan_id>/lines/<int:line_id>")
 @loans_bp.post("/loans/<int:loan_id>/lines/<int:line_id>/restore")
 @require_login
 def restore_loan_line(user, loan_id: int, line_id: int):
@@ -930,14 +928,20 @@ def restore_loan_line(user, loan_id: int, line_id: int):
     return jsonify(loan_detail_to_json(loan, viewer=user, session=session))
 
 
+@loans_bp.delete("/loans/<int:loan_id>/lines/<int:line_id>")
 @require_login
 def delete_loan_line(user, loan_id: int, line_id: int):
+    """Remove a draft line (only drafts; later lines end with a status and Grund)."""
     session = get_session()
     loan, err = _require_loan_access(session, user, loan_id)
     if err:
         return err
+    if loan.borrower_user_id != user.id and not user_can_manage_inventory(
+        session, user, loan.inventory
+    ):
+        return jsonify({"error": "forbidden"}), 403
     try:
-        remove_line(session, loan, line_id)
+        remove_line(session, loan, line_id, actor=user)
     except ValueError as exc:
         return _loan_error(exc)
-    return jsonify({"ok": True})
+    return "", 204

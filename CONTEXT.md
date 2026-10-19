@@ -86,7 +86,7 @@ _English_: serial number
 _Avoid_: inventory number (internal name is separate)
 
 **Menge**:
-A Materialart tracked by count in one Inventar, without naming individual items. Its Anzahl is the sum of its Mengenposten. A Set reserves an Anzahl from that sum.
+A Materialart tracked by count in one Inventar, without naming individual items. Its Anzahl is the sum of its Mengenposten. A Set lists an Anzahl from it without reserving it; only confirmed Verleihe occupy stock, per day.
 _English_: stock
 _Avoid_: Bestand, Vorrat
 
@@ -121,7 +121,7 @@ _English_: assignment
 _Avoid_: membership, kit list
 
 **Optional**:
-An Einzelteil or an Anzahl from a Menge listed on a Set, outside its Zuordnung. That Anzahl is reserved from the Inventar's Menge and shown on a Verleih of the Set as material that may still be handed out.
+An Einzelteil or an Anzahl from a Menge listed on a Set, outside its Zuordnung. It reserves nothing; it is shown on a Verleih of the Set as material that may still be handed out.
 _English_: optional
 _Avoid_: Zubehör, Zusatz, Vorschlag
 

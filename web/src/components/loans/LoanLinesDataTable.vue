@@ -4,6 +4,8 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import type { ColumnDef } from '@tanstack/vue-table'
 import type { LoanLine } from '../../schemas/loan'
+import UiIcon from '../UiIcon.vue'
+import { useApiErrorMessage } from '../../composables/useApiErrorMessage'
 import ContextHelp from '../ContextHelp.vue'
 import DataTableSearch from '../data-table/DataTableSearch.vue'
 import DataTableFooter from '../data-table/DataTableFooter.vue'
@@ -63,6 +65,12 @@ function lineSetSort(line: LoanLine): string {
 function lineSetLabel(line: LoanLine): string {
   const key = lineSetSort(line)
   return key || '—'
+}
+
+const { conflictText } = useApiErrorMessage()
+
+function lineWarningTitle(line: LoanLine): string {
+  return (line.warnings ?? []).map((w) => conflictText({ ...w, itemLabel: undefined })).join('\n')
 }
 
 function lineStatusLabel(status: string): string {
@@ -395,7 +403,20 @@ function openLineTarget(line: LoanLine, event: MouseEvent) {
             <td class="hidden max-w-[10rem] truncate lg:table-cell">
               {{ lineSetLabel(row.original) }}
             </td>
-            <td class="hidden sm:table-cell">{{ lineStatusLabel(row.original.status) }}</td>
+            <td class="hidden sm:table-cell">
+              <span class="inline-flex items-center gap-1">
+                {{ lineStatusLabel(row.original.status) }}
+                <span
+                  v-if="row.original.warnings?.length"
+                  class="text-warning"
+                  :title="lineWarningTitle(row.original)"
+                  :aria-label="lineWarningTitle(row.original)"
+                  role="img"
+                >
+                  <UiIcon name="loss" size-class="size-4" />
+                </span>
+              </span>
+            </td>
             <td class="hidden lg:table-cell min-w-[8rem] max-w-[14rem]">
               <span class="block truncate text-xs opacity-80">
                 {{ reasonDisplay(row.original) || '—' }}

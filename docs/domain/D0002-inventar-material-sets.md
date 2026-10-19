@@ -35,7 +35,7 @@ Material liegt ortsgebunden in Inventaren (z. B. Donnerskopf, Landesbüro). Se
 
 - Ein Set hat eine **Zuordnung** aus Einzelteilen und Mengen sowie optionale **Optionals**.
 - Ein Einzelteil liegt in höchstens einem Set (oder keinem).
-- Eine vom Set reservierte **Anzahl** aus einer Menge (Zuordnung oder Optional) wird vom Bestand der Mengenposten abgezogen.
+- Ein Set **reserviert nichts**: Die Anzahl einer Set-Zeile beschreibt nur, wie viel zum Set gehört (höchstens die Menge des Inventars). Belegt wird erst beim Bestätigen eines Verleihs (D0007).
 - Set- und Verleih-Positionen benennen keine Variante.
 - Beispiel Jurte: Zuordnung mit Planen; Seile/Heringe/Stangen als Optionals mit je einer Anzahl.
 

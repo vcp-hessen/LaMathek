@@ -1,4 +1,4 @@
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -116,46 +116,12 @@ def delete_set(session: Session, material_set: MaterialSet) -> None:
     session.commit()
 
 
-def _stock_quantity(session: Session, material_type_id: int) -> int:
+def _validate_set_stock_quantity(session: Session, material_type_id: int, quantity: int) -> None:
+    """A Set only describes what belongs together and reserves nothing (D0007);
+    one Set line just cannot ask for more than the Inventar has at all."""
     from lamathek.services.material import total_stock_quantity
 
-    return total_stock_quantity(session, material_type_id)
-
-
-def _reserved_stock(
-    session: Session,
-    inventory_id: int,
-    material_type_id: int,
-    *,
-    exclude_line_id: int | None = None,
-) -> int:
-    stmt = (
-        select(func.coalesce(func.sum(SetStockLine.quantity), 0))
-        .join(MaterialSet)
-        .where(
-            MaterialSet.inventory_id == inventory_id,
-            SetStockLine.material_type_id == material_type_id,
-        )
-    )
-    if exclude_line_id is not None:
-        stmt = stmt.where(SetStockLine.id != exclude_line_id)
-    total = session.scalar(stmt)
-    return int(total or 0)
-
-
-def _validate_stock_reservation(
-    session: Session,
-    inventory_id: int,
-    material_type_id: int,
-    new_quantity: int,
-    *,
-    exclude_line_id: int | None = None,
-) -> None:
-    available = _stock_quantity(session, material_type_id)
-    reserved = _reserved_stock(
-        session, inventory_id, material_type_id, exclude_line_id=exclude_line_id
-    )
-    if reserved + new_quantity > available:
+    if quantity > total_stock_quantity(session, material_type_id):
         raise ValueError("over_reserved")
 
 
@@ -236,24 +202,13 @@ def upsert_stock_line(
         return None
 
     if existing is not None:
-        _validate_stock_reservation(
-            session,
-            material_set.inventory_id,
-            material_type_id,
-            quantity,
-            exclude_line_id=existing.id,
-        )
+        _validate_set_stock_quantity(session, material_type_id, quantity)
         existing.quantity = quantity
         session.commit()
         session.refresh(existing)
         return existing
 
-    _validate_stock_reservation(
-        session,
-        material_set.inventory_id,
-        material_type_id,
-        quantity,
-    )
+    _validate_set_stock_quantity(session, material_type_id, quantity)
     line = SetStockLine(
         set_id=material_set.id,
         material_type_id=material_type_id,

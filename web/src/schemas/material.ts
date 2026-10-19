@@ -1,4 +1,6 @@
 import { z } from 'zod'
+
+import { loanWarningSchema } from './loan'
 import { photoMetaSchema } from './photo'
 
 export const categorySchema = z.object({
@@ -91,15 +93,7 @@ export const pieceDetailSchema = pieceSchema.extend({
   photos: z.array(photoMetaSchema).optional(),
   damages: z.array(damageSchema),
   foundAgainEligible: z.boolean().optional(),
-  warnings: z
-    .array(
-      z.object({
-        code: z.string(),
-        loanId: z.number().optional(),
-        lineId: z.number().optional(),
-      }),
-    )
-    .optional(),
+  warnings: z.array(loanWarningSchema).optional(),
 })
 
 export type Damage = z.infer<typeof damageSchema>

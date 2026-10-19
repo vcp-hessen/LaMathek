@@ -56,7 +56,7 @@ def test_piece_cannot_sit_on_two_sets():
         tmp.cleanup()
 
 
-def test_stock_reservation_cannot_exceed_quantity():
+def test_set_stock_line_cannot_exceed_total_but_sets_reserve_nothing():
     app, tmp = _app_with_db()
     try:
         with app.app_context():
@@ -88,9 +88,18 @@ def test_stock_reservation_cannot_exceed_quantity():
         )
         assert ok.status_code == 200
 
+        # Sets reserve nothing (D0007): 8 optional + 5 assigned of 10 is fine,
+        # the loan check counts the quantities when they are confirmed.
+        second_set = client.post(f"/api/inventories/{inv_id}/sets", json={"name": "Kohte"})
+        both = client.put(
+            f"/api/sets/{second_set.get_json()['id']}/stock-lines",
+            json={"materialTypeId": type_id, "role": "assignment", "quantity": 5},
+        )
+        assert both.status_code == 200
+
         over = client.put(
             f"/api/sets/{set_id}/stock-lines",
-            json={"materialTypeId": type_id, "role": "assignment", "quantity": 5},
+            json={"materialTypeId": type_id, "role": "assignment", "quantity": 11},
         )
         assert over.status_code == 409
         assert over.get_json()["error"] == "over_reserved"

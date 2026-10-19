@@ -28,6 +28,7 @@ import {
 import AddToBoxButton from '../components/loans/AddToBoxButton.vue'
 import PhotoGallery from '../components/PhotoGallery.vue'
 import SuperuserDestructiveDelete from '../components/SuperuserDestructiveDelete.vue'
+import LoanConflictWarnings from '../components/loans/LoanConflictWarnings.vue'
 import VariantAxisSelects from '../components/VariantAxisSelects.vue'
 import { syncVariantMapKeys } from '../utils/variantDisplay'
 
@@ -220,6 +221,11 @@ function damageStatusLabel(damage: Damage): string {
           size="md"
         />
       </div>
+      <LoanConflictWarnings
+        v-if="canManage && piece.warnings?.length"
+        :warnings="piece.warnings"
+        hide-item
+      />
       <MaterialDetailsSection
         :form-error="stammdatenError"
         :saving="updateMutation.isPending.value"

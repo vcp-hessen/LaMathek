@@ -28,11 +28,8 @@ from lamathek.models.material import MaterialType
 from lamathek.models.user import User
 from lamathek.services.inventories import user_can_manage_inventory
 from lamathek.services.loan_access import user_is_borrower
-from lamathek.services.loans import (
-    _validate_piece_available,
-    _validate_stock_available,
-    loan_by_id,
-)
+from lamathek.services.availability import assert_line_available
+from lamathek.services.loans import loan_by_id
 from lamathek.services.journal import append_journal, journal_line_action
 from lamathek.services.loan_mail_dispatch import reset_loan_mail_receipt_flags
 from lamathek.services.loan_notifications import notify_loan_action
@@ -70,8 +67,6 @@ def advance_loan_phase(session: Session, loan: Loan) -> None:
             next_step = open_workflow_step_from_lines(loan)
             if next_step:
                 loan.phase = next_step
-            elif loan.phase == LOAN_PHASE_CLOSED:
-                pass
             return
     loan.phase = LOAN_PHASE_CLOSED
 
@@ -239,23 +234,17 @@ def confirm_lines(
         pickup_on=loan.pickup_on,
         return_on=loan.return_on,
     )
+    _borrower_phone_required(loan.borrower_user)
     lines = _lines_for_loan(session, loan, line_ids)
     for line in lines:
         assert_line_action_allowed(loan, line, "confirm")
         if line.status != LINE_STATUS_REQUESTED:
             raise ValueError("invalid_line_status")
-        if line.piece_id is not None:
-            _validate_piece_available(session, line.piece_id, exclude_loan_id=loan.id)
-        elif line.material_type_id is not None and line.quantity is not None:
-            _validate_stock_available(
-                session,
-                loan.inventory_id,
-                line.material_type_id,
-                line.quantity,
-                exclude_loan_id=loan.id,
-                from_set_origin=line.origin_set_id is not None,
-            )
+        # Checked line by line against the database, so lines confirmed earlier
+        # in this call (flushed below) count as occupied for the next one.
+        assert_line_available(session, loan, line)
         line.status = LINE_STATUS_CONFIRMED
+        session.flush()
         journal_line_action(
             session, actor=actor, loan_id=loan.id, line=line, action="confirm"
         )
@@ -325,6 +314,8 @@ def replace_line(
     assert_line_action_allowed(loan, original, "replace")
     if not reason.strip():
         raise ValueError("reason_required")
+    new_line = _replacement_line(session, loan, original, replacement)
+
     original.status_before_end = original.status
     original.status = LINE_STATUS_UNAVAILABLE
     original.reason = reason.strip()
@@ -337,6 +328,29 @@ def replace_line(
         action="replace",
         reason=original.reason,
     )
+    session.flush()
+    # The original no longer occupies anything; the replacement must fit the period.
+    assert_line_available(session, loan, new_line)
+    session.add(new_line)
+    session.flush()
+    _mark_line_mail_pending(loan, new_line)
+    journal_line_action(
+        session,
+        actor=actor,
+        loan_id=loan.id,
+        line=new_line,
+        action="replacement",
+        replacesLineId=original.id,
+    )
+    session.commit()
+    return loan_by_id(session, loan.id)  # type: ignore[return-value]
+
+
+def _replacement_line(
+    session: Session, loan: Loan, original: LoanLine, replacement: dict
+) -> LoanLine:
+    """Validate what replaces ``original``: same Inventar, right tracking, a real change."""
+    from lamathek.models.material import TRACKING_STOCK, Piece
 
     new_line = LoanLine(
         loan_id=loan.id,
@@ -349,25 +363,35 @@ def replace_line(
     )
     if "pieceId" in replacement:
         piece_id = replacement["pieceId"]
-        _validate_piece_available(session, piece_id, exclude_loan_id=loan.id)
+        piece = session.get(Piece, piece_id) if isinstance(piece_id, int) else None
+        if piece is None or piece.material_type.inventory_id != loan.inventory_id:
+            raise ValueError("invalid_piece")
+        if piece_id == original.piece_id or any(
+            line.piece_id == piece_id for line in loan.lines
+        ):
+            raise ValueError("line_exists")
         new_line.piece_id = piece_id
-    elif "materialTypeId" in replacement and "quantity" in replacement:
-        new_line.material_type_id = replacement["materialTypeId"]
-        new_line.quantity = replacement["quantity"]
-        _validate_stock_available(
-            session,
-            loan.inventory_id,
-            new_line.material_type_id,
-            new_line.quantity,
-            exclude_loan_id=loan.id,
-            from_set_origin=new_line.origin_set_id is not None,
+        return new_line
+    if "materialTypeId" in replacement and "quantity" in replacement:
+        material_type_id = replacement["materialTypeId"]
+        quantity = replacement["quantity"]
+        if not isinstance(quantity, int) or quantity <= 0:
+            raise ValueError("invalid_quantity")
+        material_type = (
+            session.get(MaterialType, material_type_id)
+            if isinstance(material_type_id, int)
+            else None
         )
-    else:
-        raise ValueError("invalid_replacement")
-    session.add(new_line)
-    _mark_line_mail_pending(loan, new_line)
-    session.commit()
-    return loan_by_id(session, loan.id)  # type: ignore[return-value]
+        if (
+            material_type is None
+            or material_type.inventory_id != loan.inventory_id
+            or material_type.tracking != TRACKING_STOCK
+        ):
+            raise ValueError("invalid_material_type")
+        new_line.material_type_id = material_type_id
+        new_line.quantity = quantity
+        return new_line
+    raise ValueError("invalid_replacement")
 
 
 def withdraw_lines(
@@ -856,6 +880,10 @@ def hand_draft_to_borrower(
     borrower = session.get(User, borrower_user_id)
     if borrower is None:
         raise ValueError("invalid_borrower")
+    if not any(line.status == LINE_STATUS_DRAFT for line in loan.lines):
+        # An empty request would sit in review with nothing to confirm.
+        raise ValueError("empty_loan")
+    _borrower_phone_required(borrower)
     loan.borrower_user_id = borrower_user_id
     loan.contact_user_id = actor.id
     if loan.pickup_on is None and loan.wish_pickup_on is not None:
@@ -992,8 +1020,22 @@ def complete_loan_step(session: Session, loan: Loan, *, actor: User) -> Loan:
     return loan_by_id(session, loan.id)  # type: ignore[return-value]
 
 
+_HANDED_OUT_STATUSES = frozenset(
+    {
+        LINE_STATUS_PICKED_UP,
+        LINE_STATUS_RETURN_REPORTED,
+        LINE_STATUS_RESTOCKED,
+        LINE_STATUS_NOT_RETURNED,
+    }
+)
+
+
 def delete_unreleased_loan(session: Session, loan: Loan, *, actor: User) -> None:
+    """Borrowers delete their drafts; superusers any Verleih whose material never
+    went out. Once something was handed over, the record (losses, journal) stays."""
     if actor.is_superuser:
+        if any(line.status in _HANDED_OUT_STATUSES for line in loan.lines):
+            raise ValueError("invalid_loan_state")
         session.delete(loan)
         session.commit()
         return

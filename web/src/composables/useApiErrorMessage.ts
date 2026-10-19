@@ -1,5 +1,6 @@
 import { useI18n } from 'vue-i18n'
-import { apiErrorCode } from '../api/errors'
+import { apiErrorCode, apiErrorConflicts } from '../api/errors'
+import type { LoanWarning } from '../schemas/loan'
 
 const LOAN_ERROR_CODES = new Set([
   'pickup_required',
@@ -21,12 +22,14 @@ const LOAN_ERROR_CODES = new Set([
   'set_already_added',
   'mail_not_sent',
   'step_incomplete',
+  'dates_conflict',
+  'reason_required',
 ])
 
 const KNOWN_CODES = new Set([
   'tracking_locked',
   'material_type_locked',
-  'piece_on_loan',
+  'piece_has_history',
   'material_type_not_empty',
   'below_loaned',
   'name_taken',
@@ -61,12 +64,34 @@ export function useApiErrorMessage() {
     return t(`loans.errors.${code}`)
   }
 
+  /** One line per conflict, e.g. "Kohte 1: im Zeitraum schon vergeben an „Stamm A“". */
+  function conflictText(warning: LoanWarning): string {
+    const available = warning.available ?? 0
+    const other = warning.otherLoanTitle
+      ? `„${warning.otherLoanTitle}“`
+      : t('loans.warnings.unknownLoan')
+    const text = t(`loans.warnings.${warning.code}`, {
+      other,
+      available,
+      free: Math.max(0, available - (warning.occupied ?? 0)),
+      requested: warning.requested ?? 0,
+    })
+    return warning.itemLabel ? `${warning.itemLabel}: ${text}` : text
+  }
+
+  /** The error text, followed by the conflicts the server named (if any). */
+  function withConflicts(message: string, error: unknown): string {
+    const conflicts = apiErrorConflicts(error)
+    if (!conflicts.length) return message
+    return [message, ...conflicts.map((c) => `• ${conflictText(c)}`)].join('\n')
+  }
+
   function boxActionFeedback(error: unknown): BoxActionErrorFeedback {
     const code = apiErrorCode(error)
     if (code === 'piece_unavailable') {
       return {
         hint: loanErrorText('piece_unavailable'),
-        banner: t('loans.errors.piece_unavailable_detail'),
+        banner: withConflicts(t('loans.errors.piece_unavailable_detail'), error),
       }
     }
     if (code && LOAN_ERROR_CODES.has(code)) {
@@ -85,10 +110,10 @@ export function useApiErrorMessage() {
 
   function loanActionMessageFor(error: unknown): string {
     const code = apiErrorCode(error)
-    if (code === 'piece_unavailable') {
+    if (code === 'piece_unavailable' && !apiErrorConflicts(error).length) {
       return t('loans.errors.piece_unavailable_detail')
     }
-    return messageFor(error)
+    return withConflicts(messageFor(error), error)
   }
 
   function messageFor(error: unknown): string {
@@ -105,5 +130,5 @@ export function useApiErrorMessage() {
     return t('material.errors.generic', { code: 'unknown' })
   }
 
-  return { messageFor, loanActionMessageFor, boxActionFeedback }
+  return { messageFor, loanActionMessageFor, boxActionFeedback, conflictText }
 }

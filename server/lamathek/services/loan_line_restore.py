@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from sqlalchemy.orm import Session
 
 from lamathek.models.loan import (
-    LINE_STATUS_CONFIRMED,
     LINE_STATUS_NOT_RETURNED,
+    LINE_STATUSES_BLOCKING,
     LINE_STATUS_UNAVAILABLE,
     LINE_STATUS_WITHDRAWN,
     LINE_STATUSES_TERMINAL,
@@ -26,12 +28,8 @@ from lamathek.services.loan_workflow_steps import (
     sync_loan_phase_after_line_change,
 )
 from lamathek.services.journal import journal_line_action
-from lamathek.services.loans import (
-    _validate_piece_available,
-    _validate_stock_available,
-    loan_by_id,
-    restore_withdrawn_line,
-)
+from lamathek.services.availability import assert_line_available, line_interval
+from lamathek.services.loans import loan_by_id, restore_withdrawn_line
 from lamathek.services.material import restore_stock_quantity
 from lamathek.timezone import instance_today
 
@@ -46,19 +44,13 @@ def _replacement_blocks_reopen(loan: Loan, line: LoanLine) -> bool:
 
 
 def _validate_target_availability(session: Session, loan: Loan, line: LoanLine, target: str) -> None:
-    if target != LINE_STATUS_CONFIRMED:
+    """Every restore that makes the line occupy material again is checked, not only
+    the one back to „bestätigt“: the piece may have been lent out meanwhile."""
+    if target not in LINE_STATUSES_BLOCKING:
         return
-    if line.piece_id is not None:
-        _validate_piece_available(session, line.piece_id, exclude_loan_id=loan.id)
-    elif line.material_type_id is not None and line.quantity is not None:
-        _validate_stock_available(
-            session,
-            loan.inventory_id,
-            line.material_type_id,
-            line.quantity,
-            exclude_loan_id=loan.id,
-            from_set_origin=line.origin_set_id is not None,
-        )
+    # The period depends on the status the line returns to (overdue lines extend to today).
+    as_restored = SimpleNamespace(status=target)
+    assert_line_available(session, loan, line, interval=line_interval(loan, as_restored))
 
 
 def restore_loan_line(session: Session, loan: Loan, line_id: int, *, actor: User) -> Loan:

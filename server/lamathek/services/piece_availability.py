@@ -33,20 +33,25 @@ def damage_is_open(damage: Damage) -> bool:
     return damage.repair is None
 
 
+def _open_event_query(kind: str):
+    """Damages of ``kind`` without a Repair (i.e. still open)."""
+    return (
+        select(Damage.piece_id)
+        .outerjoin(Repair, Repair.damage_id == Damage.id)
+        .where(Damage.kind == kind, Repair.id.is_(None))
+    )
+
+
 def piece_has_open_total_loss(session: Session, piece_id: int) -> bool:
-    for damage in _open_damages(session, piece_id):
-        if damage.kind == DAMAGE_KIND_TOTAL_LOSS and damage_is_open(damage):
-            return True
-    return False
+    query = _open_event_query(DAMAGE_KIND_TOTAL_LOSS).where(Damage.piece_id == piece_id)
+    return session.scalar(query.limit(1)) is not None
 
 
 def piece_has_open_severe_damage(session: Session, piece_id: int) -> bool:
-    for damage in _open_damages(session, piece_id):
-        if damage.kind != DAMAGE_KIND_DAMAGE:
-            continue
-        if damage.severe and damage_is_open(damage):
-            return True
-    return False
+    query = _open_event_query(DAMAGE_KIND_DAMAGE).where(
+        Damage.piece_id == piece_id, Damage.severe.is_(True)
+    )
+    return session.scalar(query.limit(1)) is not None
 
 
 def piece_is_blocked_for_lending(session: Session, piece_id: int) -> bool:
@@ -185,8 +190,5 @@ def piece_found_again_eligible(session: Session, piece_id: int) -> bool:
 def piece_ids_with_open_total_loss(session: Session, piece_ids: list[int]) -> set[int]:
     if not piece_ids:
         return set()
-    result: set[int] = set()
-    for piece_id in piece_ids:
-        if piece_has_open_total_loss(session, piece_id):
-            result.add(piece_id)
-    return result
+    query = _open_event_query(DAMAGE_KIND_TOTAL_LOSS).where(Damage.piece_id.in_(piece_ids))
+    return set(session.scalars(query).all())

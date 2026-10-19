@@ -120,6 +120,13 @@ def assert_material_type_empty(session: Session, material_type: MaterialType) ->
     )
     if (set_lines or 0) > 0:
         raise ValueError("material_type_not_empty")
+    from lamathek.models.loan import LoanLine
+
+    # Stock lines of closed Verleihe would cascade away with the Materialart.
+    if session.scalar(
+        select(LoanLine.id).where(LoanLine.material_type_id == material_type.id).limit(1)
+    ):
+        raise ValueError("material_type_not_empty")
 
 
 def _normalize_short_name(value: str | None) -> str | None:
@@ -525,10 +532,11 @@ def delete_material_type(session: Session, material_type: MaterialType) -> None:
 
 
 def delete_piece(session: Session, piece: Piece) -> None:
-    from lamathek.services.loans import piece_on_open_loan
+    """Only pieces that never were on a Verleih; otherwise retire them (keeps history)."""
+    from lamathek.models.loan import LoanLine
 
-    if piece_on_open_loan(session, piece.id):
-        raise ValueError("piece_on_loan")
+    if session.scalar(select(LoanLine.id).where(LoanLine.piece_id == piece.id).limit(1)):
+        raise ValueError("piece_has_history")
     session.delete(piece)
     session.commit()
 
@@ -543,16 +551,11 @@ def total_stock_quantity(session: Session, material_type_id: int) -> int:
     return int(total or 0)
 
 
-def assert_can_retire_stock_lot(
-    session: Session, lot: StockLot, inventory_id: int
-) -> None:
+def assert_can_retire_stock_lot(session: Session, lot: StockLot) -> None:
     if lot.status != ITEM_STATUS_ACTIVE:
         return
-    from lamathek.services.loans import minimum_stock_quantity
-
-    floor = minimum_stock_quantity(session, inventory_id, lot.material_type_id)
     active_total = total_stock_quantity(session, lot.material_type_id)
-    if active_total - lot.quantity < floor:
+    if active_total - lot.quantity < _stock_occupied_from_today(session, lot.material_type_id):
         raise ValueError("below_loaned")
 
 
@@ -567,11 +570,23 @@ def _stock_material_type(
     return material_type
 
 
-def _assert_stock_floor(session: Session, inventory_id: int, material_type_id: int) -> None:
-    from lamathek.services.loans import minimum_stock_quantity
+def _stock_occupied_from_today(session: Session, material_type_id: int) -> int:
+    from lamathek.services.availability import stock_occupied_from
+    from lamathek.timezone import instance_today
 
-    floor = minimum_stock_quantity(session, inventory_id, material_type_id)
-    if total_stock_quantity(session, material_type_id) < floor:
+    return stock_occupied_from(session, material_type_id, instance_today())
+
+
+def _assert_stock_floor(session: Session, material_type_id: int, previous_total: int) -> None:
+    """Lowering stock by hand must leave enough for every confirmed Verleih from today on.
+
+    Only checked when the total goes down: renaming a lot or adding stock must
+    never fail because of an earlier loss.
+    """
+    new_total = total_stock_quantity(session, material_type_id)
+    if new_total >= previous_total:
+        return
+    if new_total < _stock_occupied_from_today(session, material_type_id):
         raise ValueError("below_loaned")
 
 
@@ -618,6 +633,7 @@ def create_stock_lot(
         raise ValueError("invalid_quantity")
     material_type = _stock_material_type(session, inventory, material_type_id)
     variant_map = validate_lot_variant_map(material_type, variant)
+    previous_total = total_stock_quantity(session, material_type.id)
     if quantity > 0:
         lot = StockLot(
             material_type_id=material_type.id,
@@ -630,7 +646,7 @@ def create_stock_lot(
         if item_fields:
             apply_item_fields_on_create(lot, **item_fields)
         session.flush()
-    _assert_stock_floor(session, inventory.id, material_type.id)
+    _assert_stock_floor(session, material_type.id, previous_total)
     session.commit()
     return _stock_material_type(session, inventory, material_type.id)
 
@@ -652,6 +668,7 @@ def update_stock_lot(
     material_type = _stock_material_type(session, inventory, lot.material_type_id)
     if lot.material_type_id != material_type.id:
         raise ValueError("not_found")
+    previous_total = total_stock_quantity(session, material_type.id)
     if label_sent:
         lot.label = _normalize_optional_text(label)
     if variant_sent:
@@ -664,7 +681,7 @@ def update_stock_lot(
                 new_status == ITEM_STATUS_RETIRED
                 and lot.status == ITEM_STATUS_ACTIVE
             ):
-                assert_can_retire_stock_lot(session, lot, inventory.id)
+                assert_can_retire_stock_lot(session, lot)
             lot.status = new_status
 
     lot.quantity = quantity
@@ -672,16 +689,17 @@ def update_stock_lot(
     if lot.quantity == 0:
         session.delete(lot)
         session.flush()
-    _assert_stock_floor(session, inventory.id, material_type.id)
+    _assert_stock_floor(session, material_type.id, previous_total)
     session.commit()
     return _stock_material_type(session, inventory, material_type.id)
 
 
 def delete_stock_lot(session: Session, inventory: Inventory, lot: StockLot) -> MaterialType:
     material_type = _stock_material_type(session, inventory, lot.material_type_id)
+    previous_total = total_stock_quantity(session, material_type.id)
     session.delete(lot)
     session.flush()
-    _assert_stock_floor(session, inventory.id, material_type.id)
+    _assert_stock_floor(session, material_type.id, previous_total)
     session.commit()
     return _stock_material_type(session, inventory, material_type.id)
 

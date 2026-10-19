@@ -34,14 +34,23 @@ const loanLineOriginSchema = z.object({
   originSetRole: z.enum(['assignment', 'optional']).nullable(),
 })
 
+/** A conflict or hint from the availability check (D0007); also inside 409 errors. */
 export const loanWarningSchema = z.object({
   code: z.string(),
   otherLoanId: z.number().optional(),
+  otherLoanTitle: z.string().optional(),
+  otherInventoryId: z.number().optional(),
   loanId: z.number().optional(),
   pieceId: z.number().optional(),
   lineId: z.number().optional(),
   materialTypeId: z.number().optional(),
+  itemLabel: z.string().optional(),
+  available: z.number().optional(),
+  occupied: z.number().optional(),
+  requested: z.number().optional(),
 })
+
+export type LoanWarning = z.infer<typeof loanWarningSchema>
 
 const loanLineCommonSchema = {
   requestNotified: z.boolean().optional(),
@@ -112,6 +121,10 @@ export const loanDetailSchema = loanSchema.extend({
   returnPhotos: z.array(photoMetaSchema).optional(),
   lines: z.array(loanLineSchema),
   warnings: z.array(loanWarningSchema).optional(),
+  /** Set pieces left out when adding a Set (retired, lost, severely damaged). */
+  skippedPieces: z
+    .array(z.object({ pieceId: z.number(), pieceName: z.string(), code: z.string() }))
+    .optional(),
   hasUnnotifiedRequestedLines: z.boolean().optional(),
   hasPendingMailChanges: z.boolean().optional(),
 })

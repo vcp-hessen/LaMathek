@@ -147,8 +147,12 @@ const buttonTitle = computed(() => {
 function dismissError() {
   errorDetail.value = null
   errorHint.value = null
+  skippedNotice.value = null
   mutation.reset()
 }
+
+/** Set pieces the server left out (retired, lost, severely damaged; D0011). */
+const skippedNotice = ref<string | null>(null)
 
 async function addToBox(loanId: number) {
   if (props.pieceId != null) return addLoanPieceLine(loanId, props.pieceId)
@@ -182,9 +186,16 @@ const mutation = useMutation({
     if (inBox.value && removableLines.value.length > 0) return removeFromBox(loanId)
     return addToBox(loanId)
   },
-  onSuccess: async () => {
+  onSuccess: async (result) => {
     errorDetail.value = null
     errorHint.value = null
+    const skipped = result && 'skippedPieces' in result ? (result.skippedPieces ?? []) : []
+    skippedNotice.value = skipped.length
+      ? [
+          t('loans.warnings.skippedHeading'),
+          ...skipped.map((p) => `• ${p.pieceName}: ${t(`loans.warnings.${p.code}`)}`),
+        ].join('\n')
+      : null
     const loanId = activeLoanId.value
     if (loanId != null) {
       await queryClient.invalidateQueries({ queryKey: ['loan', loanId] })
@@ -215,6 +226,23 @@ const errorRingClass = computed(() =>
         @click="mutation.mutate()"
       />
       <span v-if="showLabel !== false" class="hidden sm:inline">{{ actionTitle }}</span>
+    </div>
+    <div
+      v-if="skippedNotice && !errorDetail"
+      role="status"
+      class="w-max max-w-[min(18rem,calc(100vw-2rem))] rounded-md border border-warning/50 bg-base-100 px-2.5 py-2 text-left text-xs leading-snug shadow-sm"
+    >
+      <div class="flex items-start gap-2">
+        <p class="min-w-0 flex-1 whitespace-pre-line">{{ skippedNotice }}</p>
+        <button
+          type="button"
+          class="btn btn-ghost btn-xs btn-square shrink-0 -mr-1 -mt-0.5"
+          :aria-label="t('feedback.dismiss')"
+          @click.stop="dismissError"
+        >
+          <UiIcon name="x" size-class="size-3.5" />
+        </button>
+      </div>
     </div>
     <div
       v-if="errorDetail"

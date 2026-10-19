@@ -74,7 +74,7 @@ def _material_type_status(code: str) -> int:
         status = 404
     if code == "tracking_locked":
         status = 409
-    if code in ("piece_on_loan", "below_loaned"):
+    if code in ("piece_has_history", "below_loaned"):
         status = 409
     if code in ("short_name_taken", "name_taken", "material_type_not_empty"):
         status = 409
