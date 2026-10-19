@@ -15,7 +15,6 @@ from lamathek.models.loan import (
     Loan,
     LoanLine,
 )
-from lamathek.models.material import MaterialType
 from lamathek.services.material import total_stock_quantity
 from lamathek.services.piece_availability import (
     damage_is_open,

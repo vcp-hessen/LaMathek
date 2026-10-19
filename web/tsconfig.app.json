@@ -5,6 +5,9 @@
     "types": ["vite/client"],
     "allowArbitraryExtensions": true,
     "resolveJsonModule": true,
+    "paths": {
+      "@shared/*": ["../server/lamathek/domain/*"]
+    },
 
     /* Linting */
     "noUnusedLocals": true,
@@ -12,5 +15,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "../server/lamathek/domain/*.json"]
 }

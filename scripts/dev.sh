@@ -9,9 +9,22 @@ if [[ ! -f "${ROOT}/.env.dev" ]]; then
   exit 1
 fi
 
+SEED=0
+for arg in "$@"; do
+  case "${arg}" in
+    --seed) SEED=1 ;;
+    *) echo "Unknown option: ${arg} (supported: --seed)" >&2; exit 1 ;;
+  esac
+done
+
 set -a
 # shellcheck disable=SC1091
 source "${ROOT}/.env.dev"
+# Personal overrides (name, mail, SMTP) live in the gitignored .env.local.
+if [[ -f "${ROOT}/.env.local" ]]; then
+  # shellcheck disable=SC1091
+  source "${ROOT}/.env.local"
+fi
 set +a
 
 export LAMATHEK_ENV=dev
@@ -58,8 +71,13 @@ if [[ ! -d "${ROOT}/web/node_modules" ]]; then
   npm install --prefix "${ROOT}/web"
 fi
 
-echo "Running database migrations …"
-(cd "${ROOT}/server" && alembic upgrade head)
+if [[ "${SEED}" == "1" ]]; then
+  echo "Resetting database and loading demo data …"
+  python "${ROOT}/scripts/seed_demo.py" --reset
+else
+  echo "Running database migrations …"
+  lamathek migrate
+fi
 
 stop_listen_port "${LAMATHEK_API_PORT}"
 stop_listen_port "${WEB_PORT}"

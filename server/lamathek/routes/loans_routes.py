@@ -239,11 +239,13 @@ def get_draft(user, inventory_id: int):
     if not user_can_create_loan_on_inventory(session, user, inventory):
         return jsonify({"error": "forbidden"}), 403
     borrower_id = user.id
-    body_borrower = request.args.get("borrowerUserId")
-    if body_borrower is not None:
-        if int(body_borrower) != user.id:
+    body_borrower = request.args.get("borrowerUserId", type=int)
+    if "borrowerUserId" in request.args:
+        if body_borrower is None:
+            return jsonify({"error": "invalid_borrower"}), 400
+        if body_borrower != user.id:
             return jsonify({"error": "forbidden"}), 403
-        borrower_id = int(body_borrower)
+        borrower_id = body_borrower
     draft = get_draft_loan(session, inventory.id, borrower_id)
     if draft is None:
         return jsonify(None)

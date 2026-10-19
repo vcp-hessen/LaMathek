@@ -7,31 +7,41 @@ from lamathek.timezone import DEFAULT_INSTANCE_TIMEZONE, parse_instance_timezone
 
 
 def checkout_root() -> Path:
-    """Repository root in a checkout, or /app inside the staging image.
+    """Repository root in a checkout; the working directory once pip-installed.
 
-    After pip install this file lives in site-packages, so walking up from
-    __file__ is not the checkout. Alembic is launched from the copied sources
-    and would otherwise migrate a different SQLite file than the running app.
+    Only used to find .env files and to resolve a relative SQLITE_PATH. The
+    image sets SQLITE_PATH to an absolute path.
     """
     candidate = Path(__file__).resolve().parents[2]
-    marker = candidate / "server" / "alembic.ini"
-    if marker.is_file() and (candidate / "web").is_dir():
+    if (candidate / "server" / "pyproject.toml").is_file():
         return candidate
-    image_root = Path("/app")
-    if (image_root / "server" / "alembic.ini").is_file():
-        return image_root
-    return candidate
+    return Path.cwd()
 
 
 SERVER_ROOT = Path(__file__).resolve().parent.parent
 REPO_ROOT = checkout_root()
 
-if os.environ.get("LAMATHEK_ENV") == "dev":
-    load_dotenv(REPO_ROOT / ".env.dev")
-    load_dotenv(REPO_ROOT / ".env", override=True)
-else:
-    load_dotenv(REPO_ROOT / ".env")
-load_dotenv(SERVER_ROOT / ".env", override=True)
+DEFAULT_SECRET_KEY = "dev-only-change-me"
+
+
+def load_env_files() -> None:
+    """Dev: .env.dev (tracked defaults) → .env.local (personal, gitignored) → .env.
+
+    LAMATHEK_SKIP_DOTENV=1 skips all files so tests never pick up a developer's
+    SMTP credentials or database path.
+    """
+    if os.environ.get("LAMATHEK_SKIP_DOTENV") == "1":
+        return
+    if os.environ.get("LAMATHEK_ENV") == "dev":
+        load_dotenv(REPO_ROOT / ".env.dev")
+        load_dotenv(REPO_ROOT / ".env.local", override=True)
+        load_dotenv(REPO_ROOT / ".env", override=True)
+    else:
+        load_dotenv(REPO_ROOT / ".env")
+    load_dotenv(SERVER_ROOT / ".env", override=True)
+
+
+load_env_files()
 
 
 def _sqlite_path() -> Path:
@@ -82,7 +92,7 @@ def _env_optional_bool(name: str) -> bool | None:
 
 
 class Config:
-    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-change-me")
+    SECRET_KEY = os.environ.get("SECRET_KEY", DEFAULT_SECRET_KEY)
     SQLALCHEMY_DATABASE_URI = _database_url()
     DEBUG = _env_bool("FLASK_DEBUG", default=False)
 

@@ -1,19 +1,16 @@
-"""Shared Verleih line-action gating (web/src/domain/workflowGates.json)."""
+"""Shared Verleih line-action gating (lamathek/domain/workflow_gates.json, also read by web)."""
 
 from __future__ import annotations
 
 import json
 from functools import lru_cache
-from pathlib import Path
-
-_GATES_PATH = (
-    Path(__file__).resolve().parents[3] / "web" / "src" / "domain" / "workflowGates.json"
-)
+from importlib import resources
 
 
 @lru_cache(maxsize=1)
 def workflow_gates() -> dict:
-    return json.loads(_GATES_PATH.read_text(encoding="utf-8"))
+    gates = resources.files("lamathek") / "domain" / "workflow_gates.json"
+    return json.loads(gates.read_text(encoding="utf-8"))
 
 
 def line_action_steps(action: str, line_status: str) -> tuple[str, ...] | None:

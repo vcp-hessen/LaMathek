@@ -1,7 +1,7 @@
-/** Verleih workflow gating — rules in workflowGates.json */
+/** Verleih workflow gating — rules in server/lamathek/domain/workflow_gates.json */
 
 import type { LoanDetail, LoanLine } from '../schemas/loan'
-import workflowGates from './workflowGates.json'
+import workflowGates from '@shared/workflow_gates.json'
 
 export type WorkflowStep = 'review' | 'pack' | 'handover' | 'return' | 'restock'
 

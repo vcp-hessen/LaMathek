@@ -23,7 +23,11 @@ From the repository root:
 
 The script sets `LAMATHEK_ENV=dev`, loads [`.env.dev`](.env.dev) (dev login, SQLite path, ports), then starts the API and Vite. Open [http://127.0.0.1:5173](http://127.0.0.1:5173) and click **Anmelden**.
 
-Optional: copy `.env.example` to `.env` for local overrides on top of `.env.dev` when using the dev script.
+`.env.dev` is tracked and holds only safe defaults. Put personal values (your name and mail for the dev login, SMTP credentials) in **`.env.local`**, which is gitignored and loaded after `.env.dev`. Never commit credentials.
+
+`./scripts/dev.sh --seed` deletes the local database and media, migrates, and loads demo data: two Inventare, the set „Jurte 1“ and Verleihe in every phase. The same works standalone with `python scripts/seed_demo.py --reset`.
+
+PDF lists use WeasyPrint, which needs Cairo and Pango on the host (`brew install pango` on macOS, `libpango-1.0-0 libpangocairo-1.0-0` on Debian; see the [Dockerfile](Dockerfile)).
 
 Python dependencies are declared in [server/pyproject.toml](server/pyproject.toml).
 
@@ -67,10 +71,12 @@ Open `http://localhost:5173`. Vite proxies `/api`, `/login`, `/auth`, and `/logo
 
 ```bash
 cd web && npm run build
-cd ../server && source .venv/bin/activate && lamathek
+cd ../server && source .venv/bin/activate
+lamathek migrate
+SECRET_KEY=… gunicorn --workers 1 --threads 8 'lamathek.app:create_app()'
 ```
 
-With `web/dist` present, Flask serves the built client.
+With `web/dist` present, Flask serves the built client. Use one worker: SQLite has a single writer. Outside `FLASK_DEBUG` the app refuses to start without a real `SECRET_KEY`.
 
 ### Staging image locally
 
@@ -78,13 +84,15 @@ With `web/dist` present, Flask serves the built client.
 docker compose -f deploy/docker-compose.staging.yml up --build
 ```
 
-Open `http://127.0.0.1:5001`. The compose file enables dev auth bypass for local smoke tests; Coolify uses OIDC only.
+Open `http://127.0.0.1:5001`. The compose file enables dev auth bypass for local smoke tests and binds to localhost only; never expose it. Coolify uses OIDC only.
 
 ### Staging (Coolify)
 
-Coolify builds the root [Dockerfile](Dockerfile) and serves the built client from Flask (`LAMATHEK_STATIC_ROOT=/app/web/dist`). Use the Dockerfile as the build pack, not Nixpacks. Connect the GitHub App so a push to `main` webhooks Coolify and redeploys. The image sets `SQLITE_PATH=/data/lamathek.sqlite3` and runs migrations against that file on startup. Mount a volume at `/data` so the database and uploaded photos (`/data/media` by default, or set `MEDIA_PATH`) survive deploys. The image listens on `0.0.0.0` and `PORT` (default 5001).
+Coolify builds the root [Dockerfile](Dockerfile) and serves the built client from Flask (`LAMATHEK_STATIC_ROOT=/app/web/dist`). Use the Dockerfile as the build pack, not Nixpacks. Connect the GitHub App so a push to `main` webhooks Coolify and redeploys. The image sets `SQLITE_PATH=/data/lamathek.sqlite3`, runs `lamathek migrate` on startup, then serves with gunicorn (one worker, eight threads) behind the proxy (`X-Forwarded-*` is honoured). Mount a volume at `/data` so the database and uploaded photos (`/data/media` by default, or set `MEDIA_PATH`) survive deploys. The image listens on `0.0.0.0` and `PORT` (default 5001).
 
 Set these in Coolify, not in the repo: `SECRET_KEY`, `FRONTEND_URL=https://<domain>`, `OIDC_REDIRECT_URI=https://<domain>/auth/callback` (same URI in the IdP), `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_SERVER_METADATA_URL`. Do not set `AUTH_DEV_BYPASS`.
+
+Optional: `LAMATHEK_INSTANCE_TIMEZONE` (IANA, default `Europe/Berlin`) for "today" and timestamps.
 
 Optional outbound mail: `SMTP_HOST`, `SMTP_FROM`, and usually `SMTP_PORT` (default 587), `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_STARTTLS`, `SMTP_SSL` (for port 465), `SMTP_TIMEOUT`. Superusers can send a test mail from **Diagnose** when SMTP is configured.
 
@@ -100,8 +108,13 @@ Use the same OIDC variables as staging (`FRONTEND_URL` pointing at wherever this
 
 ### Database migrations
 
+Migrations live in [server/lamathek/migrations](server/lamathek/migrations) and ship with the package.
+
 ```bash
 cd server
 source .venv/bin/activate
-alembic upgrade head
+lamathek migrate                                   # apply
+alembic revision --autogenerate -m "short slug"    # new migration from model changes
 ```
+
+`tests/test_migrations.py` upgrades an empty database to head and compares it with the models, so a migration that drifts from the models fails CI.

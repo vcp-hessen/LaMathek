@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -19,6 +18,7 @@ from lamathek.models.loan import (
 )
 from lamathek.models.user import User
 from lamathek.services.inventories import list_inventories_for_user, user_can_manage_inventory
+from lamathek.timezone import instance_today
 
 
 def _summary(loan: Loan) -> dict:
@@ -44,7 +44,7 @@ def build_dashboard(session: Session, user: User) -> dict:
             .where(Loan.phase != LOAN_PHASE_DRAFT)
         ).all()
     )
-    today = date.today()
+    today = instance_today()
     waiting = []
     returns_due = []
     overdue = []

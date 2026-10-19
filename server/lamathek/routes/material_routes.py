@@ -50,6 +50,7 @@ from lamathek.services.material import (
     update_piece,
     update_stock_lot,
 )
+from lamathek.timezone import instance_today
 
 material_bp = Blueprint("material", __name__, url_prefix="/api")
 
@@ -397,7 +398,6 @@ def post_piece_found_again(user, piece_id: int):
     if not user_can_manage_inventory(session, user, piece.material_type.inventory):
         return jsonify({"error": "forbidden"}), 403
 
-    from datetime import date
 
     from lamathek.services.piece_availability import (
         piece_found_again_eligible,
@@ -416,7 +416,7 @@ def post_piece_found_again(user, piece_id: int):
     except ValueError:
         return jsonify({"error": "invalid_date"}), 400
     if recorded_on is None:
-        recorded_on = date.today()
+        recorded_on = instance_today()
 
     try:
         record_found_again_for_piece(

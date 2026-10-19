@@ -17,7 +17,6 @@ from lamathek.models.loan import (
     LINE_STATUS_WITHDRAWN,
     LINE_STATUSES_TERMINAL,
     LOAN_KIND_PERMANENT,
-    LOAN_KIND_SHORT,
     LOAN_PHASE_CLOSED,
     LOAN_PHASE_DRAFT,
     LOAN_PHASE_REVIEW,
@@ -44,6 +43,7 @@ from lamathek.services.loan_workflow_steps import (
     sync_loan_phase_after_line_change,
     workflow_phase_for_gating,
 )
+from lamathek.timezone import instance_today
 
 
 def line_is_terminal(line: LoanLine) -> bool:
@@ -750,7 +750,6 @@ def record_loss_lines(
 ) -> Loan:
     if not user_can_manage_inventory(session, actor, loan.inventory):
         raise ValueError("forbidden")
-    from datetime import date
 
     from lamathek.services.material import apply_stock_loss
     from lamathek.services.piece_availability import create_total_loss_for_line
@@ -781,7 +780,7 @@ def record_loss_lines(
             create_total_loss_for_line(
                 session,
                 line,
-                recorded_on=date.today(),
+                recorded_on=instance_today(),
                 note=reason,
             )
         _mark_line_mail_pending(loan, line)

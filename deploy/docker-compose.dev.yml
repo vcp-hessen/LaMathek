@@ -6,7 +6,7 @@ services:
   api:
     image: python:3.12-slim-bookworm
     working_dir: /src/server
-    command: sh -c "pip install -e . && alembic upgrade head && lamathek"
+    command: sh -c "pip install -e . && lamathek"
     volumes:
       - ..:/src
     environment:

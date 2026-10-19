@@ -4,7 +4,7 @@ from pathlib import Path
 
 from flask import current_app, has_app_context
 
-from lamathek.config import Config, checkout_root
+from lamathek.config import Config
 from lamathek.db import get_session
 from lamathek.i18n import DEFAULT_LOCALE, message, resolve_locale, t, t_list
 from lamathek.models.loan import (
@@ -49,12 +49,6 @@ def _website_href(raw: str) -> str:
 
 def mail_logo_src() -> str:
     """Inline PNG (same as web/public/app-icon.png) for mail clients without SVG."""
-    root = checkout_root()
-    for rel in ("web/dist/app-icon.png", "web/public/app-icon.png"):
-        path = root / rel
-        if path.is_file():
-            encoded = base64.standard_b64encode(path.read_bytes()).decode("ascii")
-            return f"data:image/png;base64,{encoded}"
     packaged = (
         Path(__file__).resolve().parent.parent / "templates" / "mail" / "app-icon.png"
     )

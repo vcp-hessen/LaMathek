@@ -1,29 +1,38 @@
+import argparse
 import os
+from importlib import resources
 
-from lamathek.app import create_app
-from lamathek.config import Config, checkout_root
+from lamathek.config import Config
 
 
-def upgrade_database() -> None:
-    """Apply Alembic migrations to the same database the app will open."""
-    from alembic import command
+def alembic_config(database_url: str | None = None):
+    """Alembic config for the packaged migrations, bound to the app's database."""
     from alembic.config import Config as AlembicConfig
 
-    ini = checkout_root() / "server" / "alembic.ini"
-    cfg = AlembicConfig(str(ini))
-    cfg.set_main_option("script_location", str(ini.parent / "alembic"))
+    script_location = resources.files("lamathek") / "migrations"
+    cfg = AlembicConfig()
+    cfg.set_main_option("script_location", str(script_location))
     cfg.set_main_option(
         "sqlalchemy.url",
-        Config.SQLALCHEMY_DATABASE_URI.replace("%", "%%"),
+        (database_url or Config.SQLALCHEMY_DATABASE_URI).replace("%", "%%"),
     )
-    command.upgrade(cfg, "head")
+    return cfg
+
+
+def upgrade_database(database_url: str | None = None) -> None:
+    """Apply Alembic migrations to the same database the app will open."""
+    from alembic import command
+
+    command.upgrade(alembic_config(database_url), "head")
 
 
 def _env_flag(name: str) -> bool:
     return os.environ.get(name, "").strip().lower() in {"1", "true", "yes", "on"}
 
 
-def main() -> None:
+def _run_dev_server() -> None:
+    from lamathek.app import create_app
+
     upgrade_database()
     app = create_app()
     port = int(os.environ.get("PORT") or os.environ.get("LAMATHEK_API_PORT") or "5001")
@@ -37,3 +46,16 @@ def main() -> None:
         use_reloader=debug or reload_requested,
         use_debugger=debug and not reload_requested,
     )
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(prog="lamathek")
+    sub = parser.add_subparsers(dest="command")
+    sub.add_parser("serve", help="Migrate, then run the development server (default).")
+    sub.add_parser("migrate", help="Apply database migrations and exit.")
+    args = parser.parse_args()
+
+    if args.command == "migrate":
+        upgrade_database()
+        return
+    _run_dev_server()

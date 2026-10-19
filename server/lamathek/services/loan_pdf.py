@@ -5,10 +5,9 @@ from __future__ import annotations
 import base64
 import io
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date
 from pathlib import Path
 from typing import Literal
-from zoneinfo import ZoneInfo
 
 import qrcode
 from flask import current_app, has_app_context
@@ -24,9 +23,9 @@ from lamathek.models.loan import (
     LOAN_PHASE_RETURN,
     Loan,
 )
-from lamathek.models.user import User
 from lamathek.services.loan_display import loan_detail_url, loan_display_title, loan_group_label
 from lamathek.services.settings import get_installation_settings
+from lamathek.timezone import instance_now
 from sqlalchemy.orm import Session
 
 _PDF_TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates" / "pdf"
@@ -86,12 +85,6 @@ def _format_loan_date(value: date | None) -> str:
     if value is None:
         return "—"
     return value.strftime("%d.%m.%Y")
-
-
-def _instance_now() -> datetime:
-    """Wall clock in LAMATHEK_INSTANCE_TIMEZONE from UTC (unabhängig von TZ=)."""
-    tz_name = _cfg("INSTANCE_TIMEZONE", Config.INSTANCE_TIMEZONE)
-    return datetime.now(timezone.utc).astimezone(ZoneInfo(tz_name))
 
 
 def _instance_generator_label(instance_name: str, instance_subtitle: str) -> str:
@@ -176,7 +169,7 @@ def _pdf_document_meta(
     group_name = loan_group_label(loan)
     pickup = _format_loan_date(loan.pickup_on)
     ret = _format_loan_date(loan.return_on)
-    created = _instance_now()
+    created = instance_now()
 
     pdf_title = f"{list_title} — {loan_title}"
     description_lines = [

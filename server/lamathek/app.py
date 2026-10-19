@@ -1,10 +1,12 @@
 import os
 from pathlib import Path
 
-from flask import Flask, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory
+from werkzeug.exceptions import HTTPException
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from lamathek.auth import init_auth, validate_dev_bypass_config
-from lamathek.config import Config
+from lamathek.config import DEFAULT_SECRET_KEY, Config
 from lamathek.db import init_db
 from lamathek.routes.api import api_bp
 from lamathek.routes.auth_routes import auth_bp
@@ -35,13 +37,67 @@ def client_dist_dir() -> Path:
     return Path(__file__).resolve().parent.parent.parent / "web" / "dist"
 
 
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+
+_HTTP_ERROR_CODES = {
+    400: "bad_request",
+    401: "unauthorized",
+    403: "forbidden",
+    404: "not_found",
+    405: "method_not_allowed",
+    413: "file_too_large",
+}
+
+
+def validate_secret_key(app: Flask) -> None:
+    """Refuse to run outside dev/test with the built-in session key (sessions could be forged)."""
+    if app.config.get("DEBUG") or app.config.get("TESTING"):
+        return
+    secret = app.config.get("SECRET_KEY") or ""
+    if not secret or secret == DEFAULT_SECRET_KEY:
+        raise RuntimeError("SECRET_KEY must be set to a random value in production.")
+
+
+def _register_api_error_handlers(app: Flask) -> None:
+    def _wants_json() -> bool:
+        return request.path.startswith("/api/")
+
+    @app.errorhandler(HTTPException)
+    def _http_error(exc: HTTPException):
+        if not _wants_json():
+            return exc
+        code = _HTTP_ERROR_CODES.get(exc.code or 500, "http_error")
+        return jsonify({"error": code}), exc.code
+
+    @app.errorhandler(Exception)
+    def _unhandled(exc: Exception):
+        if isinstance(exc, HTTPException):
+            return _http_error(exc)
+        if app.config.get("TESTING"):
+            raise exc
+        app.logger.exception("Unhandled error on %s", request.path)
+        if not _wants_json():
+            return "Internal Server Error", 500
+        return jsonify({"error": "internal_error"}), 500
+
+
 def create_app(config: type[Config] = Config) -> Flask:
     app = Flask(__name__, static_folder=None)
     app.config.from_object(config)
-    app.config.setdefault("SESSION_COOKIE_SAMESITE", "Lax")
-    app.config.setdefault("SESSION_COOKIE_HTTPONLY", True)
+    # Explicit assignment: Flask pre-populates these keys, so setdefault is a no-op.
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SECURE"] = str(
+        app.config.get("FRONTEND_URL", "")
+    ).startswith("https://")
+    if app.config.get("MAX_CONTENT_LENGTH") is None:
+        app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_BYTES
+    # One reverse proxy (Coolify/Traefik) sets X-Forwarded-For/-Proto/-Host.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
+    validate_secret_key(app)
     validate_dev_bypass_config(app)
+    _register_api_error_handlers(app)
     init_db(app)
     init_auth(app)
 
@@ -76,9 +132,9 @@ def create_app(config: type[Config] = Config) -> Flask:
     @app.get("/<path:path>")
     def spa_static(path: str):
         if path.startswith("api/"):
-            return {"error": "not found"}, 404
+            return {"error": "not_found"}, 404
         if not static_root.is_dir():
-            return {"error": "not found"}, 404
+            return {"error": "not_found"}, 404
         file_path = static_root / path
         if file_path.is_file():
             return send_from_directory(static_root, path)

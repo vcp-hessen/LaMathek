@@ -2,7 +2,7 @@ from functools import wraps
 
 from flask import jsonify
 
-from lamathek.auth import effective_oidc_sub, session_actor_sub
+from lamathek.auth import effective_oidc_sub
 from lamathek.db import get_session
 from lamathek.services.inventories import (
     inventory_by_id,

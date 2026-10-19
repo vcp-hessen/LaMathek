@@ -13,6 +13,7 @@ dependencies = [
     "pillow>=10.0",
     "weasyprint>=62.0",
     "qrcode>=7.4",
+    "gunicorn>=23.0",
 ]
 
 [project.scripts]
@@ -27,7 +28,15 @@ where = ["."]
 include = ["lamathek*"]
 
 [tool.setuptools.package-data]
-lamathek = ["templates/**/*"]
+lamathek = [
+    "templates/**/*",
+    "i18n/*.json",
+    "static/**/*",
+    "domain/*.json",
+    "migrations/env.py",
+    "migrations/script.py.mako",
+    "migrations/versions/*.py",
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]

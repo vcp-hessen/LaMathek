@@ -1,9 +1,15 @@
 import os
 import tempfile
 
-import pytest
+# Before any lamathek import: never read a developer's .env/.env.local (SMTP
+# credentials, database path) during tests.
+os.environ["LAMATHEK_SKIP_DOTENV"] = "1"
+for _name in [n for n in os.environ if n.startswith(("SMTP_", "AUTH_DEV_"))]:
+    del os.environ[_name]
 
-from lamathek import db
+import pytest  # noqa: E402
+
+from lamathek import db  # noqa: E402
 from lamathek.app import create_app
 from lamathek.config import Config
 from lamathek.db import Base, get_session

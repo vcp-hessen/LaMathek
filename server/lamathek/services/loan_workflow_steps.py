@@ -1,4 +1,4 @@
-"""Verleih workflow step derivation and action gating (web/src/domain/workflowGates.json)."""
+"""Verleih workflow step derivation and action gating (lamathek/domain/workflow_gates.json)."""
 
 from __future__ import annotations
 

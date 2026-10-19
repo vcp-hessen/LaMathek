@@ -12,7 +12,6 @@ from lamathek.models.damage import (
 from lamathek.models.material import MaterialType, Piece
 from lamathek.models.user import User
 from lamathek.services.journal import append_journal
-from lamathek.services.piece_availability import piece_has_open_severe_damage
 
 
 def create_damage(

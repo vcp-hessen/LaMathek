@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session, selectinload
 from lamathek.models.inventory import Inventory
 from lamathek.models.loan import (
     LINE_STATUS_DRAFT,
-    LINE_STATUS_NOT_RETURNED,
     LINE_STATUS_REQUESTED,
     LINE_STATUS_WITHDRAWN,
     LINE_STATUSES_BLOCKING,
@@ -34,7 +33,6 @@ from lamathek.models.set import (
 )
 from lamathek.models.user import User
 from lamathek.services.piece_availability import (
-    piece_has_open_severe_damage,
     piece_ids_with_open_total_loss,
     piece_is_blocked_for_lending,
 )

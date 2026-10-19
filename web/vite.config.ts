@@ -1,5 +1,6 @@
 import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 
 const apiPort = process.env.LAMATHEK_API_PORT ?? '5001'
@@ -8,6 +9,12 @@ const hmrHost = process.env.VITE_HMR_HOST
 
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
+  resolve: {
+    alias: {
+      // Rules shared with the API (server/lamathek/domain), single source of truth.
+      '@shared': fileURLToPath(new URL('../server/lamathek/domain', import.meta.url)),
+    },
+  },
   server: {
     proxy: {
       '/api': apiOrigin,

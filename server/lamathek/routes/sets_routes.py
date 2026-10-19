@@ -185,7 +185,7 @@ def put_set_stock_line(user, set_id: int):
         return jsonify({"error": "invalid_quantity"}), 400
 
     try:
-        line = upsert_stock_line(
+        upsert_stock_line(
             session, material_set, material_type_id, role, quantity
         )
     except ValueError as exc:

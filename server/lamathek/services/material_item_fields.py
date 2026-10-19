@@ -1,4 +1,3 @@
-from datetime import date
 
 from lamathek.models.material import (
     ITEM_STATUS_ACTIVE,
@@ -6,12 +5,13 @@ from lamathek.models.material import (
     StockLot,
     VALID_ITEM_STATUSES,
 )
+from lamathek.timezone import instance_today
 
 ACQUIRED_YEAR_MIN = 1900
 
 
 def _max_acquired_year() -> int:
-    return date.today().year + 1
+    return instance_today().year + 1
 
 
 def parse_acquired_year(value) -> int | None:

@@ -33,6 +33,7 @@ from lamathek.services.loans import (
     restore_withdrawn_line,
 )
 from lamathek.services.material import restore_stock_quantity
+from lamathek.timezone import instance_today
 
 
 def _replacement_blocks_reopen(loan: Loan, line: LoanLine) -> bool:
@@ -93,7 +94,6 @@ def restore_loan_line(session: Session, loan: Loan, line_id: int, *, actor: User
             )
 
     if line.status == LINE_STATUS_NOT_RETURNED:
-        from datetime import date
 
         from lamathek.services.piece_availability import cancel_total_loss_for_line
 
@@ -101,7 +101,7 @@ def restore_loan_line(session: Session, loan: Loan, line_id: int, *, actor: User
             cancel_total_loss_for_line(
                 session,
                 line.id,
-                recorded_on=date.today(),
+                recorded_on=instance_today(),
                 note="Korrektur Verlust",
             )
         line.returned_quantity = None

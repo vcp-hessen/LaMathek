@@ -12,7 +12,14 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
-config.set_main_option("sqlalchemy.url", Config.SQLALCHEMY_DATABASE_URI)
+
+# `lamathek migrate` and tests pass the URL explicitly; the alembic CLI run from
+# server/ only has the placeholder in alembic.ini and uses the app's database.
+_url = config.get_main_option("sqlalchemy.url") or ""
+if not _url or _url.startswith("driver://"):
+    config.set_main_option(
+        "sqlalchemy.url", Config.SQLALCHEMY_DATABASE_URI.replace("%", "%%")
+    )
 
 
 def run_migrations_offline() -> None:
@@ -22,6 +29,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        render_as_batch=True,
     )
 
     with context.begin_transaction():
@@ -36,7 +44,11 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            render_as_batch=True,
+        )
 
         with context.begin_transaction():
             context.run_migrations()

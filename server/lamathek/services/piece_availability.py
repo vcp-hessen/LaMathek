@@ -12,7 +12,6 @@ from lamathek.models.damage import (
     DAMAGE_KIND_TOTAL_LOSS,
     RESOLUTION_CANCELLED_MISTAKE,
     RESOLUTION_FOUND_AGAIN,
-    RESOLUTION_REPAIRED,
     Damage,
     Repair,
 )

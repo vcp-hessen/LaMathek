@@ -1,6 +1,9 @@
 # Production-style image (same as Coolify). From repo root:
 #   docker compose -f deploy/docker-compose.staging.yml up --build
 # Open http://127.0.0.1:5001
+#
+# Local smoke test only: the dev auth bypass signs every visitor in as a
+# superuser. The port is bound to localhost; never expose this file publicly.
 
 services:
   app:
@@ -8,7 +11,7 @@ services:
       context: ..
       dockerfile: Dockerfile
     ports:
-      - "5001:5001"
+      - "127.0.0.1:5001:5001"
     volumes:
       - lamathek_data:/data
     environment:
