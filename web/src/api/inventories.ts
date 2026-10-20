@@ -1,11 +1,12 @@
 import { api } from './client'
 import type { User } from '../schemas/user'
 import {
-  inventoryPermissionsPutSchema,
+  inventoryDetailSchema,
   inventoryPermissionsSchema,
   inventorySchema,
   inventoryWriteSchema,
   type Inventory,
+  type InventoryDetail,
   type InventoryWritePayload,
 } from '../schemas/inventory'
 
@@ -31,23 +32,23 @@ export async function createInventory(payload: InventoryWritePayload): Promise<I
   return inventorySchema.parse(response.data)
 }
 
-export async function fetchInventory(id: number): Promise<Inventory> {
+export async function fetchInventory(id: number): Promise<InventoryDetail> {
   const response = await api.get(`/api/inventories/${id}`)
-  return inventorySchema.parse(response.data)
+  return inventoryDetailSchema.parse(response.data)
 }
 
 export async function updateInventory(
   id: number,
   payload: InventoryWritePayload,
-): Promise<Inventory> {
+): Promise<InventoryDetail> {
   const response = await api.patch(`/api/inventories/${id}`, writeBody(payload))
-  return inventorySchema.parse(response.data)
+  return inventoryDetailSchema.parse(response.data)
 }
 
 export async function fetchInventoryAccess(id: number) {
   const response = await api.get(`/api/inventories/${id}/permissions`)
   const parsed = inventoryPermissionsSchema.parse(response.data)
-  return { users: parsed.users, readers: parsed.readers ?? [] }
+  return { users: parsed.users, readers: parsed.readers }
 }
 
 export async function fetchInventoryPermissions(id: number): Promise<User[]> {
@@ -63,7 +64,7 @@ export async function replaceInventoryPermissions(
     userIds,
     readerUserIds: readerUserIds ?? [],
   })
-  return inventoryPermissionsPutSchema.parse(response.data).users ?? []
+  return inventoryPermissionsSchema.parse(response.data).users
 }
 
 export async function deleteInventory(id: number): Promise<void> {

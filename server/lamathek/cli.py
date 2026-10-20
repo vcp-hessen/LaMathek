@@ -53,9 +53,17 @@ def main() -> None:
     sub = parser.add_subparsers(dest="command")
     sub.add_parser("serve", help="Migrate, then run the development server (default).")
     sub.add_parser("migrate", help="Apply database migrations and exit.")
+    sub.add_parser(
+        "openapi", help="Write lamathek/domain/openapi.json from the response models."
+    )
     args = parser.parse_args()
 
     if args.command == "migrate":
         upgrade_database()
+        return
+    if args.command == "openapi":
+        from lamathek.contract.openapi import write_openapi
+
+        print(write_openapi())
         return
     _run_dev_server()

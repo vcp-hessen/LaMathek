@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 
+from lamathek.contract import models as api, responds
 from lamathek.access import require_login
 from lamathek.db import get_session
 from lamathek.services.geocoding import GeocodingError, geocode_address
@@ -9,6 +10,7 @@ geocode_bp = Blueprint("geocode", __name__, url_prefix="/api")
 
 
 @geocode_bp.get("/geocode")
+@responds(api.GeocodeResult)
 @require_login
 def get_geocode(user):
     session = get_session()

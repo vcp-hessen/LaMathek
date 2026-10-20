@@ -5,6 +5,7 @@ from flask import Flask, jsonify, request, send_from_directory
 from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from lamathek.contract import register_contract_check
 from lamathek.auth import init_auth, validate_dev_bypass_config
 from lamathek.config import DEFAULT_SECRET_KEY, Config
 from lamathek.db import init_db
@@ -121,6 +122,7 @@ def create_app(config: type[Config] = Config) -> Flask:
     validate_dev_bypass_config(app)
     _register_api_error_handlers(app)
     _register_csrf_guard(app)
+    register_contract_check(app)
     if app.config.get("TESTING"):
         from lamathek.testing import ApiTestClient
 

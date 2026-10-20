@@ -58,7 +58,7 @@ def test_delete_unreleased_loan_as_borrower():
 
         _login(client, "borrower")
         res = client.delete(f"/api/loans/{loan_id}")
-        assert res.status_code == 200
+        assert res.status_code == 204
         assert client.get(f"/api/loans/{loan_id}").status_code == 404
     finally:
         tmp.cleanup()
@@ -92,7 +92,7 @@ def test_superuser_can_delete_loan_in_review():
 
         _login(client, "su")
         res = client.delete(f"/api/loans/{loan_id}")
-        assert res.status_code == 200, res.get_json()
+        assert res.status_code == 204
         assert client.get(f"/api/loans/{loan_id}").status_code == 404
     finally:
         tmp.cleanup()

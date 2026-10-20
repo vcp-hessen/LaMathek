@@ -1,33 +1,15 @@
 import { z } from 'zod'
-import { BUNDESLAND_CODES } from '../utils/germanPublicHolidays'
 
-export const calendarBundeslandSchema = z.enum(BUNDESLAND_CODES)
+import { installationSettingsSchema } from '../api/generated/schemas'
 
-export const installationSettingsSchema = z.object({
-  title: z.string(),
-  subtitle: z.string(),
-  legalName: z.string(),
-  legalAddress: z.string(),
-  email: z.string(),
-  website: z.string(),
-  phone: z.string(),
-  representedBy: z.string(),
-  register: z.string(),
-  contentResponsible: z.string(),
-  mapLatitude: z.number(),
-  mapLongitude: z.number(),
-  hostName: z.string(),
-  hostAddress: z.string(),
-  hostPrivacyUrl: z.string(),
-  authProviderName: z.string(),
-  authProviderSameHost: z.boolean(),
-  authorityName: z.string(),
-  authorityUrl: z.string(),
-  calendarBundesland: calendarBundeslandSchema,
-})
+export {
+  calendarBundeslandSchema,
+  installationSettingsSchema,
+  type CalendarBundesland,
+  type InstallationSettings,
+} from '../api/generated/schemas'
 
-export type InstallationSettings = z.infer<typeof installationSettingsSchema>
-
+/** Request body of PATCH /api/settings (Inhaltlich Verantwortliche are derived). */
 export const installationSettingsPatchSchema = installationSettingsSchema
   .omit({ contentResponsible: true })
   .extend({

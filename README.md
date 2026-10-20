@@ -76,6 +76,17 @@ npm run dev
 
 Open `http://localhost:5173`. Vite proxies `/api`, `/login`, `/auth`, and `/logout` to the API.
 
+### API contract
+
+The JSON answers of `/api` are Pydantic models in [server/lamathek/contract/models.py](server/lamathek/contract/models.py); each route declares its model with `@responds(...)`. Tests and the dev server validate every answer against it. After changing a model or an answer:
+
+```bash
+cd server && lamathek openapi          # writes lamathek/domain/openapi.json
+cd ../web && npm run generate:api      # writes src/api/generated/schemas.ts
+```
+
+`pytest` and `npm test` fail while either file is stale. See [ADR 0021](docs/adr/0021-api-contract-openapi.md).
+
 ### Production-style run
 
 ```bash

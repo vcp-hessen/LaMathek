@@ -1,24 +1,19 @@
 import { z } from 'zod'
-import { photoMetaSchema } from './photo'
-import { userSchema } from './user'
 
-export const inventoryVisibilitySchema = z.enum(['internal', 'active', 'archived'])
+import { inventoryVisibilitySchema } from '../api/generated/schemas'
 
-export type InventoryVisibility = z.infer<typeof inventoryVisibilitySchema>
+export {
+  inventoryDetailSchema,
+  inventoryPermissionsSchema,
+  inventorySchema,
+  inventoryVisibilitySchema,
+  type Inventory,
+  type InventoryDetail,
+  type InventoryPermissions,
+  type InventoryVisibility,
+} from '../api/generated/schemas'
 
-export const inventorySchema = z.object({
-  id: z.number(),
-  name: z.string(),
-  visibility: inventoryVisibilitySchema,
-  address: z.string().nullable(),
-  latitude: z.number().nullable(),
-  longitude: z.number().nullable(),
-  notes: z.string().nullable(),
-  coverPhotoId: z.number().nullish(),
-  canManage: z.boolean().optional(),
-  photos: z.array(photoMetaSchema).optional(),
-})
-
+/** Request body of POST/PATCH; requests are not part of the generated contract yet. */
 export const inventoryWriteSchema = z.object({
   name: z.string().min(1),
   visibility: inventoryVisibilitySchema.optional(),
@@ -29,17 +24,3 @@ export const inventoryWriteSchema = z.object({
 })
 
 export type InventoryWritePayload = z.infer<typeof inventoryWriteSchema>
-
-export type Inventory = z.infer<typeof inventorySchema>
-
-export const inventoryPermissionsSchema = z.object({
-  users: z.array(userSchema),
-  readers: z.array(userSchema).optional(),
-})
-
-export const inventoryPermissionsPutSchema = z.object({
-  userIds: z.array(z.number()),
-  readerUserIds: z.array(z.number()).optional(),
-  users: z.array(userSchema).optional(),
-  readers: z.array(userSchema).optional(),
-})

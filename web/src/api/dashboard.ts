@@ -1,17 +1,12 @@
-import { z } from 'zod'
-
 import { api } from './client'
+import { dashboardSchema, type Dashboard, type DashboardCards } from './generated/schemas'
 
-const dashboardLoanSchema = z.object({
-  id: z.number(),
-  inventoryId: z.number(),
-  inventoryName: z.string(),
-  title: z.string(),
-  phase: z.string(),
-  returnOn: z.string().nullable(),
-})
+export type { Dashboard, DashboardLoan } from './generated/schemas'
 
-export const DASHBOARD_CARDS = [
+export type DashboardCard = keyof DashboardCards
+
+/** Order of the cards on the Startseite. */
+export const DASHBOARD_CARDS: readonly DashboardCard[] = [
   'conflicts',
   'stuckMails',
   'openRequests',
@@ -20,18 +15,7 @@ export const DASHBOARD_CARDS = [
   'overdue',
   'openActions',
   'myLoans',
-] as const
-
-export type DashboardCard = (typeof DASHBOARD_CARDS)[number]
-
-const dashboardSchema = z.object({
-  welcomeName: z.string(),
-  canManage: z.boolean(),
-  cards: z.record(z.string(), z.array(dashboardLoanSchema)),
-})
-
-export type DashboardLoan = z.infer<typeof dashboardLoanSchema>
-export type Dashboard = z.infer<typeof dashboardSchema>
+]
 
 export async function fetchDashboard(): Promise<Dashboard> {
   const response = await api.get('/api/dashboard')

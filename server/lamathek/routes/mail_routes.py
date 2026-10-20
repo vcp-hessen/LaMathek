@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 
+from lamathek.contract import models as api, responds
 from lamathek.access import require_superuser
 from lamathek.db import get_session
 from lamathek.services.mail import (
@@ -14,12 +15,14 @@ mail_bp = Blueprint("mail", __name__, url_prefix="/api/mail")
 
 
 @mail_bp.get("/status")
+@responds(api.MailStatus)
 @require_superuser
 def get_mail_status(_user):
     return jsonify(mail_status())
 
 
 @mail_bp.post("/test")
+@responds(api.MailTestStarted, status=202)
 @require_superuser
 def post_mail_test(user):
     if not mail_configured():
@@ -35,6 +38,7 @@ def post_mail_test(user):
 
 
 @mail_bp.get("/test/<int:job_id>")
+@responds(api.MailTestJob)
 @require_superuser
 def get_mail_test(user, job_id: int):
     status = test_mail_status(get_session(), job_id, user.id)
@@ -44,6 +48,7 @@ def get_mail_test(user, job_id: int):
 
 
 @mail_bp.get("/outbox")
+@responds(list[api.OutboxMail])
 @require_superuser
 def get_failed_outbox(_user):
     """Mails that gave up after all retries (Diagnose)."""

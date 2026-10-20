@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request, send_file
 
+from lamathek.contract import models as api, responds
 from lamathek.access import require_login
 from lamathek.db import get_session
 from lamathek.services.inventories import (
@@ -85,6 +86,7 @@ def _read_upload_file():
 
 
 @photos_bp.get("/photos/<int:photo_id>")
+@responds(bytes, mimetype="image/webp")
 @require_login
 def get_photo_file(user, photo_id: int):
     session = get_session()
@@ -105,6 +107,7 @@ def get_photo_file(user, photo_id: int):
 
 
 @photos_bp.delete("/photos/<int:photo_id>")
+@responds(None, status=204)
 @require_login
 def remove_photo(user, photo_id: int):
     session = get_session()
@@ -119,6 +122,7 @@ def remove_photo(user, photo_id: int):
 
 
 @photos_bp.post("/photos/<int:photo_id>/make-cover")
+@responds(api.PhotoMeta)
 @require_login
 def make_cover(user, photo_id: int):
     session = get_session()
@@ -136,6 +140,7 @@ def make_cover(user, photo_id: int):
 
 
 @photos_bp.post("/pieces/<int:piece_id>/photos")
+@responds(api.PhotoMeta, status=201)
 @require_login
 def upload_piece_photo(user, piece_id: int):
     session = get_session()
@@ -155,6 +160,7 @@ def upload_piece_photo(user, piece_id: int):
 
 
 @photos_bp.post("/inventories/<int:inventory_id>/stock-lots/<int:lot_id>/photos")
+@responds(api.PhotoMeta, status=201)
 @require_login
 def upload_stock_lot_photo(user, inventory_id: int, lot_id: int):
     session = get_session()
@@ -177,6 +183,7 @@ def upload_stock_lot_photo(user, inventory_id: int, lot_id: int):
 
 
 @photos_bp.post("/sets/<int:set_id>/photos")
+@responds(api.PhotoMeta, status=201)
 @require_login
 def upload_set_photo(user, set_id: int):
     session = get_session()
@@ -196,6 +203,7 @@ def upload_set_photo(user, set_id: int):
 
 
 @photos_bp.post("/material-types/<int:material_type_id>/photos")
+@responds(api.PhotoMeta, status=201)
 @require_login
 def upload_material_type_photo(user, material_type_id: int):
     session = get_session()
@@ -215,6 +223,7 @@ def upload_material_type_photo(user, material_type_id: int):
 
 
 @photos_bp.post("/damages/<int:damage_id>/photos")
+@responds(api.PhotoMeta, status=201)
 @require_login
 def upload_damage_photo(user, damage_id: int):
     session = get_session()
@@ -234,6 +243,7 @@ def upload_damage_photo(user, damage_id: int):
 
 
 @photos_bp.post("/inventories/<int:inventory_id>/photos")
+@responds(api.PhotoMeta, status=201)
 @require_login
 def upload_inventory_photo(user, inventory_id: int):
     session = get_session()
@@ -253,6 +263,7 @@ def upload_inventory_photo(user, inventory_id: int):
 
 
 @photos_bp.post("/loans/<int:loan_id>/photos")
+@responds(api.PhotoMeta, status=201)
 @require_login
 def upload_loan_photo(user, loan_id: int):
     session = get_session()

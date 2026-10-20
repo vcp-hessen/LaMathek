@@ -1,11 +1,7 @@
-import { z } from 'zod'
 import { api } from './client'
+import { authModeSchema, type AuthMode } from './generated/schemas'
 
-const authModeSchema = z.object({
-  devBypass: z.boolean(),
-})
-
-export async function fetchAuthMode(): Promise<{ devBypass: boolean }> {
+export async function fetchAuthMode(): Promise<AuthMode> {
   const response = await api.get('/api/auth/mode')
   return authModeSchema.parse(response.data)
 }

@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 
+from lamathek.contract import responds
 from lamathek.db import get_session
 from lamathek.services.impersonation import (
     ImpersonationError,
@@ -23,6 +24,7 @@ def _impersonation_error_response(exc: ImpersonationError):
 
 
 @impersonation_bp.post("/impersonation")
+@responds(None, status=204)
 def post_impersonation():
     actor = actor_user_from_session(get_session())
     if actor is None:
@@ -50,6 +52,7 @@ def post_impersonation():
 
 
 @impersonation_bp.delete("/impersonation")
+@responds(None, status=204)
 def delete_impersonation():
     actor = actor_user_from_session(get_session())
     if actor is None:

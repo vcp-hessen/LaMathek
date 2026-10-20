@@ -1,24 +1,17 @@
 import { api } from './client'
+import {
+  calendarFeedCreatedSchema,
+  calendarFeedsSchema,
+  type CalendarFeed,
+  type CalendarFeedCreated,
+  type CalendarFeedScope,
+} from './generated/schemas'
 
-export type CalendarFeedScope = 'borrower' | 'contact' | 'inventory'
-
-export type CalendarFeed = {
-  id: number
-  label: string
-  scope: CalendarFeedScope
-  inventoryId: number | null
-  inventoryName: string
-  createdAt: string | null
-}
-
-export type CalendarFeedCreated = CalendarFeed & {
-  token: string
-  path: string
-}
+export type { CalendarFeed, CalendarFeedCreated, CalendarFeedScope }
 
 export async function fetchCalendarFeeds(): Promise<CalendarFeed[]> {
   const response = await api.get('/api/me/calendar-feeds')
-  return response.data.items as CalendarFeed[]
+  return calendarFeedsSchema.parse(response.data).items
 }
 
 export async function createCalendarFeed(body: {
@@ -27,7 +20,7 @@ export async function createCalendarFeed(body: {
   inventoryId?: number
 }): Promise<CalendarFeedCreated> {
   const response = await api.post('/api/me/calendar-feeds', body)
-  return response.data as CalendarFeedCreated
+  return calendarFeedCreatedSchema.parse(response.data)
 }
 
 export async function deleteCalendarFeed(feedId: number): Promise<void> {

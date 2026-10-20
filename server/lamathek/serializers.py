@@ -28,16 +28,17 @@ def user_ref_json(user: User) -> dict:
 
 
 def user_to_json(user: User, *, include_phone: bool = True, include_sub: bool = False) -> dict:
-    """Contact view of a user. The OIDC subject is only for the user themself and superusers."""
+    """Contact view of a user; ``phone`` is null where the viewer may not see it.
+
+    The OIDC subject is only for the user themself and superusers."""
     body = {
         "id": user.id,
         "name": user.name,
         "email": user.email,
         "isSuperuser": user.is_superuser,
         "hasLogin": not (user.oidc_sub or "").startswith("local:"),
+        "phone": (user.phone or "") if include_phone else None,
     }
-    if include_phone:
-        body["phone"] = user.phone or ""
     if include_sub:
         body["sub"] = user.oidc_sub
     return body
@@ -66,7 +67,7 @@ def inventory_to_json(
     *,
     cover_photo_id: int | None = None,
     include_photos: bool = False,
-    can_manage: bool | None = None,
+    can_manage: bool,
 ) -> dict:
     data = {
         "id": inventory.id,
@@ -77,9 +78,8 @@ def inventory_to_json(
         "longitude": inventory.longitude,
         "notes": inventory.notes,
         "coverPhotoId": cover_photo_id,
+        "canManage": can_manage,
     }
-    if can_manage is not None:
-        data["canManage"] = can_manage
     if include_photos:
         data["photos"] = photos_to_json(list(inventory.photos))
     return data
@@ -130,11 +130,10 @@ def material_type_to_json(
     material_type: MaterialType,
     *,
     cover_photo_id: int | None = None,
-    include_photos: bool = False,
-    usage_count: int | None = None,
+    usage_count: int,
 ) -> dict:
     category = material_type.category
-    data = {
+    return {
         "id": material_type.id,
         "inventoryId": material_type.inventory_id,
         "name": material_type.name,
@@ -149,12 +148,9 @@ def material_type_to_json(
         "modelName": material_type.model_name,
         "variants": variants_to_json(material_type),
         "coverPhotoId": cover_photo_id,
+        "usageCount": usage_count,
+        "photos": photos_to_json(list(material_type.photos)),
     }
-    if usage_count is not None:
-        data["usageCount"] = usage_count
-    if include_photos:
-        data["photos"] = photos_to_json(list(material_type.photos))
-    return data
 
 
 def repair_to_json(repair: Repair) -> dict:
@@ -317,7 +313,7 @@ def _loan_line_to_json(line: LoanLine, *, warnings: list[dict] | None = None) ->
         "warnings": warnings or [],
         **origin,
     }
-    if line.piece_id is not None and line.piece is not None:
+    if line.piece_id is not None:
         return {
             **base,
             "kind": "piece",
@@ -325,17 +321,16 @@ def _loan_line_to_json(line: LoanLine, *, warnings: list[dict] | None = None) ->
             "pieceName": line.piece.name,
             "materialTypeName": line.piece.material_type.name,
         }
-    if line.material_type_id is not None and line.material_type is not None:
-        return {
-            **base,
-            "kind": "stock",
-            "materialTypeId": line.material_type_id,
-            "materialTypeName": line.material_type.name,
-            "stockVariant": variant_from_key(line.stock_variant),
-            "quantity": line.quantity,
-            "consumable": line.material_type.consumable,
-        }
-    return {**base, "kind": "unknown"}
+    # A line is either a piece or a Menge (check constraint; FKs cascade).
+    return {
+        **base,
+        "kind": "stock",
+        "materialTypeId": line.material_type_id,
+        "materialTypeName": line.material_type.name,
+        "stockVariant": variant_from_key(line.stock_variant),
+        "quantity": line.quantity,
+        "consumable": line.material_type.consumable,
+    }
 
 
 def loan_to_json(
@@ -418,6 +413,8 @@ def loan_detail_to_json(
             line.status == "requested" and not line.request_notified for line in loan.lines
         ),
         "mails": _loan_mails_json(loan, viewer=viewer, session=session),
+        # Filled by the routes that add a Set.
+        "skippedPieces": [],
     }
 
 

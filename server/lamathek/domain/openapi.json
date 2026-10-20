@@ -1,0 +1,6938 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "LaMathek API",
+    "version": "1",
+    "description": "Generated from the Pydantic models in lamathek/contract (`lamathek openapi`). Do not edit."
+  },
+  "paths": {
+    "/api/audit-events": {
+      "get": {
+        "operationId": "audit.get_audit_events",
+        "tags": [
+          "audit"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEvent"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/auth/mode": {
+      "get": {
+        "operationId": "api.auth_mode",
+        "tags": [
+          "api"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthMode"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/calendar/ics/borrower.ics": {
+      "get": {
+        "operationId": "calendar.get_calendar_ics_borrower",
+        "tags": [
+          "calendar"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/calendar/ics/inventories/{inventory_id}/all-loans.ics": {
+      "get": {
+        "operationId": "calendar.get_calendar_ics_inventory",
+        "tags": [
+          "calendar"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/calendar/ics/inventories/{inventory_id}/contact.ics": {
+      "get": {
+        "operationId": "calendar.get_calendar_ics_contact",
+        "tags": [
+          "calendar"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/categories": {
+      "get": {
+        "operationId": "material.get_categories",
+        "tags": [
+          "material"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Category"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/damages/{damage_id}/photos": {
+      "post": {
+        "operationId": "photos.upload_damage_photo",
+        "tags": [
+          "photos"
+        ],
+        "parameters": [
+          {
+            "name": "damage_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoMeta"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/damages/{damage_id}/repairs": {
+      "post": {
+        "operationId": "material.post_damage_repair",
+        "tags": [
+          "material"
+        ],
+        "parameters": [
+          {
+            "name": "damage_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Damage"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/dashboard": {
+      "get": {
+        "operationId": "dashboard.get_dashboard",
+        "tags": [
+          "dashboard"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/events": {
+      "get": {
+        "operationId": "loans.get_events",
+        "tags": [
+          "loans"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Event"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/geocode": {
+      "get": {
+        "operationId": "geocode.get_geocode",
+        "tags": [
+          "geocode"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeocodeResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/groups": {
+      "get": {
+        "operationId": "loans.get_groups",
+        "tags": [
+          "loans"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Group"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "operationId": "api.health",
+        "tags": [
+          "api"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/impersonation": {
+      "post": {
+        "operationId": "impersonation.post_impersonation",
+        "tags": [
+          "impersonation"
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "impersonation.delete_impersonation",
+        "tags": [
+          "impersonation"
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/inventories": {
+      "get": {
+        "operationId": "inventories.list_inventories",
+        "tags": [
+          "inventories"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Inventory"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "inventories.post_inventory",
+        "tags": [
+          "inventories"
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Inventory"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/inventories/{inventory_id}": {
+      "patch": {
+        "operationId": "inventories.patch_inventory",
+        "tags": [
+          "inventories"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "get": {
+        "operationId": "inventories.get_inventory",
+        "tags": [
+          "inventories"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "inventories.remove_inventory",
+        "tags": [
+          "inventories"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/inventories/{inventory_id}/calendar": {
+      "get": {
+        "operationId": "calendar.get_inventory_calendar",
+        "tags": [
+          "calendar"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarItems"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/inventories/{inventory_id}/loans": {
+      "get": {
+        "operationId": "loans.get_loans",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Loan"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "loans.post_loan",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/inventories/{inventory_id}/loans/draft": {
+      "get": {
+        "operationId": "loans.get_draft",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/LoanDetail"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/inventories/{inventory_id}/loans/draft-lines": {
+      "post": {
+        "operationId": "loans.post_draft_line",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/inventories/{inventory_id}/material-types": {
+      "get": {
+        "operationId": "material.get_material_types",
+        "tags": [
+          "material"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MaterialType"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "material.post_material_type",
+        "tags": [
+          "material"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterialType"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/inventories/{inventory_id}/permissions": {
+      "get": {
+        "operationId": "inventories.get_permissions",
+        "tags": [
+          "inventories"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryPermissions"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "put": {
+        "operationId": "inventories.put_permissions",
+        "tags": [
+          "inventories"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryPermissions"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/inventories/{inventory_id}/photos": {
+      "post": {
+        "operationId": "photos.upload_inventory_photo",
+        "tags": [
+          "photos"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoMeta"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/inventories/{inventory_id}/pieces": {
+      "get": {
+        "operationId": "material.get_pieces",
+        "tags": [
+          "material"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Piece"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "material.post_piece",
+        "tags": [
+          "material"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Piece"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/inventories/{inventory_id}/pieces/batch": {
+      "post": {
+        "operationId": "material.post_pieces_batch",
+        "tags": [
+          "material"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PieceBatch"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/inventories/{inventory_id}/sets": {
+      "get": {
+        "operationId": "sets.get_sets",
+        "tags": [
+          "sets"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SetSummary"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "sets.post_set",
+        "tags": [
+          "sets"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/inventories/{inventory_id}/stock-losses/{loss_id}/found-again": {
+      "post": {
+        "operationId": "material.post_stock_loss_found_again",
+        "tags": [
+          "material"
+        ],
+        "summary": "Part or all of a lost quantity is back in the Inventar.",
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "loss_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockLoss"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/inventories/{inventory_id}/stock-losses/{loss_id}/write-off": {
+      "post": {
+        "operationId": "material.post_stock_loss_write_off",
+        "tags": [
+          "material"
+        ],
+        "summary": "The lost quantity will not come back: lower the Soll-Anzahl for good.",
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "loss_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockLoss"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/inventories/{inventory_id}/stock-lots/{lot_id}": {
+      "patch": {
+        "operationId": "material.patch_stock_lot",
+        "tags": [
+          "material"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "lot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockRow"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "material.remove_stock_lot",
+        "tags": [
+          "material"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "lot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/inventories/{inventory_id}/stock-lots/{lot_id}/photos": {
+      "post": {
+        "operationId": "photos.upload_stock_lot_photo",
+        "tags": [
+          "photos"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "lot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoMeta"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/inventories/{inventory_id}/stocks": {
+      "get": {
+        "operationId": "material.get_stocks",
+        "tags": [
+          "material"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StockRow"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/inventories/{inventory_id}/stocks/{material_type_id}/losses": {
+      "get": {
+        "operationId": "material.get_stock_losses",
+        "tags": [
+          "material"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "material_type_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StockLoss"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/inventories/{inventory_id}/stocks/{material_type_id}/lots": {
+      "post": {
+        "operationId": "material.post_stock_lot",
+        "tags": [
+          "material"
+        ],
+        "parameters": [
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "material_type_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockRow"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}": {
+      "delete": {
+        "operationId": "loans.delete_loan",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "get": {
+        "operationId": "loans.get_loan",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "loans.patch_loan",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/actions/cancel": {
+      "post": {
+        "operationId": "loans.loan_action_cancel",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/actions/complete-step": {
+      "post": {
+        "operationId": "loans.loan_action_complete_step",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/actions/confirm": {
+      "post": {
+        "operationId": "loans.loan_action_confirm",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/actions/decline": {
+      "post": {
+        "operationId": "loans.loan_action_decline",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/actions/mark-not-packed": {
+      "post": {
+        "operationId": "loans.loan_action_not_packed",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/actions/mark-not-picked-up": {
+      "post": {
+        "operationId": "loans.loan_action_not_picked_up",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/actions/notify-added": {
+      "post": {
+        "operationId": "loans.loan_action_notify_added",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/actions/pack": {
+      "post": {
+        "operationId": "loans.loan_action_pack",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/actions/pickup": {
+      "post": {
+        "operationId": "loans.loan_action_pickup",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/actions/record-loss": {
+      "post": {
+        "operationId": "loans.loan_action_loss",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/actions/replace": {
+      "post": {
+        "operationId": "loans.loan_action_replace",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/actions/report-return": {
+      "post": {
+        "operationId": "loans.loan_action_report_return",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/actions/request": {
+      "post": {
+        "operationId": "loans.loan_action_request",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/actions/restock": {
+      "post": {
+        "operationId": "loans.loan_action_restock",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/actions/skip-pickup": {
+      "post": {
+        "operationId": "loans.loan_action_skip_pickup",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/actions/undo-pickup": {
+      "post": {
+        "operationId": "loans.loan_action_undo_pickup",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/actions/unpack": {
+      "post": {
+        "operationId": "loans.loan_action_unpack",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/actions/withdraw": {
+      "post": {
+        "operationId": "loans.loan_action_withdraw",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/journal": {
+      "get": {
+        "operationId": "loans.loan_journal",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/JournalEntry"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/lines": {
+      "post": {
+        "operationId": "loans.post_loan_line",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/lines/{line_id}": {
+      "delete": {
+        "operationId": "loans.delete_loan_line",
+        "tags": [
+          "loans"
+        ],
+        "summary": "Remove a draft line (only drafts; later lines end with a status and Grund).",
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "line_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/lines/{line_id}/restore": {
+      "post": {
+        "operationId": "loans.restore_loan_line",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "line_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/mail-preview": {
+      "get": {
+        "operationId": "loans.loan_mail_preview",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailPreview"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/mails/{mail_id}/resend": {
+      "post": {
+        "operationId": "loans.resend_loan_mail",
+        "tags": [
+          "loans"
+        ],
+        "summary": "Queue a stuck or failed mail of this Verleih again (Materialwart*innen).",
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "mail_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/pdf/{kind}": {
+      "get": {
+        "operationId": "loans.loan_pdf",
+        "tags": [
+          "loans"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/loans/{loan_id}/photos": {
+      "post": {
+        "operationId": "photos.upload_loan_photo",
+        "tags": [
+          "photos"
+        ],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoMeta"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/mail/outbox": {
+      "get": {
+        "operationId": "mail.get_failed_outbox",
+        "tags": [
+          "mail"
+        ],
+        "summary": "Mails that gave up after all retries (Diagnose).",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OutboxMail"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/mail/status": {
+      "get": {
+        "operationId": "mail.get_mail_status",
+        "tags": [
+          "mail"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailStatus"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/mail/test": {
+      "post": {
+        "operationId": "mail.post_mail_test",
+        "tags": [
+          "mail"
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailTestStarted"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/mail/test/{job_id}": {
+      "get": {
+        "operationId": "mail.get_mail_test",
+        "tags": [
+          "mail"
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailTestJob"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/material-types/{material_type_id}": {
+      "delete": {
+        "operationId": "material.remove_material_type",
+        "tags": [
+          "material"
+        ],
+        "parameters": [
+          {
+            "name": "material_type_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "material.patch_material_type",
+        "tags": [
+          "material"
+        ],
+        "parameters": [
+          {
+            "name": "material_type_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterialType"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/material-types/{material_type_id}/photos": {
+      "post": {
+        "operationId": "photos.upload_material_type_photo",
+        "tags": [
+          "photos"
+        ],
+        "parameters": [
+          {
+            "name": "material_type_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoMeta"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/me": {
+      "get": {
+        "operationId": "api.me",
+        "tags": [
+          "api"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "api.patch_me",
+        "tags": [
+          "api"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/me/calendar-feeds": {
+      "get": {
+        "operationId": "calendar.get_my_calendar_feeds",
+        "tags": [
+          "calendar"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarFeeds"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "calendar.post_my_calendar_feed",
+        "tags": [
+          "calendar"
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarFeedCreated"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/me/calendar-feeds/{feed_id}": {
+      "delete": {
+        "operationId": "calendar.delete_my_calendar_feed",
+        "tags": [
+          "calendar"
+        ],
+        "parameters": [
+          {
+            "name": "feed_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/me/calendar/borrower": {
+      "get": {
+        "operationId": "calendar.get_my_calendar_borrower",
+        "tags": [
+          "calendar"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarItems"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/me/calendar/contact": {
+      "get": {
+        "operationId": "calendar.get_my_calendar_contact",
+        "tags": [
+          "calendar"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarItems"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/me/loans": {
+      "get": {
+        "operationId": "loans.get_my_loans",
+        "tags": [
+          "loans"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Loan"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/photos/{photo_id}": {
+      "get": {
+        "operationId": "photos.get_photo_file",
+        "tags": [
+          "photos"
+        ],
+        "parameters": [
+          {
+            "name": "photo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "photos.remove_photo",
+        "tags": [
+          "photos"
+        ],
+        "parameters": [
+          {
+            "name": "photo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/photos/{photo_id}/make-cover": {
+      "post": {
+        "operationId": "photos.make_cover",
+        "tags": [
+          "photos"
+        ],
+        "parameters": [
+          {
+            "name": "photo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoMeta"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/pieces/{piece_id}": {
+      "get": {
+        "operationId": "material.get_piece",
+        "tags": [
+          "material"
+        ],
+        "parameters": [
+          {
+            "name": "piece_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PieceDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "material.patch_piece",
+        "tags": [
+          "material"
+        ],
+        "parameters": [
+          {
+            "name": "piece_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Piece"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "material.remove_piece",
+        "tags": [
+          "material"
+        ],
+        "parameters": [
+          {
+            "name": "piece_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/pieces/{piece_id}/damages": {
+      "post": {
+        "operationId": "material.post_piece_damage",
+        "tags": [
+          "material"
+        ],
+        "parameters": [
+          {
+            "name": "piece_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Damage"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/pieces/{piece_id}/found-again": {
+      "post": {
+        "operationId": "material.post_piece_found_again",
+        "tags": [
+          "material"
+        ],
+        "parameters": [
+          {
+            "name": "piece_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PieceDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/pieces/{piece_id}/journal": {
+      "get": {
+        "operationId": "material.get_piece_journal",
+        "tags": [
+          "material"
+        ],
+        "parameters": [
+          {
+            "name": "piece_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/JournalEntry"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/pieces/{piece_id}/photos": {
+      "post": {
+        "operationId": "photos.upload_piece_photo",
+        "tags": [
+          "photos"
+        ],
+        "parameters": [
+          {
+            "name": "piece_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoMeta"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/pieces/{piece_id}/write-off": {
+      "post": {
+        "operationId": "material.post_piece_write_off",
+        "tags": [
+          "material"
+        ],
+        "summary": "Totalverlust endgültig: close it and retire the piece.",
+        "parameters": [
+          {
+            "name": "piece_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PieceDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/sets/{set_id}": {
+      "get": {
+        "operationId": "sets.get_set",
+        "tags": [
+          "sets"
+        ],
+        "parameters": [
+          {
+            "name": "set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "sets.patch_set",
+        "tags": [
+          "sets"
+        ],
+        "parameters": [
+          {
+            "name": "set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "sets.remove_set",
+        "tags": [
+          "sets"
+        ],
+        "parameters": [
+          {
+            "name": "set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/sets/{set_id}/photos": {
+      "post": {
+        "operationId": "photos.upload_set_photo",
+        "tags": [
+          "photos"
+        ],
+        "parameters": [
+          {
+            "name": "set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoMeta"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/sets/{set_id}/pieces": {
+      "put": {
+        "operationId": "sets.put_set_piece",
+        "tags": [
+          "sets"
+        ],
+        "parameters": [
+          {
+            "name": "set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Piece"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/sets/{set_id}/stock-lines": {
+      "put": {
+        "operationId": "sets.put_set_stock_line",
+        "tags": [
+          "sets"
+        ],
+        "parameters": [
+          {
+            "name": "set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/settings": {
+      "get": {
+        "operationId": "settings.get_settings",
+        "tags": [
+          "settings"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallationSettings"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "settings.patch_settings",
+        "tags": [
+          "settings"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallationSettings"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/users": {
+      "post": {
+        "operationId": "users.post_local_user",
+        "tags": [
+          "users"
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "get": {
+        "operationId": "users.list_users",
+        "tags": [
+          "users"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ManagedUser"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/users/{user_id}": {
+      "patch": {
+        "operationId": "users.patch_user",
+        "tags": [
+          "users"
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/users/{user_id}/inventories": {
+      "post": {
+        "operationId": "users.grant_user_inventory",
+        "tags": [
+          "users"
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedUser"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/users/{user_id}/inventories/{inventory_id}": {
+      "delete": {
+        "operationId": "users.revoke_user_inventory",
+        "tags": [
+          "users"
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "inventory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedUser"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/users/{user_id}/merge": {
+      "post": {
+        "operationId": "users.merge_user",
+        "tags": [
+          "users"
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/users/borrowers": {
+      "get": {
+        "operationId": "loans.get_borrowers",
+        "tags": [
+          "loans"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/users/search": {
+      "get": {
+        "operationId": "users.search_users_route",
+        "tags": [
+          "users"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AuditEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "action": {
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "actor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserWithSub"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "targetUser": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserWithSub"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "reason",
+          "detail",
+          "createdAt",
+          "actor",
+          "targetUser"
+        ],
+        "type": "object"
+      },
+      "AuthMode": {
+        "additionalProperties": false,
+        "properties": {
+          "devBypass": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "devBypass"
+        ],
+        "type": "object"
+      },
+      "CalendarBundesland": {
+        "enum": [
+          "BW",
+          "BY",
+          "BE",
+          "BB",
+          "HB",
+          "HH",
+          "HE",
+          "MV",
+          "NI",
+          "NW",
+          "RP",
+          "SL",
+          "SN",
+          "ST",
+          "SH",
+          "TH"
+        ],
+        "type": "string"
+      },
+      "CalendarFeed": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/CalendarFeedScope"
+          },
+          "inventoryId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "inventoryName": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "scope",
+          "inventoryId",
+          "inventoryName",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "CalendarFeedCreated": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/CalendarFeedScope"
+          },
+          "inventoryId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "inventoryName": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "token": {
+            "description": "Shown once; only its hash is stored.",
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "scope",
+          "inventoryId",
+          "inventoryName",
+          "createdAt",
+          "token",
+          "path"
+        ],
+        "type": "object"
+      },
+      "CalendarFeedScope": {
+        "enum": [
+          "borrower",
+          "contact",
+          "inventory"
+        ],
+        "type": "string"
+      },
+      "CalendarFeeds": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CalendarFeed"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "CalendarItem": {
+        "additionalProperties": false,
+        "properties": {
+          "loanId": {
+            "type": "integer"
+          },
+          "inventoryId": {
+            "type": "integer"
+          },
+          "inventoryName": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/LoanPhase"
+          },
+          "pickupOn": {
+            "format": "date",
+            "type": "string"
+          },
+          "returnOn": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "permanent": {
+            "type": "boolean"
+          },
+          "asBorrower": {
+            "type": "boolean"
+          },
+          "asContact": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "loanId",
+          "inventoryId",
+          "inventoryName",
+          "title",
+          "phase",
+          "pickupOn",
+          "returnOn",
+          "permanent",
+          "asBorrower",
+          "asContact"
+        ],
+        "type": "object"
+      },
+      "CalendarItems": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CalendarItem"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "Category": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "Damage": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "recordedOn": {
+            "format": "date",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "severe": {
+            "type": "boolean"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "open": {
+            "type": "boolean"
+          },
+          "repair": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Repair"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "photos": {
+            "items": {
+              "$ref": "#/components/schemas/PhotoMeta"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "recordedOn",
+          "note",
+          "severe",
+          "kind",
+          "open",
+          "repair",
+          "photos"
+        ],
+        "type": "object"
+      },
+      "Dashboard": {
+        "additionalProperties": false,
+        "properties": {
+          "welcomeName": {
+            "type": "string"
+          },
+          "canManage": {
+            "type": "boolean"
+          },
+          "cards": {
+            "$ref": "#/components/schemas/DashboardCards"
+          }
+        },
+        "required": [
+          "welcomeName",
+          "canManage",
+          "cards"
+        ],
+        "type": "object"
+      },
+      "DashboardCards": {
+        "additionalProperties": false,
+        "properties": {
+          "conflicts": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardLoan"
+            },
+            "type": "array"
+          },
+          "stuckMails": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardLoan"
+            },
+            "type": "array"
+          },
+          "openRequests": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardLoan"
+            },
+            "type": "array"
+          },
+          "waiting": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardLoan"
+            },
+            "type": "array"
+          },
+          "returnsDue": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardLoan"
+            },
+            "type": "array"
+          },
+          "overdue": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardLoan"
+            },
+            "type": "array"
+          },
+          "openActions": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardLoan"
+            },
+            "type": "array"
+          },
+          "myLoans": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardLoan"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "conflicts",
+          "stuckMails",
+          "openRequests",
+          "waiting",
+          "returnsDue",
+          "overdue",
+          "openActions",
+          "myLoans"
+        ],
+        "type": "object"
+      },
+      "DashboardLoan": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "inventoryId": {
+            "type": "integer"
+          },
+          "inventoryName": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/LoanPhase"
+          },
+          "returnOn": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "inventoryId",
+          "inventoryName",
+          "title",
+          "phase",
+          "returnOn"
+        ],
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "additionalProperties": false,
+        "description": "Every 4xx/5xx answer of the API.",
+        "properties": {
+          "error": {
+            "description": "Code, translated by the client (``errors.<code>``).",
+            "type": "string"
+          },
+          "conflicts": {
+            "default": [],
+            "description": "Only for availability errors (409).",
+            "items": {
+              "$ref": "#/components/schemas/LoanWarning"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "type": "object"
+      },
+      "Event": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "GeocodeResult": {
+        "additionalProperties": false,
+        "properties": {
+          "latitude": {
+            "type": "number"
+          },
+          "longitude": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude"
+        ],
+        "type": "object"
+      },
+      "Group": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "Health": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "const": "ok",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
+      "ImpersonationState": {
+        "additionalProperties": false,
+        "properties": {
+          "actor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserWithSub"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "actor",
+          "reason",
+          "startedAt"
+        ],
+        "type": "object"
+      },
+      "InstallationSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "legalName": {
+            "type": "string"
+          },
+          "legalAddress": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "website": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "representedBy": {
+            "type": "string"
+          },
+          "register": {
+            "description": "Registereintrag (Vereinsregister) for the Impressum.",
+            "type": "string"
+          },
+          "contentResponsible": {
+            "type": "string"
+          },
+          "mapLatitude": {
+            "type": "number"
+          },
+          "mapLongitude": {
+            "type": "number"
+          },
+          "hostName": {
+            "type": "string"
+          },
+          "hostAddress": {
+            "type": "string"
+          },
+          "hostPrivacyUrl": {
+            "type": "string"
+          },
+          "authProviderName": {
+            "type": "string"
+          },
+          "authProviderSameHost": {
+            "type": "boolean"
+          },
+          "authorityName": {
+            "type": "string"
+          },
+          "authorityUrl": {
+            "type": "string"
+          },
+          "calendarBundesland": {
+            "$ref": "#/components/schemas/CalendarBundesland"
+          }
+        },
+        "required": [
+          "title",
+          "subtitle",
+          "legalName",
+          "legalAddress",
+          "email",
+          "website",
+          "phone",
+          "representedBy",
+          "register",
+          "contentResponsible",
+          "mapLatitude",
+          "mapLongitude",
+          "hostName",
+          "hostAddress",
+          "hostPrivacyUrl",
+          "authProviderName",
+          "authProviderSameHost",
+          "authorityName",
+          "authorityUrl",
+          "calendarBundesland"
+        ],
+        "type": "object"
+      },
+      "Inventory": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/InventoryVisibility"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverPhotoId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "canManage": {
+            "description": "Whether the viewer is Materialwart*in here (else: Leserecht).",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "visibility",
+          "address",
+          "latitude",
+          "longitude",
+          "notes",
+          "coverPhotoId",
+          "canManage"
+        ],
+        "type": "object"
+      },
+      "InventoryDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/InventoryVisibility"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverPhotoId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "canManage": {
+            "description": "Whether the viewer is Materialwart*in here (else: Leserecht).",
+            "type": "boolean"
+          },
+          "photos": {
+            "items": {
+              "$ref": "#/components/schemas/PhotoMeta"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "visibility",
+          "address",
+          "latitude",
+          "longitude",
+          "notes",
+          "coverPhotoId",
+          "canManage",
+          "photos"
+        ],
+        "type": "object"
+      },
+      "InventoryPermissions": {
+        "additionalProperties": false,
+        "properties": {
+          "userIds": {
+            "description": "Materialwart*innen.",
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "readerUserIds": {
+            "description": "People with Leserecht (see and request).",
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "users": {
+            "items": {
+              "$ref": "#/components/schemas/User"
+            },
+            "type": "array"
+          },
+          "readers": {
+            "items": {
+              "$ref": "#/components/schemas/User"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "userIds",
+          "readerUserIds",
+          "users",
+          "readers"
+        ],
+        "type": "object"
+      },
+      "InventoryVisibility": {
+        "enum": [
+          "internal",
+          "active",
+          "archived"
+        ],
+        "type": "string"
+      },
+      "JournalEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "loanId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pieceId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "loanLineId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "actor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "realActor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Superuser who acted while impersonating ``actor``."
+          }
+        },
+        "required": [
+          "id",
+          "createdAt",
+          "kind",
+          "payload",
+          "loanId",
+          "pieceId",
+          "loanLineId",
+          "actor",
+          "realActor"
+        ],
+        "type": "object"
+      },
+      "Loan": {
+        "additionalProperties": false,
+        "description": "A Verleih as listed.",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "inventoryId": {
+            "type": "integer"
+          },
+          "inventoryName": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/LoanKind"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/LoanPhase"
+          },
+          "groupId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "No Gruppe yet on a draft (D0003)."
+          },
+          "groupName": {
+            "type": "string"
+          },
+          "borrowerUserId": {
+            "type": "integer"
+          },
+          "borrowerUserName": {
+            "type": "string"
+          },
+          "borrowerPhone": {
+            "description": "Empty unless the viewer is Materialwart*in of the Inventar.",
+            "type": "string"
+          },
+          "contactUserId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contactUserName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contactPhone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Only for the Ausleihende*n."
+          },
+          "eventId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "eventName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "wishPickupOn": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "wishReturnOn": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pickupOn": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "returnOn": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pickupNote": {
+            "type": "string"
+          },
+          "returnNote": {
+            "type": "string"
+          },
+          "coverPhotoId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "inventoryId",
+          "inventoryName",
+          "kind",
+          "phase",
+          "groupId",
+          "groupName",
+          "borrowerUserId",
+          "borrowerUserName",
+          "borrowerPhone",
+          "contactUserId",
+          "contactUserName",
+          "contactPhone",
+          "eventId",
+          "eventName",
+          "wishPickupOn",
+          "wishReturnOn",
+          "pickupOn",
+          "returnOn",
+          "pickupNote",
+          "returnNote",
+          "coverPhotoId"
+        ],
+        "type": "object"
+      },
+      "LoanDetail": {
+        "additionalProperties": false,
+        "description": "A Verleih with its positions, warnings and mails.",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "inventoryId": {
+            "type": "integer"
+          },
+          "inventoryName": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/LoanKind"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/LoanPhase"
+          },
+          "groupId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "No Gruppe yet on a draft (D0003)."
+          },
+          "groupName": {
+            "type": "string"
+          },
+          "borrowerUserId": {
+            "type": "integer"
+          },
+          "borrowerUserName": {
+            "type": "string"
+          },
+          "borrowerPhone": {
+            "description": "Empty unless the viewer is Materialwart*in of the Inventar.",
+            "type": "string"
+          },
+          "contactUserId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contactUserName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contactPhone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Only for the Ausleihende*n."
+          },
+          "eventId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "eventName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "wishPickupOn": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "wishReturnOn": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pickupOn": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "returnOn": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pickupNote": {
+            "type": "string"
+          },
+          "returnNote": {
+            "type": "string"
+          },
+          "coverPhotoId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/LoanWarning"
+            },
+            "type": "array"
+          },
+          "pickupPhotos": {
+            "items": {
+              "$ref": "#/components/schemas/PhotoMeta"
+            },
+            "type": "array"
+          },
+          "returnPhotos": {
+            "items": {
+              "$ref": "#/components/schemas/PhotoMeta"
+            },
+            "type": "array"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/LoanLine"
+            },
+            "type": "array"
+          },
+          "hasPendingMailChanges": {
+            "type": "boolean"
+          },
+          "hasUnnotifiedRequestedLines": {
+            "type": "boolean"
+          },
+          "mails": {
+            "description": "Outbox rows of this Verleih; empty unless the viewer is Materialwart*in.",
+            "items": {
+              "$ref": "#/components/schemas/OutboxMail"
+            },
+            "type": "array"
+          },
+          "skippedPieces": {
+            "description": "Only filled right after adding a Set.",
+            "items": {
+              "$ref": "#/components/schemas/SkippedPiece"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "inventoryId",
+          "inventoryName",
+          "kind",
+          "phase",
+          "groupId",
+          "groupName",
+          "borrowerUserId",
+          "borrowerUserName",
+          "borrowerPhone",
+          "contactUserId",
+          "contactUserName",
+          "contactPhone",
+          "eventId",
+          "eventName",
+          "wishPickupOn",
+          "wishReturnOn",
+          "pickupOn",
+          "returnOn",
+          "pickupNote",
+          "returnNote",
+          "coverPhotoId",
+          "warnings",
+          "pickupPhotos",
+          "returnPhotos",
+          "lines",
+          "hasPendingMailChanges",
+          "hasUnnotifiedRequestedLines",
+          "mails",
+          "skippedPieces"
+        ],
+        "type": "object"
+      },
+      "LoanKind": {
+        "enum": [
+          "short",
+          "permanent"
+        ],
+        "type": "string"
+      },
+      "LoanLine": {
+        "discriminator": {
+          "mapping": {
+            "piece": "#/components/schemas/LoanLinePiece",
+            "stock": "#/components/schemas/LoanLineStock"
+          },
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/LoanLinePiece"
+          },
+          {
+            "$ref": "#/components/schemas/LoanLineStock"
+          }
+        ]
+      },
+      "LoanLinePiece": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/LoanLineStatus"
+          },
+          "note": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "replacesLineId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "splitFromLineId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requestNotified": {
+            "type": "boolean"
+          },
+          "returnedQuantity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "statusBeforeEnd": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LoanLineStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/LoanWarning"
+            },
+            "type": "array"
+          },
+          "originSetId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "originSetName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "originSetRole": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SetRole"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "const": "piece",
+            "type": "string"
+          },
+          "pieceId": {
+            "type": "integer"
+          },
+          "pieceName": {
+            "type": "string"
+          },
+          "materialTypeName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "note",
+          "reason",
+          "replacesLineId",
+          "splitFromLineId",
+          "requestNotified",
+          "returnedQuantity",
+          "statusBeforeEnd",
+          "warnings",
+          "originSetId",
+          "originSetName",
+          "originSetRole",
+          "kind",
+          "pieceId",
+          "pieceName",
+          "materialTypeName"
+        ],
+        "type": "object"
+      },
+      "LoanLineStatus": {
+        "enum": [
+          "draft",
+          "requested",
+          "confirmed",
+          "packed",
+          "picked_up",
+          "return_reported",
+          "restocked",
+          "unavailable",
+          "not_packed",
+          "not_picked_up",
+          "not_returned",
+          "withdrawn"
+        ],
+        "type": "string"
+      },
+      "LoanLineStock": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/LoanLineStatus"
+          },
+          "note": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "replacesLineId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "splitFromLineId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requestNotified": {
+            "type": "boolean"
+          },
+          "returnedQuantity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "statusBeforeEnd": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LoanLineStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/LoanWarning"
+            },
+            "type": "array"
+          },
+          "originSetId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "originSetName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "originSetRole": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SetRole"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "const": "stock",
+            "type": "string"
+          },
+          "materialTypeId": {
+            "type": "integer"
+          },
+          "materialTypeName": {
+            "type": "string"
+          },
+          "stockVariant": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "One variant combination per line (#12).",
+            "type": "object"
+          },
+          "quantity": {
+            "type": "integer"
+          },
+          "consumable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "note",
+          "reason",
+          "replacesLineId",
+          "splitFromLineId",
+          "requestNotified",
+          "returnedQuantity",
+          "statusBeforeEnd",
+          "warnings",
+          "originSetId",
+          "originSetName",
+          "originSetRole",
+          "kind",
+          "materialTypeId",
+          "materialTypeName",
+          "stockVariant",
+          "quantity",
+          "consumable"
+        ],
+        "type": "object"
+      },
+      "LoanPhase": {
+        "enum": [
+          "draft",
+          "review",
+          "pack",
+          "handover",
+          "return",
+          "restock",
+          "closed"
+        ],
+        "type": "string"
+      },
+      "LoanWarning": {
+        "additionalProperties": false,
+        "description": "A conflict or hint from the availability check (D0007); also inside 409 errors.",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "lineId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pieceId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "materialTypeId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "otherLoanId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "otherLoanTitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "otherInventoryId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "itemLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the warning is about, e.g. \"12 × Seil (3 m)\"."
+          },
+          "available": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Menge conflicts: what the Inventar has."
+          },
+          "occupied": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Menge conflicts: the peak already in use on one day."
+          },
+          "requested": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "lineId",
+          "pieceId",
+          "materialTypeId",
+          "otherLoanId",
+          "otherLoanTitle",
+          "otherInventoryId",
+          "itemLabel",
+          "available",
+          "occupied",
+          "requested"
+        ],
+        "type": "object"
+      },
+      "MailPreview": {
+        "additionalProperties": false,
+        "properties": {
+          "subject": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "html": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject",
+          "text",
+          "html"
+        ],
+        "type": "object"
+      },
+      "MailStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "configured": {
+            "type": "boolean"
+          },
+          "host": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer"
+          },
+          "fromAddress": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "hasCredentials": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "configured",
+          "host",
+          "port",
+          "fromAddress",
+          "mode",
+          "hasCredentials"
+        ],
+        "type": "object"
+      },
+      "MailTestJob": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/MailTestStatus"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "detail"
+        ],
+        "type": "object"
+      },
+      "MailTestStarted": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "MailTestStatus": {
+        "enum": [
+          "pending",
+          "sent",
+          "failed"
+        ],
+        "type": "string"
+      },
+      "ManagedUser": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isSuperuser": {
+            "type": "boolean"
+          },
+          "hasLogin": {
+            "description": "False for people without a login (created by Materialwart*innen).",
+            "type": "boolean"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null where the viewer may not see it (D0005)."
+          },
+          "inventoryIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "canEditContact": {
+            "description": "Phone and email are only sent and editable where the viewer may change them.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "isSuperuser",
+          "hasLogin",
+          "phone",
+          "inventoryIds",
+          "canEditContact"
+        ],
+        "type": "object"
+      },
+      "MaterialItemStatus": {
+        "enum": [
+          "active",
+          "retired"
+        ],
+        "type": "string"
+      },
+      "MaterialType": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "inventoryId": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "shortName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tracking": {
+            "$ref": "#/components/schemas/Tracking"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "consumable": {
+            "type": "boolean"
+          },
+          "categoryId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "categoryName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "manufacturer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "modelName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/VariantAxis"
+            },
+            "type": "array"
+          },
+          "coverPhotoId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usageCount": {
+            "description": "Einzelteile or Mengenposten of this type; only an unused type can be deleted.",
+            "type": "integer"
+          },
+          "photos": {
+            "items": {
+              "$ref": "#/components/schemas/PhotoMeta"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "inventoryId",
+          "name",
+          "shortName",
+          "description",
+          "tracking",
+          "unit",
+          "consumable",
+          "categoryId",
+          "categoryName",
+          "manufacturer",
+          "modelName",
+          "variants",
+          "coverPhotoId",
+          "usageCount",
+          "photos"
+        ],
+        "type": "object"
+      },
+      "Me": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isSuperuser": {
+            "type": "boolean"
+          },
+          "hasLogin": {
+            "description": "False for people without a login (created by Materialwart*innen).",
+            "type": "boolean"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null where the viewer may not see it (D0005)."
+          },
+          "sub": {
+            "type": "string"
+          },
+          "impersonation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImpersonationState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "isSuperuser",
+          "hasLogin",
+          "phone",
+          "sub",
+          "impersonation"
+        ],
+        "type": "object"
+      },
+      "OutboxMail": {
+        "additionalProperties": false,
+        "description": "A mail in the outbox (D0012): queued with the step, sent by the server.",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "loanId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "audience": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "to": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "pdfKind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/OutboxStatus"
+          },
+          "attempts": {
+            "type": "integer"
+          },
+          "lastError": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "sentAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nextAttemptAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "loanId",
+          "audience",
+          "to",
+          "subject",
+          "pdfKind",
+          "status",
+          "attempts",
+          "lastError",
+          "createdAt",
+          "sentAt",
+          "nextAttemptAt"
+        ],
+        "type": "object"
+      },
+      "OutboxStatus": {
+        "enum": [
+          "pending",
+          "sending",
+          "sent",
+          "failed"
+        ],
+        "type": "string"
+      },
+      "PhotoMeta": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "sortOrder": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "sortOrder"
+        ],
+        "type": "object"
+      },
+      "Piece": {
+        "additionalProperties": false,
+        "properties": {
+          "acquiredYear": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/MaterialItemStatus"
+          },
+          "serialNumber": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "newValueCents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "type": "integer"
+          },
+          "materialTypeId": {
+            "type": "integer"
+          },
+          "materialTypeName": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "variant": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "setId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "setRole": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SetRole"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "setName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverPhotoId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lost": {
+            "description": "Open Totalverlust.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "acquiredYear",
+          "note",
+          "source",
+          "status",
+          "serialNumber",
+          "newValueCents",
+          "id",
+          "materialTypeId",
+          "materialTypeName",
+          "name",
+          "variant",
+          "setId",
+          "setRole",
+          "setName",
+          "coverPhotoId",
+          "lost"
+        ],
+        "type": "object"
+      },
+      "PieceBatch": {
+        "additionalProperties": false,
+        "properties": {
+          "pieces": {
+            "items": {
+              "$ref": "#/components/schemas/Piece"
+            },
+            "type": "array"
+          },
+          "setId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The Set the pieces were put into, if any."
+          }
+        },
+        "required": [
+          "pieces",
+          "setId"
+        ],
+        "type": "object"
+      },
+      "PieceDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "acquiredYear": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/MaterialItemStatus"
+          },
+          "serialNumber": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "newValueCents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "type": "integer"
+          },
+          "materialTypeId": {
+            "type": "integer"
+          },
+          "materialTypeName": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "variant": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "setId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "setRole": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SetRole"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "setName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverPhotoId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lost": {
+            "description": "Open Totalverlust.",
+            "type": "boolean"
+          },
+          "inventoryId": {
+            "type": "integer"
+          },
+          "photos": {
+            "items": {
+              "$ref": "#/components/schemas/PhotoMeta"
+            },
+            "type": "array"
+          },
+          "damages": {
+            "items": {
+              "$ref": "#/components/schemas/Damage"
+            },
+            "type": "array"
+          },
+          "foundAgainEligible": {
+            "type": "boolean"
+          },
+          "warnings": {
+            "description": "Verleihe that still count on a lost or severely damaged piece.",
+            "items": {
+              "$ref": "#/components/schemas/LoanWarning"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "acquiredYear",
+          "note",
+          "source",
+          "status",
+          "serialNumber",
+          "newValueCents",
+          "id",
+          "materialTypeId",
+          "materialTypeName",
+          "name",
+          "variant",
+          "setId",
+          "setRole",
+          "setName",
+          "coverPhotoId",
+          "lost",
+          "inventoryId",
+          "photos",
+          "damages",
+          "foundAgainEligible",
+          "warnings"
+        ],
+        "type": "object"
+      },
+      "Repair": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "recordedOn": {
+            "format": "date",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resolutionKind": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "recordedOn",
+          "note",
+          "resolutionKind"
+        ],
+        "type": "object"
+      },
+      "SetDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "inventoryId": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "shortName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverPhotoId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "assignmentPieceIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "optionalPieceIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "assignmentStockTypeIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "optionalStockTypeIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "photos": {
+            "items": {
+              "$ref": "#/components/schemas/PhotoMeta"
+            },
+            "type": "array"
+          },
+          "assignmentPieces": {
+            "items": {
+              "$ref": "#/components/schemas/Piece"
+            },
+            "type": "array"
+          },
+          "optionalPieces": {
+            "items": {
+              "$ref": "#/components/schemas/Piece"
+            },
+            "type": "array"
+          },
+          "assignmentStock": {
+            "items": {
+              "$ref": "#/components/schemas/SetStockLine"
+            },
+            "type": "array"
+          },
+          "optionalStock": {
+            "items": {
+              "$ref": "#/components/schemas/SetStockLine"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "inventoryId",
+          "name",
+          "shortName",
+          "coverPhotoId",
+          "assignmentPieceIds",
+          "optionalPieceIds",
+          "assignmentStockTypeIds",
+          "optionalStockTypeIds",
+          "photos",
+          "assignmentPieces",
+          "optionalPieces",
+          "assignmentStock",
+          "optionalStock"
+        ],
+        "type": "object"
+      },
+      "SetRole": {
+        "enum": [
+          "assignment",
+          "optional"
+        ],
+        "type": "string"
+      },
+      "SetStockLine": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "materialTypeId": {
+            "type": "integer"
+          },
+          "materialTypeName": {
+            "type": "string"
+          },
+          "stockVariant": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "role": {
+            "$ref": "#/components/schemas/SetRole"
+          },
+          "quantity": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "materialTypeId",
+          "materialTypeName",
+          "stockVariant",
+          "role",
+          "quantity"
+        ],
+        "type": "object"
+      },
+      "SetSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "inventoryId": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "shortName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverPhotoId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "assignmentPieceIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "optionalPieceIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "assignmentStockTypeIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "optionalStockTypeIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "inventoryId",
+          "name",
+          "shortName",
+          "coverPhotoId",
+          "assignmentPieceIds",
+          "optionalPieceIds",
+          "assignmentStockTypeIds",
+          "optionalStockTypeIds"
+        ],
+        "type": "object"
+      },
+      "SkippedPiece": {
+        "additionalProperties": false,
+        "description": "A Set piece left out when adding the Set (retired, lost, severely damaged).",
+        "properties": {
+          "pieceId": {
+            "type": "integer"
+          },
+          "pieceName": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pieceId",
+          "pieceName",
+          "code"
+        ],
+        "type": "object"
+      },
+      "StockLoss": {
+        "additionalProperties": false,
+        "description": "Verlust or Verbrauch of a quantity, booked against a Mengenposten (D0009).",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "stockLotId": {
+            "type": "integer"
+          },
+          "materialTypeId": {
+            "type": "integer"
+          },
+          "loanLineId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "loanId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/StockLossKind"
+          },
+          "quantity": {
+            "type": "integer"
+          },
+          "recordedOn": {
+            "format": "date",
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "open": {
+            "type": "boolean"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resolvedOn": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resolutionNote": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "stockLotId",
+          "materialTypeId",
+          "loanLineId",
+          "loanId",
+          "kind",
+          "quantity",
+          "recordedOn",
+          "reason",
+          "open",
+          "resolution",
+          "resolvedOn",
+          "resolutionNote"
+        ],
+        "type": "object"
+      },
+      "StockLossKind": {
+        "enum": [
+          "lost",
+          "consumed"
+        ],
+        "type": "string"
+      },
+      "StockLot": {
+        "additionalProperties": false,
+        "description": "A Mengenposten: one Materialart in one variant combination (#12).",
+        "properties": {
+          "acquiredYear": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/MaterialItemStatus"
+          },
+          "serialNumber": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "newValueCents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "variant": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "quantity": {
+            "description": "Soll-Anzahl; never lowered by an open loss.",
+            "type": "integer"
+          },
+          "lostQuantity": {
+            "description": "Part of it that is lost and not yet resolved.",
+            "type": "integer"
+          },
+          "coverPhotoId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "photos": {
+            "items": {
+              "$ref": "#/components/schemas/PhotoMeta"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "acquiredYear",
+          "note",
+          "source",
+          "status",
+          "serialNumber",
+          "newValueCents",
+          "id",
+          "label",
+          "variant",
+          "quantity",
+          "lostQuantity",
+          "coverPhotoId",
+          "photos"
+        ],
+        "type": "object"
+      },
+      "StockRow": {
+        "additionalProperties": false,
+        "description": "A Menge: a Materialart counted in Mengenposten.",
+        "properties": {
+          "materialTypeId": {
+            "type": "integer"
+          },
+          "materialTypeName": {
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/VariantAxis"
+            },
+            "type": "array"
+          },
+          "quantity": {
+            "description": "What can be lent: active lots minus open losses.",
+            "type": "integer"
+          },
+          "lostQuantity": {
+            "type": "integer"
+          },
+          "coverPhotoId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lots": {
+            "items": {
+              "$ref": "#/components/schemas/StockLot"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "materialTypeId",
+          "materialTypeName",
+          "unit",
+          "variants",
+          "quantity",
+          "lostQuantity",
+          "coverPhotoId",
+          "lots"
+        ],
+        "type": "object"
+      },
+      "Tracking": {
+        "enum": [
+          "piece",
+          "stock"
+        ],
+        "type": "string"
+      },
+      "User": {
+        "additionalProperties": false,
+        "description": "Contact view of a person.",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isSuperuser": {
+            "type": "boolean"
+          },
+          "hasLogin": {
+            "description": "False for people without a login (created by Materialwart*innen).",
+            "type": "boolean"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null where the viewer may not see it (D0005)."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "isSuperuser",
+          "hasLogin",
+          "phone"
+        ],
+        "type": "object"
+      },
+      "UserRef": {
+        "additionalProperties": false,
+        "description": "Actor in journals: name only, no contact data (D0005).",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "UserWithSub": {
+        "additionalProperties": false,
+        "description": "A person including the login subject (themself and superusers only).",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isSuperuser": {
+            "type": "boolean"
+          },
+          "hasLogin": {
+            "description": "False for people without a login (created by Materialwart*innen).",
+            "type": "boolean"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null where the viewer may not see it (D0005)."
+          },
+          "sub": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "isSuperuser",
+          "hasLogin",
+          "phone",
+          "sub"
+        ],
+        "type": "object"
+      },
+      "VariantAxis": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "label",
+          "values"
+        ],
+        "type": "object"
+      }
+    },
+    "responses": {
+      "Error": {
+        "description": "Error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      }
+    }
+  }
+}

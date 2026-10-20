@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 
+from lamathek.contract import models as api, responds
 from lamathek.access import (
     require_inventory_manager,
     require_inventory_viewer,
@@ -29,6 +30,7 @@ inventories_bp = Blueprint("inventories", __name__, url_prefix="/api")
 
 
 @inventories_bp.get("/inventories")
+@responds(list[api.Inventory])
 @require_login
 def list_inventories(user):
     session = get_session()
@@ -47,6 +49,7 @@ def list_inventories(user):
 
 
 @inventories_bp.post("/inventories")
+@responds(api.Inventory, status=201)
 @require_superuser
 def post_inventory(_user):
     body = request.get_json(silent=True) or {}
@@ -80,6 +83,7 @@ def post_inventory(_user):
 
 
 @inventories_bp.patch("/inventories/<int:inventory_id>")
+@responds(api.InventoryDetail)
 @require_inventory_manager()
 def patch_inventory(user, inventory):
     body = request.get_json(silent=True) or {}
@@ -116,6 +120,7 @@ def patch_inventory(user, inventory):
 
 
 @inventories_bp.get("/inventories/<int:inventory_id>")
+@responds(api.InventoryDetail)
 @require_inventory_viewer()
 def get_inventory(user, inventory):
     session = get_session()
@@ -131,6 +136,7 @@ def get_inventory(user, inventory):
 
 
 @inventories_bp.delete("/inventories/<int:inventory_id>")
+@responds(None, status=204)
 @require_superuser
 def remove_inventory(_user, inventory_id: int):
     session = get_session()
@@ -142,6 +148,7 @@ def remove_inventory(_user, inventory_id: int):
 
 
 @inventories_bp.get("/inventories/<int:inventory_id>/permissions")
+@responds(api.InventoryPermissions)
 @require_inventory_manager()
 def get_permissions(_user, inventory):
     session = get_session()
@@ -151,6 +158,8 @@ def get_permissions(_user, inventory):
     readers = permission_users(session, inventory.id, role=PERMISSION_ROLE_READ)
     return jsonify(
         {
+            "userIds": [u.id for u in users],
+            "readerUserIds": [u.id for u in readers],
             "users": [user_to_json(u, include_phone=False) for u in users],
             "readers": [user_to_json(u, include_phone=False) for u in readers],
         }
@@ -158,6 +167,7 @@ def get_permissions(_user, inventory):
 
 
 @inventories_bp.put("/inventories/<int:inventory_id>/permissions")
+@responds(api.InventoryPermissions)
 @require_inventory_manager()
 def put_permissions(_user, inventory):
     body = request.get_json(silent=True) or {}

@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from sqlalchemy import select
 
+from lamathek.contract import models as api, responds
 from lamathek.access import require_login, require_superuser
 from lamathek.db import get_session
 from lamathek.models.user import User
@@ -44,6 +45,7 @@ def _managed_user_json(
 
 
 @users_bp.post("/users")
+@responds(api.User, status=201)
 @require_login
 def post_local_user(user):
     denied = _require_can_grant_permissions(user)
@@ -70,6 +72,7 @@ def post_local_user(user):
 
 
 @users_bp.get("/users")
+@responds(list[api.ManagedUser])
 @require_login
 def list_users(user):
     session = get_session()
@@ -91,6 +94,7 @@ def list_users(user):
 
 
 @users_bp.get("/users/search")
+@responds(list[api.User])
 @require_login
 def search_users_route(user):
     denied = _require_can_grant_permissions(user)
@@ -105,6 +109,7 @@ def search_users_route(user):
 
 
 @users_bp.patch("/users/<int:user_id>")
+@responds(api.User)
 @require_login
 def patch_user(actor, user_id: int):
     body = request.get_json(silent=True) or {}
@@ -154,6 +159,7 @@ def patch_user(actor, user_id: int):
 
 
 @users_bp.post("/users/<int:user_id>/inventories")
+@responds(api.ManagedUser)
 @require_superuser
 def grant_user_inventory(_actor, user_id: int):
     body = request.get_json(silent=True) or {}
@@ -177,6 +183,7 @@ def grant_user_inventory(_actor, user_id: int):
 
 
 @users_bp.delete("/users/<int:user_id>/inventories/<int:inventory_id>")
+@responds(api.ManagedUser)
 @require_superuser
 def revoke_user_inventory(_actor, user_id: int, inventory_id: int):
     session = get_session()
@@ -196,6 +203,7 @@ def revoke_user_inventory(_actor, user_id: int, inventory_id: int):
 
 
 @users_bp.post("/users/<int:user_id>/merge")
+@responds(api.User)
 @require_superuser
 def merge_user(user, user_id: int):
     session = get_session()

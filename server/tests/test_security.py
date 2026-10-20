@@ -89,7 +89,7 @@ def test_contact_of_local_user_only_editable_by_managers_of_their_inventory():
         assert denied.status_code == 403
         listed = {row["id"]: row for row in client.get("/api/users").get_json()}
         assert listed[local["id"]]["canEditContact"] is False
-        assert "phone" not in listed[local["id"]]
+        assert listed[local["id"]]["phone"] is None
         assert all("sub" not in row for row in listed.values())
     finally:
         tmp.cleanup()

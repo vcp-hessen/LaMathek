@@ -1,12 +1,7 @@
-import { z } from 'zod'
 import { api } from './client'
+import { geocodeResultSchema, type GeocodeResult } from './generated/schemas'
 
-const geocodeSchema = z.object({
-  latitude: z.number(),
-  longitude: z.number(),
-})
-
-export async function geocodeAddress(query: string): Promise<{ latitude: number; longitude: number }> {
+export async function geocodeAddress(query: string): Promise<GeocodeResult> {
   const response = await api.get('/api/geocode', { params: { q: query } })
-  return geocodeSchema.parse(response.data)
+  return geocodeResultSchema.parse(response.data)
 }

@@ -1,27 +1,15 @@
-import { z } from 'zod'
 import { api } from './client'
-import { outboxMailSchema, type OutboxMail } from '../schemas/loan'
+import {
+  mailStatusSchema,
+  mailTestJobSchema,
+  mailTestStartedSchema,
+  outboxMailSchema,
+  type MailStatus,
+  type MailTestJob,
+  type OutboxMail,
+} from './generated/schemas'
 
-const mailStatusSchema = z.object({
-  configured: z.boolean(),
-  host: z.string(),
-  port: z.number(),
-  fromAddress: z.string(),
-  mode: z.string(),
-  hasCredentials: z.boolean(),
-})
-
-const mailTestStartSchema = z.object({
-  id: z.string(),
-})
-
-const mailTestJobSchema = z.object({
-  status: z.enum(['pending', 'sent', 'failed']),
-  detail: z.string().optional(),
-})
-
-export type MailStatus = z.infer<typeof mailStatusSchema>
-export type MailTestJob = z.infer<typeof mailTestJobSchema>
+export type { MailStatus, MailTestJob }
 
 export async function fetchMailStatus(): Promise<MailStatus> {
   const response = await api.get('/api/mail/status')
@@ -30,7 +18,7 @@ export async function fetchMailStatus(): Promise<MailStatus> {
 
 export async function startMailTest(to: string): Promise<string> {
   const response = await api.post('/api/mail/test', { to }, { validateStatus: (s) => s === 202 })
-  return mailTestStartSchema.parse(response.data).id
+  return mailTestStartedSchema.parse(response.data).id
 }
 
 export async function fetchMailTestJob(id: string): Promise<MailTestJob> {
@@ -41,5 +29,5 @@ export async function fetchMailTestJob(id: string): Promise<MailTestJob> {
 /** Mails that gave up after all retries (superusers). */
 export async function fetchFailedOutbox(): Promise<OutboxMail[]> {
   const response = await api.get('/api/mail/outbox')
-  return z.array(outboxMailSchema).parse(response.data)
+  return outboxMailSchema.array().parse(response.data)
 }

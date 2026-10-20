@@ -72,7 +72,7 @@ function lineSetLabel(line: LoanLine): string {
 const { conflictText } = useApiErrorMessage()
 
 function lineWarningTitle(line: LoanLine): string {
-  return (line.warnings ?? []).map((w) => conflictText({ ...w, itemLabel: undefined })).join('\n')
+  return line.warnings.map((w) => conflictText({ ...w, itemLabel: null })).join('\n')
 }
 
 function lineStatusLabel(status: string): string {

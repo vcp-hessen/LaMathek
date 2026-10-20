@@ -189,7 +189,12 @@ def test_stock_peak_counts_concurrent_loans_not_pairs():
         assert conflict == {
             "code": "stock_short",
             "lineId": conflict["lineId"],
+            "pieceId": None,
             "materialTypeId": heringe,
+            "otherLoanId": None,
+            "otherLoanTitle": None,
+            "otherInventoryId": None,
+            "itemLabel": None,
             "available": 10,
             "occupied": 8,
             "requested": 4,

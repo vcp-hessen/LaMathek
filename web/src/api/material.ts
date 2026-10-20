@@ -5,6 +5,7 @@ import { journalEntrySchema } from '../schemas/journal'
 import {
   categorySchema,
   materialTypeSchema,
+  pieceBatchSchema,
   pieceDetailSchema,
   pieceSchema,
   stockRowSchema,
@@ -12,6 +13,7 @@ import {
   type MaterialItemStatus,
   type MaterialType,
   type Piece,
+  type PieceBatch,
   type PieceDetail,
   type StockLoss,
   type StockRow,
@@ -165,13 +167,9 @@ export type CreatePiecesBatchPayload = {
 export async function createPiecesBatch(
   inventoryId: number,
   payload: CreatePiecesBatchPayload,
-): Promise<{ pieces: Piece[]; setId?: number }> {
+): Promise<PieceBatch> {
   const response = await api.post(`/api/inventories/${inventoryId}/pieces/batch`, payload)
-  const data = response.data as { pieces: unknown[]; setId?: number }
-  return {
-    pieces: pieceSchema.array().parse(data.pieces),
-    setId: data.setId,
-  }
+  return pieceBatchSchema.parse(response.data)
 }
 
 export async function updatePiece(

@@ -124,7 +124,9 @@ def line_warnings(session: Session, loan: Loan, line: LoanLine) -> list[dict[str
             conflict.line_id = line.id
     conflicts.extend(_mild_damage(session, line))
     label = _line_label(line)
-    return [{**c.to_json(), "lineId": line.id, "itemLabel": label} for c in conflicts]
+    for conflict in conflicts:
+        conflict.line_id = line.id
+    return [c.to_json(item_label=label) for c in conflicts]
 
 
 def enrich_loan_detail_warnings(

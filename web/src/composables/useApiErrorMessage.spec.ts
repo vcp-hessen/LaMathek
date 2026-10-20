@@ -5,7 +5,25 @@ import { defineComponent } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import de from '../locales/de.json'
+import type { LoanWarning } from '../schemas/loan'
 import { useApiErrorMessage } from './useApiErrorMessage'
+
+/** A conflict as the API sends it: every key, null where it does not apply. */
+function conflict(fields: Partial<LoanWarning> & { code: string }): LoanWarning {
+  return {
+    lineId: null,
+    pieceId: null,
+    materialTypeId: null,
+    otherLoanId: null,
+    otherLoanTitle: null,
+    otherInventoryId: null,
+    itemLabel: null,
+    available: null,
+    occupied: null,
+    requested: null,
+    ...fields,
+  }
+}
 
 function apiError(status: number, data: unknown): AxiosError {
   const config = { headers: new AxiosHeaders() }
@@ -44,8 +62,8 @@ describe('useApiErrorMessage', () => {
       apiError(409, {
         error: 'over_loaned',
         conflicts: [
-          { code: 'stock_short', itemLabel: '12 × Seil (3 m)', available: 20, occupied: 12, requested: 12 },
-          { code: 'piece_booked', itemLabel: 'HD 1', otherLoanId: 4, otherLoanTitle: 'Herbstfahrt' },
+          conflict({ code: 'stock_short', itemLabel: '12 × Seil (3 m)', available: 20, occupied: 12, requested: 12 }),
+          conflict({ code: 'piece_booked', itemLabel: 'HD 1', otherLoanId: 4, otherLoanTitle: 'Herbstfahrt' }),
         ],
       }),
     )

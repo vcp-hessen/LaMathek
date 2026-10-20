@@ -1,13 +1,15 @@
 import { api } from './client'
-import { meSchema, type Me } from '../schemas/me'
+import { userSchema, type User } from '../schemas/user'
 import { journalEntrySchema } from '../schemas/journal'
 import {
   eventSchema,
   groupSchema,
   loanDetailSchema,
   loanSchema,
+  mailPreviewSchema,
   type Loan,
   type LoanDetail,
+  type MailPreview,
 } from '../schemas/loan'
 
 export async function fetchGroups() {
@@ -20,9 +22,9 @@ export async function fetchEvents() {
   return eventSchema.array().parse(response.data)
 }
 
-export async function fetchBorrowers(): Promise<Me[]> {
+export async function fetchBorrowers(): Promise<User[]> {
   const response = await api.get('/api/users/borrowers')
-  return meSchema.array().parse(response.data)
+  return userSchema.array().parse(response.data)
 }
 
 export async function fetchLoans(inventoryId: number): Promise<Loan[]> {
@@ -152,11 +154,7 @@ export async function deleteLoan(loanId: number): Promise<void> {
   await api.delete(`/api/loans/${loanId}`)
 }
 
-export type LoanMailPreview = {
-  subject: string
-  text: string
-  html: string
-}
+export type LoanMailPreview = MailPreview
 
 export async function fetchLoanJournal(loanId: number) {
   const response = await api.get(`/api/loans/${loanId}/journal`)
@@ -179,5 +177,5 @@ export async function fetchLoanMailPreview(
   if (params.variant) query.variant = params.variant
   if (params.mailStep) query.mailStep = params.mailStep
   const response = await api.get(`/api/loans/${loanId}/mail-preview`, { params: query })
-  return response.data as LoanMailPreview
+  return mailPreviewSchema.parse(response.data)
 }

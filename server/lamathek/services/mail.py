@@ -178,7 +178,7 @@ def test_mail_status(session, row_id: int, owner_user_id: int) -> dict | None:
     if row is None or row.kind != "test" or row.requested_by_user_id != owner_user_id:
         return None
     if row.status == OUTBOX_SENT:
-        return {"status": "sent"}
+        return {"status": "sent", "detail": None}
     if row.status == OUTBOX_FAILED:
         return {"status": "failed", "detail": row.last_error}
-    return {"status": "pending"}
+    return {"status": "pending", "detail": None}

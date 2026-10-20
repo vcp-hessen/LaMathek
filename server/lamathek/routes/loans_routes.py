@@ -2,6 +2,7 @@ import io
 
 from flask import Blueprint, jsonify, request, send_file
 
+from lamathek.contract import models as api, responds
 from lamathek.models.loan import LINE_STATUS_DRAFT, is_workflow_loan_phase
 from lamathek.services.mail_templates import preview_loan_action_mail
 
@@ -175,6 +176,7 @@ def _add_lines_from_body(session, loan, body: dict, actor):
 
 
 @loans_bp.get("/groups")
+@responds(list[api.Group])
 @require_login
 def get_groups(_user):
     session = get_session()
@@ -182,6 +184,7 @@ def get_groups(_user):
 
 
 @loans_bp.get("/events")
+@responds(list[api.Event])
 @require_login
 def get_events(_user):
     session = get_session()
@@ -189,6 +192,7 @@ def get_events(_user):
 
 
 @loans_bp.get("/users/borrowers")
+@responds(list[api.User])
 @require_login
 def get_borrowers(user):
     from lamathek.services.inventories import user_can_manage_any_inventory
@@ -201,6 +205,7 @@ def get_borrowers(user):
 
 
 @loans_bp.get("/me/loans")
+@responds(list[api.Loan])
 @require_login
 def get_my_loans(user):
     session = get_session()
@@ -215,6 +220,7 @@ def get_my_loans(user):
 
 
 @loans_bp.get("/inventories/<int:inventory_id>/loans")
+@responds(list[api.Loan])
 @require_login
 def get_loans(user, inventory_id: int):
     from lamathek.services.inventories import inventory_by_id, user_can_view_inventory
@@ -241,6 +247,7 @@ def get_loans(user, inventory_id: int):
 
 
 @loans_bp.get("/inventories/<int:inventory_id>/loans/draft")
+@responds(api.LoanDetail | None)
 @require_login
 def get_draft(user, inventory_id: int):
     from lamathek.services.inventories import inventory_by_id
@@ -271,6 +278,7 @@ def get_draft(user, inventory_id: int):
 
 
 @loans_bp.post("/inventories/<int:inventory_id>/loans")
+@responds(api.LoanDetail, status=201)
 @require_login
 def post_loan(user, inventory_id: int):
     from lamathek.services.inventories import inventory_by_id
@@ -331,6 +339,7 @@ def post_loan(user, inventory_id: int):
 
 
 @loans_bp.post("/inventories/<int:inventory_id>/loans/draft-lines")
+@responds(api.LoanDetail, status=201)
 @require_login
 def post_draft_line(user, inventory_id: int):
     from lamathek.services.inventories import inventory_by_id
@@ -366,6 +375,7 @@ def post_draft_line(user, inventory_id: int):
 
 
 @loans_bp.delete("/loans/<int:loan_id>")
+@responds(None, status=204)
 @require_login
 def delete_loan(user, loan_id: int):
     session = get_session()
@@ -376,13 +386,14 @@ def delete_loan(user, loan_id: int):
         delete_unreleased_loan(session, loan, actor=user)
     except ValueError as exc:
         return _loan_error(exc)
-    return jsonify({"ok": True})
+    return "", 204
 
 
 _PDF_KINDS = frozenset({"pack", "handover", "return"})
 
 
 @loans_bp.get("/loans/<int:loan_id>/pdf/<kind>")
+@responds(bytes, mimetype="application/pdf")
 @require_login
 def loan_pdf(user, loan_id: int, kind: str):
     if kind not in _PDF_KINDS:
@@ -408,6 +419,7 @@ def loan_pdf(user, loan_id: int, kind: str):
 
 
 @loans_bp.post("/loans/<int:loan_id>/mails/<int:mail_id>/resend")
+@responds(api.LoanDetail)
 @require_login
 def resend_loan_mail(user, loan_id: int, mail_id: int):
     """Queue a stuck or failed mail of this Verleih again (Materialwart*innen)."""
@@ -433,6 +445,7 @@ def resend_loan_mail(user, loan_id: int, mail_id: int):
 
 
 @loans_bp.get("/loans/<int:loan_id>/journal")
+@responds(list[api.JournalEntry])
 @require_login
 def loan_journal(user, loan_id: int):
     session = get_session()
@@ -444,6 +457,7 @@ def loan_journal(user, loan_id: int):
 
 
 @loans_bp.get("/loans/<int:loan_id>/mail-preview")
+@responds(api.MailPreview)
 @require_login
 def loan_mail_preview(user, loan_id: int):
     session = get_session()
@@ -483,6 +497,7 @@ def loan_mail_preview(user, loan_id: int):
 
 
 @loans_bp.get("/loans/<int:loan_id>")
+@responds(api.LoanDetail)
 @require_login
 def get_loan(user, loan_id: int):
     session = get_session()
@@ -498,6 +513,7 @@ def get_loan(user, loan_id: int):
 
 
 @loans_bp.patch("/loans/<int:loan_id>")
+@responds(api.LoanDetail)
 @require_login
 def patch_loan(user, loan_id: int):
     session = get_session()
@@ -787,12 +803,14 @@ def _action_invoke(user, loan_id: int, handler):
 
 
 @loans_bp.post("/loans/<int:loan_id>/actions/request")
+@responds(api.LoanDetail)
 @require_login
 def loan_action_request(user, loan_id: int):
     return _action_invoke(user, loan_id, _handle_request)
 
 
 @loans_bp.post("/loans/<int:loan_id>/actions/notify-added")
+@responds(api.LoanDetail)
 @require_login
 def loan_action_notify_added(user, loan_id: int):
     def _handle_notify(session, loan, _body, user):
@@ -802,6 +820,7 @@ def loan_action_notify_added(user, loan_id: int):
 
 
 @loans_bp.post("/loans/<int:loan_id>/actions/complete-step")
+@responds(api.LoanDetail)
 @require_login
 def loan_action_complete_step(user, loan_id: int):
     def _handle_complete(session, loan, _body, user):
@@ -811,30 +830,35 @@ def loan_action_complete_step(user, loan_id: int):
 
 
 @loans_bp.post("/loans/<int:loan_id>/actions/confirm")
+@responds(api.LoanDetail)
 @require_login
 def loan_action_confirm(user, loan_id: int):
     return _action_invoke(user, loan_id, _handle_confirm)
 
 
 @loans_bp.post("/loans/<int:loan_id>/actions/decline")
+@responds(api.LoanDetail)
 @require_login
 def loan_action_decline(user, loan_id: int):
     return _action_invoke(user, loan_id, _handle_decline)
 
 
 @loans_bp.post("/loans/<int:loan_id>/actions/replace")
+@responds(api.LoanDetail)
 @require_login
 def loan_action_replace(user, loan_id: int):
     return _action_invoke(user, loan_id, _handle_replace)
 
 
 @loans_bp.post("/loans/<int:loan_id>/actions/withdraw")
+@responds(api.LoanDetail)
 @require_login
 def loan_action_withdraw(user, loan_id: int):
     return _action_invoke(user, loan_id, _handle_withdraw)
 
 
 @loans_bp.post("/loans/<int:loan_id>/actions/cancel")
+@responds(api.LoanDetail)
 @require_login
 def loan_action_cancel(user, loan_id: int):
     def _handle_cancel(session, loan, _body, user):
@@ -844,6 +868,7 @@ def loan_action_cancel(user, loan_id: int):
 
 
 @loans_bp.post("/loans/<int:loan_id>/actions/skip-pickup")
+@responds(api.LoanDetail)
 @require_login
 def loan_action_skip_pickup(user, loan_id: int):
     def _handle_skip_pickup(session, loan, _body, user):
@@ -853,60 +878,70 @@ def loan_action_skip_pickup(user, loan_id: int):
 
 
 @loans_bp.post("/loans/<int:loan_id>/actions/pack")
+@responds(api.LoanDetail)
 @require_login
 def loan_action_pack(user, loan_id: int):
     return _action_invoke(user, loan_id, _handle_pack)
 
 
 @loans_bp.post("/loans/<int:loan_id>/actions/unpack")
+@responds(api.LoanDetail)
 @require_login
 def loan_action_unpack(user, loan_id: int):
     return _action_invoke(user, loan_id, _handle_unpack)
 
 
 @loans_bp.post("/loans/<int:loan_id>/actions/mark-not-packed")
+@responds(api.LoanDetail)
 @require_login
 def loan_action_not_packed(user, loan_id: int):
     return _action_invoke(user, loan_id, _handle_mark_not_packed)
 
 
 @loans_bp.post("/loans/<int:loan_id>/actions/pickup")
+@responds(api.LoanDetail)
 @require_login
 def loan_action_pickup(user, loan_id: int):
     return _action_invoke(user, loan_id, _handle_pickup)
 
 
 @loans_bp.post("/loans/<int:loan_id>/actions/undo-pickup")
+@responds(api.LoanDetail)
 @require_login
 def loan_action_undo_pickup(user, loan_id: int):
     return _action_invoke(user, loan_id, _handle_undo_pickup)
 
 
 @loans_bp.post("/loans/<int:loan_id>/actions/mark-not-picked-up")
+@responds(api.LoanDetail)
 @require_login
 def loan_action_not_picked_up(user, loan_id: int):
     return _action_invoke(user, loan_id, _handle_mark_not_picked_up)
 
 
 @loans_bp.post("/loans/<int:loan_id>/actions/report-return")
+@responds(api.LoanDetail)
 @require_login
 def loan_action_report_return(user, loan_id: int):
     return _action_invoke(user, loan_id, _handle_report_return)
 
 
 @loans_bp.post("/loans/<int:loan_id>/actions/restock")
+@responds(api.LoanDetail)
 @require_login
 def loan_action_restock(user, loan_id: int):
     return _action_invoke(user, loan_id, _handle_restock)
 
 
 @loans_bp.post("/loans/<int:loan_id>/actions/record-loss")
+@responds(api.LoanDetail)
 @require_login
 def loan_action_loss(user, loan_id: int):
     return _action_invoke(user, loan_id, _handle_record_loss)
 
 
 @loans_bp.post("/loans/<int:loan_id>/lines")
+@responds(api.LoanDetail, status=201)
 @require_login
 def post_loan_line(user, loan_id: int):
     session = get_session()
@@ -930,6 +965,7 @@ def post_loan_line(user, loan_id: int):
 
 
 @loans_bp.post("/loans/<int:loan_id>/lines/<int:line_id>/restore")
+@responds(api.LoanDetail)
 @require_login
 def restore_loan_line(user, loan_id: int, line_id: int):
     session = get_session()
@@ -954,6 +990,7 @@ def restore_loan_line(user, loan_id: int, line_id: int):
 
 
 @loans_bp.delete("/loans/<int:loan_id>/lines/<int:line_id>")
+@responds(None, status=204)
 @require_login
 def delete_loan_line(user, loan_id: int, line_id: int):
     """Remove a draft line (only drafts; later lines end with a status and Grund)."""

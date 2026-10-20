@@ -1,5 +1,6 @@
 from flask import Blueprint, Response, jsonify, request
 
+from lamathek.contract import models as api, responds
 from lamathek.access import require_login
 from lamathek.db import get_session
 from lamathek.models.calendar import (
@@ -29,6 +30,8 @@ from lamathek.services.users import user_by_id
 
 calendar_bp = Blueprint("calendar", __name__, url_prefix="/api")
 
+ICS = "text/calendar"
+
 _FEED_SCOPES = frozenset(
     {CALENDAR_SCOPE_BORROWER, CALENDAR_SCOPE_CONTACT, CALENDAR_SCOPE_INVENTORY}
 )
@@ -39,6 +42,7 @@ def _items(loans, viewer_id: int | None):
 
 
 @calendar_bp.get("/me/calendar/borrower")
+@responds(api.CalendarItems)
 @require_login
 def get_my_calendar_borrower(user):
     session = get_session()
@@ -47,6 +51,7 @@ def get_my_calendar_borrower(user):
 
 
 @calendar_bp.get("/me/calendar/contact")
+@responds(api.CalendarItems)
 @require_login
 def get_my_calendar_contact(user):
     session = get_session()
@@ -55,6 +60,7 @@ def get_my_calendar_contact(user):
 
 
 @calendar_bp.get("/me/calendar-feeds")
+@responds(api.CalendarFeeds)
 @require_login
 def get_my_calendar_feeds(user):
     session = get_session()
@@ -65,6 +71,7 @@ def get_my_calendar_feeds(user):
 
 
 @calendar_bp.post("/me/calendar-feeds")
+@responds(api.CalendarFeedCreated, status=201)
 @require_login
 def post_my_calendar_feed(user):
     body = request.get_json(silent=True) or {}
@@ -103,6 +110,7 @@ def post_my_calendar_feed(user):
 
 
 @calendar_bp.delete("/me/calendar-feeds/<int:feed_id>")
+@responds(None, status=204)
 @require_login
 def delete_my_calendar_feed(user, feed_id: int):
     session = get_session()
@@ -112,6 +120,7 @@ def delete_my_calendar_feed(user, feed_id: int):
 
 
 @calendar_bp.get("/inventories/<int:inventory_id>/calendar")
+@responds(api.CalendarItems)
 @require_login
 def get_inventory_calendar(user, inventory_id: int):
     session = get_session()
@@ -139,19 +148,22 @@ def _calendar_ics_response(scope: str, inventory_id: int | None):
         return jsonify({"error": "not_found"}), 404
     loans = loans_for_feed(session, feed, owner)
     body = ics_for_loans(loans)
-    return Response(body, mimetype="text/calendar")
+    return Response(body, mimetype=ICS)
 
 
 @calendar_bp.get("/calendar/ics/borrower.ics")
+@responds(bytes, mimetype=ICS)
 def get_calendar_ics_borrower():
     return _calendar_ics_response(CALENDAR_SCOPE_BORROWER, None)
 
 
 @calendar_bp.get("/calendar/ics/inventories/<int:inventory_id>/contact.ics")
+@responds(bytes, mimetype=ICS)
 def get_calendar_ics_contact(inventory_id: int):
     return _calendar_ics_response(CALENDAR_SCOPE_CONTACT, inventory_id)
 
 
 @calendar_bp.get("/calendar/ics/inventories/<int:inventory_id>/all-loans.ics")
+@responds(bytes, mimetype=ICS)
 def get_calendar_ics_inventory(inventory_id: int):
     return _calendar_ics_response(CALENDAR_SCOPE_INVENTORY, inventory_id)

@@ -65,22 +65,27 @@ class Conflict:
     other_loan: Loan | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
-    def to_json(self) -> dict[str, Any]:
-        body: dict[str, Any] = {"code": self.code}
-        if self.line_id is not None:
-            body["lineId"] = self.line_id
-        if self.piece_id is not None:
-            body["pieceId"] = self.piece_id
-        if self.material_type_id is not None:
-            body["materialTypeId"] = self.material_type_id
-        if self.other_loan is not None:
+    def to_json(self, *, item_label: str | None = None) -> dict[str, Any]:
+        """Always the full key set (``LoanWarning``); what does not apply is null."""
+        other = self.other_loan
+        title = None
+        if other is not None:
             from lamathek.services.loan_display import loan_display_title
 
-            body["otherLoanId"] = self.other_loan.id
-            body["otherLoanTitle"] = loan_display_title(self.other_loan)
-            body["otherInventoryId"] = self.other_loan.inventory_id
-        body.update(self.extra)
-        return body
+            title = loan_display_title(other)
+        return {
+            "code": self.code,
+            "lineId": self.line_id,
+            "pieceId": self.piece_id,
+            "materialTypeId": self.material_type_id,
+            "otherLoanId": other.id if other is not None else None,
+            "otherLoanTitle": title,
+            "otherInventoryId": other.inventory_id if other is not None else None,
+            "itemLabel": item_label,
+            "available": self.extra.get("available"),
+            "occupied": self.extra.get("occupied"),
+            "requested": self.extra.get("requested"),
+        }
 
 
 class AvailabilityError(ValueError):

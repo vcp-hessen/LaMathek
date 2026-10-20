@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 
+from lamathek.contract import models as api, responds
 from lamathek.routes.http_errors import error_response
 
 from lamathek.access import (
@@ -52,6 +53,7 @@ def _set_error(exc: ValueError):
 
 
 @sets_bp.get("/inventories/<int:inventory_id>/sets")
+@responds(list[api.SetSummary])
 @require_inventory_viewer()
 def get_sets(_user, inventory):
     session = get_session()
@@ -61,6 +63,7 @@ def get_sets(_user, inventory):
 
 
 @sets_bp.post("/inventories/<int:inventory_id>/sets")
+@responds(api.SetDetail, status=201)
 @require_inventory_manager()
 def post_set(_user, inventory):
     body = request.get_json(silent=True) or {}
@@ -77,6 +80,7 @@ def post_set(_user, inventory):
 
 
 @sets_bp.get("/sets/<int:set_id>")
+@responds(api.SetDetail)
 @require_login
 def get_set(user, set_id: int):
     session = get_session()
@@ -92,6 +96,7 @@ def get_set(user, set_id: int):
 
 
 @sets_bp.patch("/sets/<int:set_id>")
+@responds(api.SetDetail)
 @require_login
 def patch_set(user, set_id: int):
     session = get_session()
@@ -121,6 +126,7 @@ def patch_set(user, set_id: int):
 
 
 @sets_bp.delete("/sets/<int:set_id>")
+@responds(None, status=204)
 @require_login
 def remove_set(user, set_id: int):
     session = get_session()
@@ -134,6 +140,7 @@ def remove_set(user, set_id: int):
 
 
 @sets_bp.put("/sets/<int:set_id>/pieces")
+@responds(api.Piece)
 @require_login
 def put_set_piece(user, set_id: int):
     session = get_session()
@@ -164,6 +171,7 @@ def put_set_piece(user, set_id: int):
 
 
 @sets_bp.put("/sets/<int:set_id>/stock-lines")
+@responds(api.SetDetail)
 @require_login
 def put_set_stock_line(user, set_id: int):
     session = get_session()

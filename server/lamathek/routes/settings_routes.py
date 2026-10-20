@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 
+from lamathek.contract import models as api, responds
 from lamathek.access import require_superuser
 from lamathek.bundesland import parse_calendar_bundesland
 from lamathek.db import get_session
@@ -14,6 +15,7 @@ settings_bp = Blueprint("settings", __name__, url_prefix="/api")
 
 
 @settings_bp.get("/settings")
+@responds(api.InstallationSettings)
 def get_settings():
     session = get_session()
     settings = get_installation_settings(session)
@@ -21,6 +23,7 @@ def get_settings():
 
 
 @settings_bp.patch("/settings")
+@responds(api.InstallationSettings)
 @require_superuser
 def patch_settings(user):
     body = request.get_json(silent=True) or {}

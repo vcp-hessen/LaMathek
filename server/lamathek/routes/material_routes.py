@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 
+from lamathek.contract import models as api, responds
 from lamathek.routes.http_errors import error_response
 from lamathek.routes.parsing import parse_date
 
@@ -126,6 +127,7 @@ def _category_args_from_body(body: dict) -> dict:
 
 
 @material_bp.get("/categories")
+@responds(list[api.Category])
 @require_login
 def get_categories(_user):
     session = get_session()
@@ -134,6 +136,7 @@ def get_categories(_user):
 
 
 @material_bp.get("/inventories/<int:inventory_id>/material-types")
+@responds(list[api.MaterialType])
 @require_inventory_viewer()
 def get_material_types(_user, inventory):
     session = get_session()
@@ -145,7 +148,6 @@ def get_material_types(_user, inventory):
             material_type_to_json(
                 t,
                 cover_photo_id=covers.get(t.id),
-                include_photos=True,
                 usage_count=usage.get(t.id, 0),
             )
             for t in types
@@ -154,6 +156,7 @@ def get_material_types(_user, inventory):
 
 
 @material_bp.post("/inventories/<int:inventory_id>/material-types")
+@responds(api.MaterialType, status=201)
 @require_inventory_manager()
 def post_material_type(_user, inventory):
     body = request.get_json(silent=True) or {}
@@ -188,10 +191,11 @@ def post_material_type(_user, inventory):
         )
     except ValueError as exc:
         return _material_type_error(exc)
-    return jsonify(material_type_to_json(material_type)), 201
+    return jsonify(material_type_to_json(material_type, usage_count=0)), 201
 
 
 @material_bp.delete("/material-types/<int:material_type_id>")
+@responds(None, status=204)
 @require_login
 def remove_material_type(user, material_type_id: int):
     session = get_session()
@@ -208,6 +212,7 @@ def remove_material_type(user, material_type_id: int):
 
 
 @material_bp.patch("/material-types/<int:material_type_id>")
+@responds(api.MaterialType)
 @require_login
 def patch_material_type(user, material_type_id: int):
     session = get_session()
@@ -254,10 +259,21 @@ def patch_material_type(user, material_type_id: int):
         material_type = update_material_type(session, material_type, **update_kwargs)
     except ValueError as exc:
         return _material_type_error(exc)
-    return jsonify(material_type_to_json(material_type))
+    return jsonify(
+        material_type_to_json(
+            material_type,
+            cover_photo_id=cover_photo_ids_for_material_types(session, [material_type.id]).get(
+                material_type.id
+            ),
+            usage_count=material_type_usage_counts(session, [material_type.id]).get(
+                material_type.id, 0
+            ),
+        )
+    )
 
 
 @material_bp.get("/inventories/<int:inventory_id>/pieces")
+@responds(list[api.Piece])
 @require_inventory_viewer()
 def get_pieces(_user, inventory):
     session = get_session()
@@ -279,6 +295,7 @@ def get_pieces(_user, inventory):
 
 
 @material_bp.post("/inventories/<int:inventory_id>/pieces")
+@responds(api.Piece, status=201)
 @require_inventory_manager()
 def post_piece(_user, inventory):
     body = request.get_json(silent=True) or {}
@@ -305,6 +322,7 @@ def post_piece(_user, inventory):
 
 
 @material_bp.post("/inventories/<int:inventory_id>/pieces/batch")
+@responds(api.PieceBatch, status=201)
 @require_inventory_manager()
 def post_pieces_batch(_user, inventory):
     body = request.get_json(silent=True) or {}
@@ -343,13 +361,11 @@ def post_pieces_batch(_user, inventory):
     except ValueError as exc:
         return _material_type_error(exc)
 
-    payload: dict = {"pieces": [piece_to_json(p) for p in pieces]}
-    if result_set_id is not None:
-        payload["setId"] = result_set_id
-    return jsonify(payload), 201
+    return jsonify({"pieces": [piece_to_json(p) for p in pieces], "setId": result_set_id}), 201
 
 
 @material_bp.get("/pieces/<int:piece_id>/journal")
+@responds(list[api.JournalEntry])
 @require_login
 def get_piece_journal(user, piece_id: int):
     session = get_session()
@@ -364,6 +380,7 @@ def get_piece_journal(user, piece_id: int):
 
 
 @material_bp.get("/pieces/<int:piece_id>")
+@responds(api.PieceDetail)
 @require_login
 def get_piece(user, piece_id: int):
     session = get_session()
@@ -390,6 +407,7 @@ def get_piece(user, piece_id: int):
 
 
 @material_bp.post("/pieces/<int:piece_id>/found-again")
+@responds(api.PieceDetail)
 @require_login
 def post_piece_found_again(user, piece_id: int):
     session = get_session()
@@ -429,6 +447,7 @@ def post_piece_found_again(user, piece_id: int):
 
 
 @material_bp.post("/pieces/<int:piece_id>/damages")
+@responds(api.Damage, status=201)
 @require_login
 def post_piece_damage(user, piece_id: int):
     session = get_session()
@@ -465,6 +484,7 @@ def post_piece_damage(user, piece_id: int):
 
 
 @material_bp.post("/damages/<int:damage_id>/repairs")
+@responds(api.Damage, status=201)
 @require_login
 def post_damage_repair(user, damage_id: int):
     session = get_session()
@@ -501,6 +521,7 @@ def post_damage_repair(user, damage_id: int):
 
 
 @material_bp.patch("/pieces/<int:piece_id>")
+@responds(api.Piece)
 @require_login
 def patch_piece(user, piece_id: int):
     session = get_session()
@@ -528,6 +549,7 @@ def patch_piece(user, piece_id: int):
 
 
 @material_bp.delete("/pieces/<int:piece_id>")
+@responds(None, status=204)
 @require_login
 def remove_piece(user, piece_id: int):
     session = get_session()
@@ -553,6 +575,7 @@ def _optional_lot_text(body: dict, key: str) -> str | None:
 
 
 @material_bp.post("/pieces/<int:piece_id>/write-off")
+@responds(api.PieceDetail)
 @require_login
 def post_piece_write_off(user, piece_id: int):
     """Totalverlust endgültig: close it and retire the piece."""
@@ -579,6 +602,7 @@ def post_piece_write_off(user, piece_id: int):
 
 
 @material_bp.get("/inventories/<int:inventory_id>/stocks/<int:material_type_id>/losses")
+@responds(list[api.StockLoss])
 @require_inventory_manager()
 def get_stock_losses(_user, inventory, material_type_id: int):
     from lamathek.services.stock_losses import losses_for_material_type, stock_loss_to_json
@@ -611,6 +635,7 @@ def _stock_loss_action(user, inventory, loss_id: int, action):
 
 
 @material_bp.post("/inventories/<int:inventory_id>/stock-losses/<int:loss_id>/found-again")
+@responds(api.StockLoss)
 @require_inventory_manager()
 def post_stock_loss_found_again(user, inventory, loss_id: int):
     """Part or all of a lost quantity is back in the Inventar."""
@@ -626,6 +651,7 @@ def post_stock_loss_found_again(user, inventory, loss_id: int):
 
 
 @material_bp.post("/inventories/<int:inventory_id>/stock-losses/<int:loss_id>/write-off")
+@responds(api.StockLoss)
 @require_inventory_manager()
 def post_stock_loss_write_off(user, inventory, loss_id: int):
     """The lost quantity will not come back: lower the Soll-Anzahl for good."""
@@ -639,6 +665,7 @@ def post_stock_loss_write_off(user, inventory, loss_id: int):
 
 
 @material_bp.get("/inventories/<int:inventory_id>/stocks")
+@responds(list[api.StockRow])
 @require_inventory_viewer()
 def get_stocks(_user, inventory):
     session = get_session()
@@ -661,6 +688,7 @@ def get_stocks(_user, inventory):
 
 
 @material_bp.post("/inventories/<int:inventory_id>/stocks/<int:material_type_id>/lots")
+@responds(api.StockRow, status=201)
 @require_inventory_manager()
 def post_stock_lot(_user, inventory, material_type_id: int):
     body = request.get_json(silent=True) or {}
@@ -685,6 +713,7 @@ def post_stock_lot(_user, inventory, material_type_id: int):
 
 
 @material_bp.patch("/inventories/<int:inventory_id>/stock-lots/<int:lot_id>")
+@responds(api.StockRow)
 @require_inventory_manager()
 def patch_stock_lot(_user, inventory, lot_id: int):
     body = request.get_json(silent=True) or {}
@@ -713,6 +742,7 @@ def patch_stock_lot(_user, inventory, lot_id: int):
 
 
 @material_bp.delete("/inventories/<int:inventory_id>/stock-lots/<int:lot_id>")
+@responds(None, status=204)
 @require_inventory_manager()
 def remove_stock_lot(_user, inventory, lot_id: int):
     session = get_session()
