@@ -401,7 +401,7 @@ function onRowKeydown(event: KeyboardEvent, row: MaterialRow) {
                 :inventory-id="inventoryId"
                 :material-type-id="row.original.lot.materialTypeId"
                 :stock-variant="row.original.lot.variant"
-                :quantity="1"
+                :available-quantity="row.original.lot.quantity - (row.original.lot.lostQuantity ?? 0)"
                 size="xs"
                 :show-label="false"
               />

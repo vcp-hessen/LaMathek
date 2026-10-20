@@ -134,7 +134,7 @@ const deleteMutation = useMutation({
           :inventory-id="inventoryId"
           :material-type-id="lot.materialTypeId"
           :stock-variant="lot.variant"
-          :quantity="1"
+          :available-quantity="lot.quantity - (lot.lostQuantity ?? 0)"
           size="md"
         />
       </div>

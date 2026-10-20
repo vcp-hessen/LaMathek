@@ -624,6 +624,13 @@
       "nextAttempt": "nächster Versuch {time}",
       "resend": "Erneut senden",
       "showAll": "Alle Mails anzeigen"
+    },
+    "box": {
+      "quantity": "Anzahl",
+      "ofAvailable": "von {count}",
+      "inBox": "In der Box: {count}",
+      "update": "Anzahl ändern",
+      "reason": "Grund für die kleinere Anzahl"
     }
   },
   "sets": {

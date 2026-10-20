@@ -35,7 +35,8 @@ const props = defineProps<{
   materialTypeId?: number
   /** Variant combination of the Mengenposten being added (#12). */
   stockVariant?: Record<string, string>
-  quantity?: number
+  /** Lendable quantity of the Mengenposten: default amount and "fully in the box" mark (#11). */
+  availableQuantity?: number
   setId?: number
   setScope?: 'assignment' | 'optionals'
   pieceIds?: number[]
@@ -112,7 +113,46 @@ function setPieceStockCoverage(): { matched: number; total: number } {
   return { matched, total }
 }
 
+// --- Menge: choose the amount instead of always adding 1 (#11) ---------------------
+
+const isStock = computed(() => props.materialTypeId != null && props.setId == null)
+
+/** Loose line (not from a Set) whose quantity can still be changed: draft or requested. */
+const editableStockLine = computed(() =>
+  matchingLines.value.find(
+    (line) =>
+      line.kind === 'stock' &&
+      line.originSetId == null &&
+      (line.status === 'draft' || line.status === 'requested'),
+  ) as Extract<LoanLine, { kind: 'stock' }> | undefined,
+)
+
+const stockInBox = computed(() =>
+  matchingLines.value.reduce((sum, line) => sum + (line.kind === 'stock' ? line.quantity : 0), 0),
+)
+
+const panelOpen = ref(false)
+const panelQuantity = ref(1)
+const panelReason = ref('')
+
+const needsReason = computed(() => {
+  const line = editableStockLine.value
+  return line?.status === 'requested' && panelQuantity.value < line.quantity
+})
+
+function openStockPanel() {
+  panelQuantity.value =
+    editableStockLine.value?.quantity ?? Math.max(1, props.availableQuantity ?? 1)
+  panelReason.value = ''
+  panelOpen.value = !panelOpen.value
+}
+
 const boxFillState = computed((): WlzTriState => {
+  if (isStock.value) {
+    if (stockInBox.value === 0) return 'off'
+    const target = props.availableQuantity ?? 0
+    return target > 0 && stockInBox.value < target ? 'partial' : 'on'
+  }
   if (props.setId != null && (props.pieceIds != null || props.stockTypeIds != null)) {
     const { matched, total } = setPieceStockCoverage()
     if (total === 0) return 'off'
@@ -129,13 +169,15 @@ const disabled = computed(
   () =>
     activeLoanId.value == null ||
     !canAddLines.value ||
-    (inBox.value && removableLines.value.length === 0),
+    (!isStock.value && inBox.value && removableLines.value.length === 0),
 )
 
 const actionTitle = computed(() => {
   const action =
     activeLoanId.value == null
       ? t('loans.selectBoxFirst')
+      : isStock.value && stockInBox.value > 0
+        ? t('loans.box.update')
       : inBox.value && removableLines.value.length === 0
         ? t('loans.boxFurther')
         : inBox.value
@@ -167,9 +209,6 @@ async function addToBox(loanId: number) {
     if (props.setScope === 'optionals') return addLoanSetOptionalLines(loanId, props.setId)
     return addLoanSetAssignmentLines(loanId, props.setId)
   }
-  if (props.materialTypeId != null) {
-    return addLoanStockLine(loanId, props.materialTypeId, props.quantity ?? 1, props.stockVariant)
-  }
   throw new Error('invalid_payload')
 }
 
@@ -186,16 +225,30 @@ async function removeFromBox(loanId: number) {
   }
 }
 
+type BoxAction = 'toggle' | 'setStock' | 'removeStock'
+
 const mutation = useMutation({
-  mutationFn: async () => {
+  mutationFn: async (action: BoxAction = 'toggle') => {
     const loanId = activeLoanId.value
     if (loanId == null) throw new Error('no_box')
-    if (inBox.value && removableLines.value.length > 0) return removeFromBox(loanId)
+    if (action === 'setStock') {
+      return addLoanStockLine(
+        loanId,
+        props.materialTypeId!,
+        panelQuantity.value,
+        props.stockVariant,
+        panelReason.value.trim() || undefined,
+      )
+    }
+    if (action === 'removeStock' || (inBox.value && removableLines.value.length > 0)) {
+      return removeFromBox(loanId)
+    }
     return addToBox(loanId)
   },
   onSuccess: async (result) => {
     errorDetail.value = null
     errorHint.value = null
+    panelOpen.value = false
     const skipped = result && 'skippedPieces' in result ? (result.skippedPieces ?? []) : []
     skippedNotice.value = skipped.length
       ? [
@@ -230,10 +283,54 @@ const errorRingClass = computed(() =>
         :title="buttonTitle"
         :cycle-on-click="false"
         :disabled="disabled || mutation.isPending.value"
-        @click="mutation.mutate()"
+        @click="isStock ? openStockPanel() : mutation.mutate('toggle')"
       />
       <span v-if="showLabel !== false" class="hidden sm:inline">{{ actionTitle }}</span>
     </div>
+    <form
+      v-if="isStock && panelOpen"
+      class="w-max max-w-[min(18rem,calc(100vw-2rem))] space-y-2 rounded-md border border-base-300 bg-base-100 p-2.5 text-left text-xs shadow-sm"
+      @submit.prevent="mutation.mutate('setStock')"
+      @keydown.esc="panelOpen = false"
+      @click.stop
+    >
+      <p v-if="stockInBox" class="opacity-70">{{ t('loans.box.inBox', { count: stockInBox }) }}</p>
+      <label class="flex items-center gap-2">
+        <span>{{ t('loans.box.quantity') }}</span>
+        <input
+          v-model.number="panelQuantity"
+          type="number"
+          min="1"
+          class="input input-bordered input-xs w-20"
+          required
+        />
+        <span v-if="availableQuantity != null" class="opacity-60">
+          {{ t('loans.box.ofAvailable', { count: availableQuantity }) }}
+        </span>
+      </label>
+      <label v-if="needsReason" class="flex flex-col gap-1">
+        <span>{{ t('loans.box.reason') }}</span>
+        <input v-model="panelReason" type="text" class="input input-bordered input-xs" required />
+      </label>
+      <div class="flex flex-wrap justify-end gap-1">
+        <button
+          v-if="removableLines.length"
+          type="button"
+          class="btn btn-ghost btn-xs"
+          :disabled="mutation.isPending.value"
+          @click="mutation.mutate('removeStock')"
+        >
+          {{ t('loans.removeFromBox') }}
+        </button>
+        <button
+          type="submit"
+          class="btn btn-primary btn-xs"
+          :disabled="mutation.isPending.value || panelQuantity < 1 || (needsReason && !panelReason.trim())"
+        >
+          {{ editableStockLine ? t('loans.box.update') : t('loans.addToBox') }}
+        </button>
+      </div>
+    </form>
     <div
       v-if="skippedNotice && !errorDetail"
       role="status"

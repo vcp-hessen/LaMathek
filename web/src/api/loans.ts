@@ -122,11 +122,14 @@ export async function addLoanStockLine(
   materialTypeId: number,
   quantity: number,
   variant?: Record<string, string>,
+  reason?: string,
 ): Promise<LoanDetail> {
+  // Sets the quantity of an open line of this Materialart and variant, or adds one.
   const response = await api.post(`/api/loans/${loanId}/lines`, {
     materialTypeId,
     quantity,
     variant: variant ?? {},
+    ...(reason ? { reason } : {}),
   })
   return loanDetailSchema.parse(response.data)
 }

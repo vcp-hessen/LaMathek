@@ -118,7 +118,8 @@ export const loanSchema = z.object({
   inventoryName: z.string().optional(),
   kind: loanKindSchema,
   phase: loanPhaseSchema,
-  groupId: z.number(),
+  // No Gruppe yet on a draft (D0003).
+  groupId: z.number().nullable(),
   groupName: z.string(),
   borrowerUserId: z.number(),
   borrowerUserName: z.string(),
