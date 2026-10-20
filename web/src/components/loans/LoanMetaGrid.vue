@@ -330,6 +330,7 @@ function onContactChange() {
             <input
               v-model="eventName"
               type="text"
+              :aria-label="t('loans.title')"
               class="input input-bordered input-sm w-full"
               :placeholder="t('loans.titlePlaceholder')"
             />
@@ -357,7 +358,11 @@ function onContactChange() {
             <ContextHelp anchor="dauerleihgabe" :label="t('help.glossary.dauerleihgabe.title')" />
           </dt>
           <dd class="m-0">
-            <select v-model="loanKind" class="select select-bordered select-sm w-full">
+            <select
+              v-model="loanKind"
+              class="select select-bordered select-sm w-full"
+              :aria-label="t('loans.kind')"
+            >
               <option value="short">{{ t('loans.kindShort') }}</option>
               <option value="permanent">{{ t('loans.kindPermanent') }}</option>
             </select>
@@ -369,6 +374,7 @@ function onContactChange() {
             <select
               v-if="canChangeBorrower"
               v-model="borrowerUserId"
+              :aria-label="t('loans.borrower')"
               class="select select-bordered select-sm w-full"
               :disabled="saveMutation.isPending.value"
             >
@@ -381,6 +387,7 @@ function onContactChange() {
               type="text"
               class="input input-bordered input-sm w-full min-w-0 truncate disabled:cursor-default disabled:border-base-300/60 disabled:bg-base-200/30 disabled:opacity-90"
               :value="loan.borrowerUserName"
+              :aria-label="t('loans.borrower')"
               disabled
               readonly
             />
@@ -392,6 +399,7 @@ function onContactChange() {
             <dd class="m-0">
               <LoanDateField
                 v-model="wishPickupOn"
+                :aria-label="t('loans.pickupOnWish')"
                 @committed="afterWishPickupCommitted"
               />
             </dd>
@@ -402,6 +410,7 @@ function onContactChange() {
               <LoanDateField
                 ref="wishReturnField"
                 v-model="wishReturnOn"
+                :aria-label="t('loans.returnOnWish')"
                 :min="wishPickupOn || undefined"
               />
             </dd>
@@ -420,6 +429,7 @@ function onContactChange() {
               type="text"
               class="input input-bordered input-sm w-full min-w-0 truncate disabled:cursor-default disabled:border-base-300/60 disabled:bg-base-200/30 disabled:opacity-90"
               :value="loan.borrowerUserName"
+              :aria-label="t('loans.borrower')"
               disabled
               readonly
             />
@@ -429,13 +439,21 @@ function onContactChange() {
           <div class="flex min-w-0 flex-col gap-1">
             <dt class="text-xs opacity-80">{{ t('loans.pickupOnWish') }}</dt>
             <dd class="m-0">
-              <LoanDateField :model-value="loan.wishPickupOn ?? ''" disabled />
+              <LoanDateField
+                :model-value="loan.wishPickupOn ?? ''"
+                :aria-label="t('loans.pickupOnWish')"
+                disabled
+              />
             </dd>
           </div>
           <div class="flex min-w-0 flex-col gap-1">
             <dt class="text-xs opacity-80">{{ t('loans.returnOnWish') }}</dt>
             <dd class="m-0">
-              <LoanDateField :model-value="loan.wishReturnOn ?? ''" disabled />
+              <LoanDateField
+                :model-value="loan.wishReturnOn ?? ''"
+                :aria-label="t('loans.returnOnWish')"
+                disabled
+              />
             </dd>
           </div>
         </template>
@@ -452,6 +470,7 @@ function onContactChange() {
           <dd class="m-0">
             <select
               v-model="contactUserId"
+              :aria-label="t('loans.contact')"
               class="select select-bordered select-sm w-full"
               :disabled="saveMutation.isPending.value"
               @change="onContactChange"
@@ -469,6 +488,7 @@ function onContactChange() {
             <dd class="m-0">
               <LoanDateField
                 v-model="termPickupOn"
+                :aria-label="t('loans.pickupOnDate')"
                 @committed="afterTermPickupCommitted"
               />
             </dd>
@@ -479,6 +499,7 @@ function onContactChange() {
               <LoanDateField
                 ref="termReturnField"
                 v-model="termReturnOn"
+                :aria-label="t('loans.returnOnDate')"
                 :min="termPickupOn || undefined"
               />
             </dd>
@@ -499,13 +520,21 @@ function onContactChange() {
           <div class="flex min-w-0 flex-col gap-1">
             <dt class="text-xs opacity-80">{{ t('loans.pickupOnDate') }}</dt>
             <dd class="m-0">
-              <LoanDateField :model-value="loan.pickupOn ?? ''" disabled />
+              <LoanDateField
+                :model-value="loan.pickupOn ?? ''"
+                :aria-label="t('loans.pickupOnDate')"
+                disabled
+              />
             </dd>
           </div>
           <div class="flex min-w-0 flex-col gap-1">
             <dt class="text-xs opacity-80">{{ t('loans.returnOnDate') }}</dt>
             <dd class="m-0">
-              <LoanDateField :model-value="loan.returnOn ?? ''" disabled />
+              <LoanDateField
+                :model-value="loan.returnOn ?? ''"
+                :aria-label="t('loans.returnOnDate')"
+                disabled
+              />
             </dd>
           </div>
         </template>

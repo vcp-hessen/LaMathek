@@ -10,6 +10,16 @@ export const api = axios.create({
   },
 })
 
+/**
+ * Retry a failed query only when trying again can help: no answer at all or a
+ * server error. A 4xx (gone, forbidden, signed out) is shown at once.
+ */
+export function shouldRetryQuery(failureCount: number, error: unknown): boolean {
+  if (failureCount >= 2) return false
+  const status = axios.isAxiosError(error) ? error.response?.status : undefined
+  return status === undefined || status >= 500
+}
+
 type UnauthorizedHandler = () => void
 let onUnauthorized: UnauthorizedHandler | null = null
 

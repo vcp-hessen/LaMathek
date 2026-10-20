@@ -125,3 +125,7 @@ class Config:
 
     # Background sender for the mail outbox; off in tests and for the seed script.
     MAIL_OUTBOX_WORKER = _env_bool("MAIL_OUTBOX_WORKER", default=True)
+
+    # Validate every /api answer against its model (ADR 0021). Unset: on with
+    # TESTING or DEBUG. The end-to-end tests switch it on under gunicorn.
+    API_CONTRACT_CHECK = _env_optional_bool("API_CONTRACT_CHECK")

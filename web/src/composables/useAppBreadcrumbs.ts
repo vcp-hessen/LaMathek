@@ -6,7 +6,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { fetchInventories } from '../api/inventories'
 import { fetchPiece, fetchStocks } from '../api/material'
-import { fetchLoan } from '../api/loans'
+import { fetchLoanForKey } from '../api/loans'
 import { fetchSet } from '../api/sets'
 import { loanDisplayName } from '../utils/loanDisplayName'
 
@@ -73,7 +73,7 @@ export function useAppBreadcrumbs() {
 
   const { data: loanDetail } = useQuery({
     queryKey: computed(() => ['loan', routeLoanId.value]),
-    queryFn: () => fetchLoan(routeLoanId.value!),
+    queryFn: fetchLoanForKey,
     enabled: () => routeLoanId.value !== null,
   })
 

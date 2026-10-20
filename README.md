@@ -87,6 +87,14 @@ cd ../web && npm run generate:api      # writes src/api/generated/schemas.ts
 
 `pytest` and `npm test` fail while either file is stale. See [ADR 0021](docs/adr/0021-api-contract-openapi.md).
 
+### End-to-end tests
+
+```bash
+cd web && npm run test:e2e
+```
+
+Clicks through whole journeys (Verleih from box to receipt, conflicts, Mengen loss, Leserecht, material, error states) in your local Google Chrome. Each run builds the client, seeds a fresh database in a temp directory and serves both with gunicorn on port 5199; mails go to a local sink on port 2525, never out. `E2E_REUSE=1` reuses a stack that is already running while you write tests. See [ADR 0022](docs/adr/0022-end-to-end-tests.md).
+
 ### Production-style run
 
 ```bash

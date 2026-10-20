@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import { configure } from 'vee-validate'
 import { createApp } from 'vue'
 import App from './App.vue'
+import { shouldRetryQuery } from './api/client'
 import { i18n } from './i18n'
 import { router } from './router'
 import '@fontsource/roboto/400.css'
@@ -21,5 +22,7 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 app.use(i18n)
-app.use(VueQueryPlugin)
+app.use(VueQueryPlugin, {
+  queryClientConfig: { defaultOptions: { queries: { retry: shouldRetryQuery } } },
+})
 app.mount('#app')

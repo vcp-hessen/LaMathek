@@ -152,6 +152,12 @@ export function isLineActionAllowed(
   return allowed.has(effective)
 }
 
+/** Whether the shared gates allow a server line action on `lineStatus` in `step`. */
+export function gateAllows(action: string, lineStatus: string, step: WorkflowStep | null): boolean {
+  if (step === null) return false
+  return lineActionSteps(action, lineStatus)?.includes(step) ?? false
+}
+
 export function loanWorkflowStepIndex(step: WorkflowStep): number {
   const order: WorkflowStep[] = ['review', 'pack', 'handover', 'return', 'restock']
   return order.indexOf(step)

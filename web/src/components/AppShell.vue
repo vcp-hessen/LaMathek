@@ -28,9 +28,18 @@ const router = useRouter()
 const queryClient = useQueryClient()
 const identityChanged = useIdentitySwitch()
 
-// Expired session: forget everything cached and show the signed-out start page.
+// Data that does not depend on the session survives its end.
+const SESSIONLESS_KEYS = new Set<unknown>([queryKeys.settings[0], queryKeys.authMode[0]])
+
+// Expired session: signed out from here on. Clearing the whole cache would strand
+// queries still loading on the next page (several 401s arrive one after another).
 setUnauthorizedHandler(() => {
-  queryClient.clear()
+  queryClient.setQueryData(queryKeys.me, null)
+  queryClient.removeQueries({
+    predicate: (query) =>
+      query.queryKey[0] !== queryKeys.me[0] && !SESSIONLESS_KEYS.has(query.queryKey[0]),
+  })
+  if (route.path === '/' && route.query.sessionExpired) return
   void router.push({ path: '/', query: { sessionExpired: '1' } })
 })
 onUnmounted(() => setUnauthorizedHandler(null))

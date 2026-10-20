@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/vue-query'
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { fetchLoan, fetchLoanMailPreview } from '../api/loans'
+import { fetchLoanForKey, fetchLoanMailPreview } from '../api/loans'
 import {
   defaultMailPreviewAction,
   LOAN_MAIL_PREVIEW_ACTIONS,
@@ -45,7 +45,7 @@ const loanPhaseLabel = computed(() => {
 
 const loanQuery = useQuery({
   queryKey: ['loan', loanId],
-  queryFn: () => fetchLoan(loanId.value),
+  queryFn: fetchLoanForKey,
   enabled: () => Number.isFinite(loanId.value),
 })
 

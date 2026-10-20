@@ -45,6 +45,7 @@ Until the first release, `[Unreleased]` describes what the app can do; intermedi
 
 - Docker-Image mit gunicorn, Migrationen im Paket (`lamathek migrate`), Instanz-Zeitzone (`LAMATHEK_INSTANCE_TIMEZONE`), Demo-Daten (`scripts/seed_demo.py --reset`, `./scripts/dev.sh --seed`).
 - Tests: pytest für die API (inkl. Migration ab leerer Datenbank und Vollständigkeit der Fehlertexte), Vitest für den Client.
+- End-to-end-Tests (Playwright, lokales Chrome): ganze Klickstrecken mit frischer Datenbank, gunicorn, Mail-Senke und Vertragsprüfung (`npm run test:e2e`).
 - API-Vertrag (#16): Antworten als Pydantic-Modelle, daraus OpenAPI (`lamathek openapi`) und die zod-Schemas des Clients (`npm run generate:api`); Tests und Dev-Server prüfen jede Antwort.
 
 ### Security

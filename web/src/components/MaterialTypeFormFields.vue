@@ -103,6 +103,7 @@ function setTrackingFromToggle(isStock: boolean) {
           <input
             type="checkbox"
             class="toggle toggle-primary toggle-sm"
+            :aria-label="t('material.trackingStock')"
             :checked="tracking === 'stock'"
             @change="setTrackingFromToggle(($event.target as HTMLInputElement).checked)"
           />

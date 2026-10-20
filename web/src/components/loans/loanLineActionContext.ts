@@ -1,5 +1,5 @@
 import type { LoanLine } from '../../schemas/loan'
-import type { WorkflowStep } from '../../domain/loanWorkflowSteps'
+import { gateAllows, type WorkflowStep } from '../../domain/loanWorkflowSteps'
 
 const REVIEW_STATUSES = new Set(['draft', 'requested'])
 const PACK_STATUSES = new Set(['confirmed'])
@@ -109,19 +109,34 @@ export function deriveLineActionContext(
   }
 
   if (isSubset(statuses, RETURN_STATUSES)) {
-    if (effectiveStep != null && !stepMatchesKind(effectiveStep, 'return')) {
-      return { kind: 'hint', hint: 'wrong_step' }
-    }
+    // Rückgabe melden in the return step, Übernehmen in the restock step: the
+    // shared gates decide (server/lamathek/domain/workflow_gates.json).
     const pickedUpCount = selected.filter((l) => l.status === 'picked_up').length
     const returnReportedCount = selected.filter((l) => l.status === 'return_reported').length
-    return {
-      kind: 'return',
-      pickedUpCount,
-      returnReportedCount,
-      restockCount: returnReportedCount,
-      lossCount: pickedUpCount + returnReportedCount,
-      undoPickupCount: pickedUpCount,
+    if (effectiveStep == null) {
+      return {
+        kind: 'return',
+        pickedUpCount,
+        returnReportedCount,
+        restockCount: returnReportedCount,
+        lossCount: pickedUpCount + returnReportedCount,
+        undoPickupCount: pickedUpCount,
+      }
     }
+    const count = (action: string) =>
+      selected.filter((l) => gateAllows(action, l.status, effectiveStep)).length
+    const context = {
+      kind: 'return' as const,
+      pickedUpCount: count('report_return'),
+      returnReportedCount,
+      restockCount: count('restock'),
+      lossCount: count('record_loss'),
+      undoPickupCount: count('undo_pickup'),
+    }
+    if (!context.pickedUpCount && !context.restockCount && !context.lossCount && !context.undoPickupCount) {
+      return { kind: 'hint', hint: 'wrong_step' }
+    }
+    return context
   }
 
   if ([...statuses].every((s) => TERMINAL_STATUSES.has(s))) {

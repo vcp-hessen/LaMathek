@@ -194,7 +194,13 @@ function addPiece() {
         class="flex flex-wrap gap-2"
         @submit.prevent="renameMutation.mutate()"
       >
-        <input v-model="name" type="text" class="input input-bordered min-w-0 flex-1" required />
+        <input
+          v-model="name"
+          type="text"
+          class="input input-bordered min-w-0 flex-1"
+          :aria-label="t('sets.newName')"
+          required
+        />
         <input
           v-model="shortName"
           type="text"

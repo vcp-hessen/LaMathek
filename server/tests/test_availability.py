@@ -194,7 +194,7 @@ def test_stock_peak_counts_concurrent_loans_not_pairs():
             "otherLoanId": None,
             "otherLoanTitle": None,
             "otherInventoryId": None,
-            "itemLabel": None,
+            "itemLabel": "4 × Hering",
             "available": 10,
             "occupied": 8,
             "requested": 4,
@@ -416,5 +416,24 @@ def test_superuser_cannot_delete_a_loan_after_handover():
         w.as_("su")
         response = w.client.delete(f"/api/loans/{loan}")
         assert response.status_code == 409
+    finally:
+        w.close()
+
+
+def test_confirm_names_every_conflicting_line_and_confirms_none():
+    w = World()
+    try:
+        kohte = w.piece("Kohte 1")
+        heringe = w.stock("Hering", 10)
+        first = w.loan([{"pieceId": kohte}, {"materialTypeId": heringe, "quantity": 8}], 5, 7)
+        assert w.confirm(first).status_code == 200
+        second = w.loan([{"pieceId": kohte}, {"materialTypeId": heringe, "quantity": 4}], 6, 8)
+        refused = w.confirm(second)
+        assert refused.status_code == 409
+        body = refused.get_json()
+        assert body["error"] == "piece_unavailable"
+        assert sorted(c["itemLabel"] for c in body["conflicts"]) == ["4 × Hering", "Kohte 1"]
+        # All or nothing: no line of the second Verleih was confirmed.
+        assert {l["status"] for l in w.detail(second)["lines"]} == {"requested"}
     finally:
         w.close()

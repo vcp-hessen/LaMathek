@@ -612,6 +612,7 @@ const createLotMutation = useMutation({
                   <input
                     v-model="batchNamePattern"
                     type="text"
+                    :aria-label="t('material.pieceBatchNamePattern')"
                     class="input input-bordered input-sm min-w-0 flex-1"
                     :placeholder="
                       t('material.pieceBatchNamePatternHint', {

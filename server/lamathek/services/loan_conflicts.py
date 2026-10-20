@@ -37,7 +37,7 @@ from lamathek.services.piece_availability import (
 _OPEN_STATUSES = (LINE_STATUS_DRAFT, LINE_STATUS_REQUESTED, *LINE_STATUSES_BLOCKING)
 
 
-def _line_label(line: LoanLine) -> str:
+def line_label(line: LoanLine) -> str:
     if line.piece is not None:
         return line.piece.name
     if line.material_type is not None:
@@ -123,7 +123,7 @@ def line_warnings(session: Session, loan: Loan, line: LoanLine) -> list[dict[str
         for conflict in conflicts:
             conflict.line_id = line.id
     conflicts.extend(_mild_damage(session, line))
-    label = _line_label(line)
+    label = line_label(line)
     for conflict in conflicts:
         conflict.line_id = line.id
     return [c.to_json(item_label=label) for c in conflicts]

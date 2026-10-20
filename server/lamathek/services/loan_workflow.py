@@ -28,7 +28,11 @@ from lamathek.models.material import MaterialType
 from lamathek.models.user import User
 from lamathek.services.inventories import user_can_manage_inventory
 from lamathek.services.loan_access import user_is_borrower
-from lamathek.services.availability import assert_line_available
+from lamathek.services.availability import (
+    AvailabilityError,
+    assert_line_available,
+    labelled_line_conflicts,
+)
 from lamathek.services.loans import loan_by_id
 from lamathek.services.journal import append_journal, journal_line_action
 from lamathek.services.loan_notifications import notify_loan_action
@@ -237,18 +241,29 @@ def confirm_lines(
     )
     _borrower_phone_required(loan.borrower_user)
     lines = _lines_for_loan(session, loan, line_ids)
+    refused: list[LoanLine] = []
+    conflicts = []
     for line in lines:
         assert_line_action_allowed(loan, line, "confirm")
         if line.status != LINE_STATUS_REQUESTED:
             raise ValueError("invalid_line_status")
         # Checked line by line against the database, so lines confirmed earlier
         # in this call (flushed below) count as occupied for the next one.
-        assert_line_available(session, loan, line)
+        found = labelled_line_conflicts(session, loan, line)
+        if found:
+            # Keep checking: the Materialwart*in sees every conflict at once.
+            refused.append(line)
+            conflicts.extend(found)
+            continue
         line.status = LINE_STATUS_CONFIRMED
         session.flush()
         journal_line_action(
             session, actor=actor, loan_id=loan.id, line=line, action="confirm"
         )
+    if refused:
+        session.rollback()
+        pieces = any(line.piece_id is not None for line in refused)
+        raise AvailabilityError("piece_unavailable" if pieces else "over_loaned", conflicts)
     if loan.phase == LOAN_PHASE_DRAFT:
         loan.phase = LOAN_PHASE_REVIEW
     _queue_mail(loan, lines)

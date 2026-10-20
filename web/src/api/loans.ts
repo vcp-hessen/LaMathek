@@ -75,6 +75,15 @@ export async function fetchLoan(loanId: number): Promise<LoanDetail> {
   return loanDetailSchema.parse(response.data)
 }
 
+/**
+ * queryFn for ['loan', id]: takes the id from the key. Several components observe
+ * the same key (detail page, active box, breadcrumbs); a queryFn reading its own
+ * reactive id would fetch the wrong Verleih once that id changed (e.g. `null`).
+ */
+export function fetchLoanForKey({ queryKey }: { queryKey: readonly unknown[] }): Promise<LoanDetail> {
+  return fetchLoan(Number(queryKey[1]))
+}
+
 export async function patchLoan(
   loanId: number,
   payload: Record<string, unknown>,

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/vue-query'
 import { computed, unref, watch, type MaybeRefOrGetter, toValue } from 'vue'
-import { fetchLoan, fetchLoans } from '../api/loans'
+import { fetchLoanForKey, fetchLoans } from '../api/loans'
 import type { Loan } from '../schemas/loan'
 import { useActiveLoanStore } from '../stores/activeLoan'
 import { useInventoryQueryKey } from './useInventoryQueryKey'
@@ -61,7 +61,7 @@ export function useActiveBox(inventoryId: MaybeRefOrGetter<number>) {
 
   const { data: activeLoanDetail, isLoading: activeDetailLoading } = useQuery({
     queryKey: computed(() => ['loan', activeLoanId.value]),
-    queryFn: () => fetchLoan(activeLoanId.value!),
+    queryFn: fetchLoanForKey,
     enabled: () => activeLoanId.value != null,
   })
 

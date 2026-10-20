@@ -11,7 +11,7 @@ import { fetchInventoryPermissions } from '../api/inventories'
 import { patchMePhone } from '../api/me'
 import {
   deleteLoan,
-  fetchLoan,
+  fetchLoanForKey,
   fetchLoanJournal,
   loanAction,
   patchLoan,
@@ -70,7 +70,7 @@ const { data: me } = useMe()
 
 const { data: loan, isLoading, isError, error: loadError, refetch: retryLoad } = useQuery({
   queryKey: ['loan', loanId],
-  queryFn: () => fetchLoan(loanId.value),
+  queryFn: fetchLoanForKey,
   enabled: () => Number.isFinite(loanId.value),
 })
 
@@ -111,7 +111,11 @@ watch(
       { editPickupNote: value.pickupNote ?? '', editReturnNote: value.returnNote ?? '' },
       { force: previous?.id !== value.id },
     )
-    selectedLineIds.value = []
+    // A reload in the background (auto-saved contact, refetch) keeps the selection;
+    // actions clear it themselves once they succeeded.
+    const present = new Set(value.lines.map((line) => line.id))
+    selectedLineIds.value =
+      previous?.id === value.id ? selectedLineIds.value.filter((id) => present.has(id)) : []
   },
   { immediate: true },
 )

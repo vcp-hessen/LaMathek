@@ -64,6 +64,7 @@ class Conflict:
     material_type_id: int | None = None
     other_loan: Loan | None = None
     extra: dict[str, Any] = field(default_factory=dict)
+    item_label: str | None = None
 
     def to_json(self, *, item_label: str | None = None) -> dict[str, Any]:
         """Always the full key set (``LoanWarning``); what does not apply is null."""
@@ -81,7 +82,7 @@ class Conflict:
             "otherLoanId": other.id if other is not None else None,
             "otherLoanTitle": title,
             "otherInventoryId": other.inventory_id if other is not None else None,
-            "itemLabel": item_label,
+            "itemLabel": item_label or self.item_label,
             "available": self.extra.get("available"),
             "occupied": self.extra.get("occupied"),
             "requested": self.extra.get("requested"),
@@ -331,11 +332,23 @@ def assert_line_available(
     session: Session, loan: Loan, line: LoanLine, *, interval: Interval | None = None
 ) -> None:
     """Hard gate before a line starts occupying material (confirm, replace, restore)."""
-    conflicts = line_conflicts(session, loan, line, interval=interval)
+    conflicts = labelled_line_conflicts(session, loan, line, interval=interval)
     if not conflicts:
         return
     code = "over_loaned" if line.piece_id is None else "piece_unavailable"
     raise AvailabilityError(code, conflicts)
+
+
+def labelled_line_conflicts(
+    session: Session, loan: Loan, line: LoanLine, *, interval: Interval | None = None
+) -> list[Conflict]:
+    """``line_conflicts`` naming the material ("12 × Seil (3 m)"), as errors show it."""
+    from lamathek.services.loan_conflicts import line_label
+
+    conflicts = line_conflicts(session, loan, line, interval=interval)
+    for conflict in conflicts:
+        conflict.item_label = line_label(line)
+    return conflicts
 
 
 def assert_loan_lines_available(session: Session, loan: Loan) -> None:
@@ -347,7 +360,7 @@ def assert_loan_lines_available(session: Session, loan: Loan) -> None:
         interval = line_interval(loan, line)
         if interval is None:
             raise ValueError("pickup_required")
-        conflicts.extend(line_conflicts(session, loan, line, interval=interval))
+        conflicts.extend(labelled_line_conflicts(session, loan, line, interval=interval))
     if conflicts:
         raise AvailabilityError("dates_conflict", conflicts)
 
