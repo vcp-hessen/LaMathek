@@ -10,6 +10,7 @@ const entryKeys = [
   'ausleihende',
   'ansprechperson',
   'materialart',
+  'variante',
   'einzelteil',
   'menge',
   'set',
@@ -17,11 +18,15 @@ const entryKeys = [
   'optional',
   'dauerleihgabe',
   'verlust',
+  'verbrauch',
   'schaden',
   'materialwart',
   'inventar',
+  'leserecht',
   'uebernahme',
   'rueckgabe',
+  'kalender',
+  'dashboard',
 ] as const
 
 const entries = computed(() =>

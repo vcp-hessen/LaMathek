@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import QueryError from '../components/QueryError.vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -32,7 +33,7 @@ const inventoryId = computed(() => Number(route.params.id))
 const setId = computed(() => Number(route.params.setId))
 const { canManage } = useInventoryCanManage(inventoryId)
 
-const { data: setDetail, isLoading } = useQuery({
+const { data: setDetail, isLoading, isError, error: loadError, refetch: retryLoad } = useQuery({
   queryKey: ['set', setId],
   queryFn: () => fetchSet(setId.value),
   enabled: () => Number.isFinite(setId.value),
@@ -117,6 +118,9 @@ const deleteMutation = useMutation({
     await invalidateAll()
     await router.push(`/inventories/${inventoryId.value}/sets`)
   },
+  onError: (error) => {
+    formError.value = messageFor(error)
+  },
 })
 
 const pieceMutation = useMutation({
@@ -182,6 +186,7 @@ function addPiece() {
 <template>
   <div class="app-page space-y-6">
     <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
+    <QueryError v-else-if="isError" :error="loadError" @retry="retryLoad()" />
     <template v-else-if="setDetail">
       <p v-if="formError" class="text-sm text-error">{{ formError }}</p>
       <form

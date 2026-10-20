@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { useServerSyncedFields } from '../../composables/useServerSyncedFields'
+import { useMe } from '../../composables/useMe'
+import { queryKeys } from '../../api/queryKeys'
 import { useMutation, useQuery } from '@tanstack/vue-query'
 import { computed, ref, watch, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { fetchBorrowers, fetchGroups, patchLoan } from '../../api/loans'
-import { fetchMe } from '../../api/me'
 import type { LoanDetail } from '../../schemas/loan'
 import { useApiErrorMessage } from '../../composables/useApiErrorMessage'
 import ContextHelp from '../ContextHelp.vue'
@@ -61,25 +63,43 @@ function afterTermPickupCommitted(pickupValue: string) {
   chainToReturnAfterPickup(pickupValue, termReturnField)
 }
 
+// Refetches after line actions must not wipe what is being typed here.
+const syncFromServer = useServerSyncedFields({
+  groupName,
+  eventName,
+  loanKind: loanKind as unknown as Ref<string>,
+  contactUserId,
+  borrowerUserId,
+  wishPickupOn,
+  wishReturnOn,
+  termPickupOn,
+  termReturnOn,
+})
+
 watch(
   () => props.loan,
-  (loan) => {
-    groupName.value = loan.groupName === '—' ? '' : loan.groupName
-    eventName.value = loan.eventName ?? ''
-    loanKind.value = loan.kind
-    contactUserId.value = loan.contactUserId != null ? String(loan.contactUserId) : ''
-    borrowerUserId.value = String(loan.borrowerUserId)
-    wishPickupOn.value = loan.wishPickupOn ?? loan.pickupOn ?? ''
-    wishReturnOn.value = loan.wishReturnOn ?? loan.returnOn ?? ''
-    termPickupOn.value = loan.pickupOn ?? ''
-    termReturnOn.value = loan.returnOn ?? ''
+  (loan, previous) => {
+    syncFromServer(
+      {
+        groupName: loan.groupName,
+        eventName: loan.eventName ?? '',
+        loanKind: loan.kind,
+        contactUserId: loan.contactUserId != null ? String(loan.contactUserId) : '',
+        borrowerUserId: String(loan.borrowerUserId),
+        wishPickupOn: loan.wishPickupOn ?? loan.pickupOn ?? '',
+        wishReturnOn: loan.wishReturnOn ?? loan.returnOn ?? '',
+        termPickupOn: loan.pickupOn ?? '',
+        termReturnOn: loan.returnOn ?? '',
+      },
+      { force: previous?.id !== loan.id },
+    )
   },
   { immediate: true },
 )
 
-const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
+const { data: me } = useMe()
 const { data: borrowers } = useQuery({
-  queryKey: ['borrowers'],
+  queryKey: queryKeys.borrowers,
   queryFn: fetchBorrowers,
   enabled: () => props.canManage && props.loan.phase === 'draft',
 })
@@ -127,7 +147,7 @@ const showWishDatesReadonly = computed(
 )
 
 const { data: groups } = useQuery({
-  queryKey: ['groups'],
+  queryKey: queryKeys.groups,
   queryFn: fetchGroups,
   enabled: () => canEditLoanMeta.value,
 })
@@ -136,7 +156,7 @@ const groupOptions = computed(() => groups.value ?? [])
 
 const displayGroup = computed(() => {
   const group = props.loan.groupName.trim()
-  if (!group || group === '—') return null
+  if (!group) return null
   return group
 })
 
@@ -163,7 +183,7 @@ const metaSummaryParts = computed(() => {
 function buildLoanPayload(): Record<string, unknown> {
   if (!canEditLoanMeta.value) return {}
   const payload: Record<string, unknown> = {
-    groupName: groupName.value.trim() || '—',
+    groupName: groupName.value.trim(),
     kind: loanKind.value,
   }
   if (isPermanent.value) {

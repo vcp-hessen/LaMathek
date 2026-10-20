@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { activateOnKey } from '../components/data-table/rowKeys'
+import ContextHelp from '../components/ContextHelp.vue'
+import QueryError from '../components/QueryError.vue'
+import { useMe } from '../composables/useMe'
+import { queryKeys } from '../api/queryKeys'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { ColumnDef } from '@tanstack/vue-table'
 import { computed, ref, watch } from 'vue'
@@ -14,7 +19,6 @@ import {
 } from '../api/inventories'
 import type { InventoryWritePayload } from '../schemas/inventory'
 import { fetchInstallationSettings } from '../api/settings'
-import { fetchMe } from '../api/me'
 import DataTableFooter from '../components/data-table/DataTableFooter.vue'
 import DataTableSearch from '../components/data-table/DataTableSearch.vue'
 import { localeSortRow } from '../components/data-table/localeSort'
@@ -60,13 +64,13 @@ const savedEdit = ref<{
   readerUserIds: number[]
 } | null>(null)
 
-const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
+const { data: me } = useMe()
 const { data: settings } = useQuery({
-  queryKey: ['settings'],
+  queryKey: queryKeys.settings,
   queryFn: fetchInstallationSettings,
 })
-const { data: inventories, isLoading } = useQuery({
-  queryKey: ['inventories'],
+const { data: inventories, isLoading, isError, error: loadError, refetch: retryLoad } = useQuery({
+  queryKey: queryKeys.inventories,
   queryFn: fetchInventories,
   enabled: () => !!me.value,
 })
@@ -97,7 +101,7 @@ const { data: editingInventory } = useQuery({
 async function refreshInventoryPhotos() {
   if (editingId.value === null) return
   await queryClient.invalidateQueries({ queryKey: ['inventory', editingId.value] })
-  await queryClient.invalidateQueries({ queryKey: ['inventories'] })
+  await queryClient.invalidateQueries({ queryKey: queryKeys.inventories })
 }
 
 function sortedIds(ids: number[]) {
@@ -182,6 +186,7 @@ const {
   pageTo,
   goToPage,
   setPageSize,
+  sortedState,
 } = useClientTable<Inventory>({
   data: () => inventories.value ?? [],
   columns,
@@ -281,15 +286,9 @@ function toggleRow(id: number) {
   formError.value = null
 }
 
-function sortedState(columnId: string): false | 'asc' | 'desc' {
-  return table.getColumn(columnId)?.getIsSorted() ?? false
-}
 
 function onRowKeydown(event: KeyboardEvent, id: number) {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault()
-    toggleRow(id)
-  }
+  activateOnKey(event, () => toggleRow(id))
 }
 
 function addressLine(inv: Inventory): string {
@@ -297,7 +296,7 @@ function addressLine(inv: Inventory): string {
 }
 
 async function refreshInventories() {
-  await queryClient.invalidateQueries({ queryKey: ['inventories'] })
+  await queryClient.invalidateQueries({ queryKey: queryKeys.inventories })
 }
 
 const createMutation = useMutation({
@@ -366,7 +365,7 @@ const deleteMutation = useMutation({
     }
     await refreshInventories()
     const remaining = await queryClient.fetchQuery({
-      queryKey: ['inventories'],
+      queryKey: queryKeys.inventories,
       queryFn: fetchInventories,
     })
     inventoryStore.reconcileWithAccessible(remaining)
@@ -380,7 +379,9 @@ const deleteMutation = useMutation({
 <template>
   <div class="app-page gap-4">
         <div class="app-section-header flex flex-wrap items-center justify-between gap-2">
-          <h2 class="app-page-title">{{ t('inventories.title') }}</h2>
+          <h2 class="app-page-title">
+            {{ t('inventories.title') }} <ContextHelp anchor="inventar" />
+          </h2>
           <button
             v-if="me?.isSuperuser && !isLoading"
             type="button"
@@ -393,6 +394,8 @@ const deleteMutation = useMutation({
         </div>
 
         <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
+
+        <QueryError v-else-if="isError" :error="loadError" @retry="retryLoad()" />
         <template v-else>
           <form
             v-if="creating"

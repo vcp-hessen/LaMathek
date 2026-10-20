@@ -6,6 +6,6 @@ export function loanDisplayName(loan: {
   const title = loan.eventName?.trim()
   if (title) return title
   const group = loan.groupName.trim()
-  if (group && group !== '—') return group
+  if (group) return group
   return ''
 }

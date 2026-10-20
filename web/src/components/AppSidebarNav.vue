@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import type { Inventory } from '../schemas/inventory'
 import type { WlzGlyphId } from './wlz-glyphs'
-import AppCommandPalette from './AppCommandPalette.vue'
+import { useCommandPalette } from '../composables/useCommandPalette'
 import AppInventorySwitcher from './AppInventorySwitcher.vue'
 import WlzIcon from './WlzIcon.vue'
 
@@ -19,7 +19,7 @@ const props = defineProps<{
 
 const route = useRoute()
 const { t } = useI18n()
-const paletteOpen = ref(false)
+const { open: paletteOpen } = useCommandPalette()
 
 const canManageActive = computed(
   () => props.inventories.find((inv) => inv.id === props.activeInventoryId)?.canManage ?? false,
@@ -121,12 +121,6 @@ const dividerClass = computed(() =>
           <span v-show="expanded" class="truncate">{{ t('commandPalette.open') }}</span>
         </button>
       </div>
-      <AppCommandPalette
-        v-if="activeInventoryId"
-        v-model:open="paletteOpen"
-        :inventory-id="activeInventoryId"
-        :can-manage="canManageActive"
-      />
       <div
         class="tooltip tooltip-right w-full"
         :class="{ 'before:hidden': expanded }"

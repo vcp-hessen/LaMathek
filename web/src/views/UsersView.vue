@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import { activateOnKey } from '../components/data-table/rowKeys'
+import ContextHelp from '../components/ContextHelp.vue'
+import { useIdentitySwitch } from '../composables/useIdentitySwitch'
+import { useMe } from '../composables/useMe'
+import { queryKeys } from '../api/queryKeys'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { ColumnDef } from '@tanstack/vue-table'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { fetchInventories } from '../api/inventories'
 import { apiErrorCode } from '../api/errors'
-import { fetchMe } from '../api/me'
 import { startImpersonation } from '../api/impersonation'
 import {
   createLocalUser,
@@ -26,6 +30,7 @@ import type { ManagedUser } from '../schemas/user'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
+const identityChanged = useIdentitySwitch()
 const actionError = ref<string | null>(null)
 const pendingKey = ref<string | null>(null)
 const expandedId = ref<number | null>(null)
@@ -38,13 +43,10 @@ const contactPhone = ref('')
 const contactEmail = ref('')
 const mergeTargetId = ref('')
 
-const { data: me, isLoading: meLoading } = useQuery({
-  queryKey: ['me'],
-  queryFn: fetchMe,
-})
+const { data: me, isLoading: meLoading } = useMe()
 
 const { data: inventories } = useQuery({
-  queryKey: ['inventories'],
+  queryKey: queryKeys.inventories,
   queryFn: fetchInventories,
 })
 
@@ -54,7 +56,7 @@ const canManageAny = computed(
 const canOpenUsers = computed(() => !!me.value?.isSuperuser || canManageAny.value)
 
 const { data: users, isLoading: usersLoading } = useQuery({
-  queryKey: ['users'],
+  queryKey: queryKeys.users,
   queryFn: fetchUsers,
   enabled: () => canOpenUsers.value,
 })
@@ -125,6 +127,7 @@ const {
   pageTo,
   goToPage,
   setPageSize,
+  sortedState,
 } = useClientTable<ManagedUser>({
   data: () => users.value ?? [],
   columns,
@@ -158,21 +161,15 @@ function toggleRow(userId: number) {
   expandedId.value = expandedId.value === userId ? null : userId
 }
 
-function sortedState(columnId: string): false | 'asc' | 'desc' {
-  return table.getColumn(columnId)?.getIsSorted() ?? false
-}
 
 function onRowKeydown(event: KeyboardEvent, userId: number) {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault()
-    toggleRow(userId)
-  }
+  activateOnKey(event, () => toggleRow(userId))
 }
 
 async function refreshAccess() {
-  await queryClient.invalidateQueries({ queryKey: ['users'] })
+  await queryClient.invalidateQueries({ queryKey: queryKeys.users })
   await queryClient.invalidateQueries({ queryKey: ['inventoryPermissionUsers'] })
-  await queryClient.invalidateQueries({ queryKey: ['me'] })
+  await queryClient.invalidateQueries({ queryKey: queryKeys.me })
 }
 
 function fail(error: unknown) {
@@ -237,12 +234,10 @@ const impersonateMutation = useMutation({
     pendingKey.value = `impersonate:${payload.userId}`
     await startImpersonation(payload.userId, payload.reason)
   },
-  onSuccess: async () => {
+  onSuccess: () => {
     expandedId.value = null
     impersonateReason.value = ''
-    await queryClient.invalidateQueries({ queryKey: ['me'] })
-    await queryClient.invalidateQueries({ queryKey: ['inventories'] })
-    await queryClient.invalidateQueries({ queryKey: ['audit-events'] })
+    identityChanged()
   },
   onError: fail,
   onSettled: () => {
@@ -297,8 +292,8 @@ const createMutation = useMutation({
     newEmail.value = ''
     creating.value = false
     actionError.value = null
-    await queryClient.invalidateQueries({ queryKey: ['users'] })
-    await queryClient.invalidateQueries({ queryKey: ['borrowers'] })
+    await queryClient.invalidateQueries({ queryKey: queryKeys.users })
+    await queryClient.invalidateQueries({ queryKey: queryKeys.borrowers })
   },
   onError: fail,
 })
@@ -311,9 +306,9 @@ const contactMutation = useMutation({
     }),
   onSuccess: async () => {
     actionError.value = null
-    await queryClient.invalidateQueries({ queryKey: ['users'] })
-    await queryClient.invalidateQueries({ queryKey: ['borrowers'] })
-    await queryClient.invalidateQueries({ queryKey: ['me'] })
+    await queryClient.invalidateQueries({ queryKey: queryKeys.users })
+    await queryClient.invalidateQueries({ queryKey: queryKeys.borrowers })
+    await queryClient.invalidateQueries({ queryKey: queryKeys.me })
   },
   onError: fail,
 })
@@ -325,8 +320,8 @@ const mergeMutation = useMutation({
     mergeTargetId.value = ''
     expandedId.value = null
     actionError.value = null
-    await queryClient.invalidateQueries({ queryKey: ['users'] })
-    await queryClient.invalidateQueries({ queryKey: ['borrowers'] })
+    await queryClient.invalidateQueries({ queryKey: queryKeys.users })
+    await queryClient.invalidateQueries({ queryKey: queryKeys.borrowers })
   },
   onError: fail,
 })
@@ -362,7 +357,7 @@ function onStartImpersonation(user: ManagedUser) {
 <template>
   <div class="app-page space-y-4">
     <div class="app-section-header flex flex-wrap items-center justify-between gap-2">
-      <h1 class="text-2xl font-bold">{{ t('users.heading') }}</h1>
+      <h1 class="text-2xl font-bold">{{ t('users.heading') }} <ContextHelp anchor="nutzer" /></h1>
       <button
         v-if="canOpenUsers"
         type="button"

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { queryKeys } from '../api/queryKeys'
 import { useQuery } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 
@@ -6,7 +7,7 @@ import { fetchFailedOutbox } from '../api/mail'
 
 /** Mails that gave up after all retries (Diagnose, superusers). */
 const { t } = useI18n()
-const { data: mails } = useQuery({ queryKey: ['mail-outbox-failed'], queryFn: fetchFailedOutbox })
+const { data: mails } = useQuery({ queryKey: queryKeys.failedMails, queryFn: fetchFailedOutbox })
 </script>
 
 <template>

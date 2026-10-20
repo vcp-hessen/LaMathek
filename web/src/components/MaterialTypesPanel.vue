@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { activateOnKey } from './data-table/rowKeys'
+import QueryError from './QueryError.vue'
+import { queryKeys } from '../api/queryKeys'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { ColumnDef } from '@tanstack/vue-table'
 import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   createMaterialType,
@@ -29,6 +32,7 @@ import PhotoThumbnail from './PhotoThumbnail.vue'
 const props = defineProps<{ inventoryId: number; canManage?: boolean }>()
 
 const route = useRoute()
+const router = useRouter()
 const { t } = useI18n()
 const { messageFor } = useApiErrorMessage()
 const queryClient = useQueryClient()
@@ -37,10 +41,15 @@ const creating = ref(false)
 const expandedId = ref<number | null>(null)
 const formError = ref<string | null>(null)
 
+// "?openCreate=1" from the command palette: open once the role is known, then
+// drop the parameter so the next palette call triggers again.
 watch(
-  () => route.query.openCreate,
-  (value) => {
-    if (value === '1' && props.canManage) creating.value = true
+  () => [route.query.openCreate, props.canManage] as const,
+  ([value, canManage]) => {
+    if (value !== '1' || !canManage) return
+    creating.value = true
+    const { openCreate: _done, ...rest } = route.query
+    void router.replace({ query: rest })
   },
   { immediate: true },
 )
@@ -70,13 +79,13 @@ const savedEdit = ref<string | null>(null)
 
 const materialTypesQueryKey = useInventoryQueryKey('materialTypes', () => props.inventoryId)
 
-const { data: types, isLoading } = useQuery({
+const { data: types, isLoading, isError, error: loadError, refetch: retryLoad } = useQuery({
   queryKey: materialTypesQueryKey,
   queryFn: () => fetchMaterialTypes(props.inventoryId),
 })
 
 const { data: categories } = useQuery({
-  queryKey: ['categories'],
+  queryKey: queryKeys.categories,
   queryFn: () => fetchCategories(),
 })
 
@@ -240,7 +249,7 @@ const createMutation = useMutation({
     resetCreateDraft()
     await queryClient.invalidateQueries({ queryKey: ['materialTypes', props.inventoryId] })
     await queryClient.invalidateQueries({ queryKey: ['stocks', props.inventoryId] })
-    await queryClient.invalidateQueries({ queryKey: ['categories'] })
+    await queryClient.invalidateQueries({ queryKey: queryKeys.categories })
   },
   onError: (error) => {
     formError.value = messageFor(error)
@@ -269,7 +278,7 @@ const updateMutation = useMutation({
     savedEdit.value = materialEditSnapshot()
     await queryClient.invalidateQueries({ queryKey: ['materialTypes', props.inventoryId] })
     await queryClient.invalidateQueries({ queryKey: ['stocks', props.inventoryId] })
-    await queryClient.invalidateQueries({ queryKey: ['categories'] })
+    await queryClient.invalidateQueries({ queryKey: queryKeys.categories })
   },
   onError: (error) => {
     formError.value = messageFor(error)
@@ -347,6 +356,7 @@ const {
   pageTo,
   goToPage,
   setPageSize,
+  sortedState,
 } = useClientTable<MaterialType>({
   data: () => types.value ?? [],
   columns,
@@ -390,15 +400,9 @@ function resetFilters() {
   setCategoryFilter('')
 }
 
-function sortedState(columnId: string): false | 'asc' | 'desc' {
-  return table.getColumn(columnId)?.getIsSorted() ?? false
-}
 
 function onRowKeydown(event: KeyboardEvent, id: number) {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault()
-    toggleRow(id)
-  }
+  activateOnKey(event, () => toggleRow(id))
 }
 
 watch(
@@ -437,6 +441,7 @@ watch(expandedId, (id) => {
         </button>
       </div>
       <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
+      <QueryError v-else-if="isError" :error="loadError" @retry="retryLoad()" />
       <template v-else>
         <form
           v-if="creating"

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { activateOnKey } from '../data-table/rowKeys'
 import { type ColumnDef } from '@tanstack/vue-table'
 import { computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -135,6 +136,7 @@ const {
   pageTo,
   goToPage,
   setPageSize,
+  sortedState,
 } = useClientTable<MaterialRow>({
   data: () => props.rows,
   columns,
@@ -193,9 +195,6 @@ watch(materialTypeFilter, () => {
   }
 })
 
-function sortedState(columnId: string): false | 'asc' | 'desc' {
-  return table.getColumn(columnId)?.getIsSorted() ?? false
-}
 
 function setLabel(row: MaterialRow): string {
   const key = setSortKey(row)
@@ -249,10 +248,7 @@ function onRowClick(row: MaterialRow) {
 }
 
 function onRowKeydown(event: KeyboardEvent, row: MaterialRow) {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault()
-    onRowClick(row)
-  }
+  activateOnKey(event, () => onRowClick(row))
 }
 </script>
 

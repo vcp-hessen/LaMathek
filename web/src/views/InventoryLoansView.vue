@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { activateOnKey } from '../components/data-table/rowKeys'
+import { formatDate } from '../utils/dates'
+import QueryError from '../components/QueryError.vue'
 import { useQuery } from '@tanstack/vue-query'
 import type { ColumnDef } from '@tanstack/vue-table'
 import { computed, ref, watch } from 'vue'
@@ -51,7 +54,7 @@ const formError = ref<string | null>(null)
 
 const loansQueryKey = useInventoryQueryKey('loans', () => props.inventoryId)
 
-const { data: loans, isLoading } = useQuery({
+const { data: loans, isLoading, isError, error: loadError, refetch: retryLoad } = useQuery({
   queryKey: loansQueryKey,
   queryFn: () => fetchLoans(props.inventoryId),
   enabled: () => Number.isFinite(props.inventoryId) && canAccess.value,
@@ -70,7 +73,7 @@ function kindLabel(kind: string) {
 
 function loanGroupSubtitle(loan: Loan): string | null {
   const group = loan.groupName.trim()
-  if (!group || group === '—') return null
+  if (!group) return null
   if (loan.eventName?.trim()) return group
   return null
 }
@@ -110,6 +113,7 @@ const {
   pageTo,
   goToPage,
   setPageSize,
+  sortedState,
 } = useClientTable<Loan>({
   data: () => loans.value ?? [],
   columns,
@@ -145,9 +149,6 @@ async function onNewLoan() {
   }
 }
 
-function sortedState(columnId: string): false | 'asc' | 'desc' {
-  return table.getColumn(columnId)?.getIsSorted() ?? false
-}
 
 function openLoan(loanId: number) {
   void router.push(`/inventories/${props.inventoryId}/loans/${loanId}`)
@@ -160,15 +161,9 @@ function useAsBox(loan: Loan, event: Event) {
 }
 
 function onRowKeydown(event: KeyboardEvent, loanId: number) {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault()
-    openLoan(loanId)
-  }
+  activateOnKey(event, () => openLoan(loanId))
 }
 
-function formatDate(value: string | null) {
-  return value?.trim() ? value : '—'
-}
 </script>
 
 <template>
@@ -191,6 +186,8 @@ function formatDate(value: string | null) {
     </p>
 
     <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
+
+    <QueryError v-else-if="isError" :error="loadError" @retry="retryLoad()" />
     <template v-else>
       <p v-if="!(loans?.length)" class="text-sm opacity-70">{{ t('loans.empty') }}</p>
       <div v-else class="rounded-lg border border-base-200">
@@ -311,7 +308,7 @@ function formatDate(value: string | null) {
                 <td class="hidden sm:table-cell">{{ phaseLabel(row.original.phase) }}</td>
                 <td class="hidden lg:table-cell">
                   {{
-                    row.original.groupName.trim() && row.original.groupName !== '—'
+                    row.original.groupName.trim()
                       ? row.original.groupName
                       : '—'
                   }}

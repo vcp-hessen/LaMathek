@@ -1,17 +1,13 @@
 <script setup lang="ts">
-import { useQuery } from '@tanstack/vue-query'
+import { useMe } from '../composables/useMe'
 import { useI18n } from 'vue-i18n'
-import { fetchMe } from '../api/me'
 import AuditEventsSection from '../components/AuditEventsSection.vue'
 import MailTestPanel from '../components/MailTestPanel.vue'
 import FailedMailsSection from '../components/FailedMailsSection.vue'
 
 const { t } = useI18n()
 
-const { data: me, isLoading: meLoading } = useQuery({
-  queryKey: ['me'],
-  queryFn: fetchMe,
-})
+const { data: me, isLoading: meLoading } = useMe()
 </script>
 
 <template>

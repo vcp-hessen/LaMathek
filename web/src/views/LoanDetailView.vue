@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import QueryError from '../components/QueryError.vue'
+import { useServerSyncedFields } from '../composables/useServerSyncedFields'
+import { useMe } from '../composables/useMe'
+import { queryKeys } from '../api/queryKeys'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { fetchInventoryPermissions } from '../api/inventories'
-import { fetchMe, patchMePhone } from '../api/me'
+import { patchMePhone } from '../api/me'
 import {
   deleteLoan,
   fetchLoan,
@@ -62,9 +66,9 @@ watch(
   { immediate: true },
 )
 
-const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
+const { data: me } = useMe()
 
-const { data: loan, isLoading } = useQuery({
+const { data: loan, isLoading, isError, error: loadError, refetch: retryLoad } = useQuery({
   queryKey: ['loan', loanId],
   queryFn: () => fetchLoan(loanId.value),
   enabled: () => Number.isFinite(loanId.value),
@@ -97,16 +101,25 @@ const phoneForRequest = ref('')
 const editPickupNote = ref('')
 const editReturnNote = ref('')
 
+const syncNotes = useServerSyncedFields({ editPickupNote, editReturnNote })
+
 watch(
   loan,
-  (value) => {
+  (value, previous) => {
     if (!value) return
-    editPickupNote.value = value.pickupNote ?? ''
-    editReturnNote.value = value.returnNote ?? ''
+    syncNotes(
+      { editPickupNote: value.pickupNote ?? '', editReturnNote: value.returnNote ?? '' },
+      { force: previous?.id !== value.id },
+    )
     selectedLineIds.value = []
   },
   { immediate: true },
 )
+
+// An error from the previous Verleih must not stay on the next one.
+watch(loanId, () => {
+  actionError.value = null
+})
 
 watch(me, (value) => {
   if (value?.phone) phoneForRequest.value = value.phone
@@ -171,7 +184,7 @@ const requestMutation = useMutation({
   mutationFn: async () => {
     if (isLoanBorrower.value && !(me.value?.phone ?? '').trim()) {
       await patchMePhone(phoneForRequest.value.trim())
-      await queryClient.invalidateQueries({ queryKey: ['me'] })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.me })
     }
     const pickupOn = loan.value?.wishPickupOn ?? loan.value?.pickupOn
     const returnOn = loan.value?.wishReturnOn ?? loan.value?.returnOn
@@ -445,6 +458,7 @@ const globalActionError = computed(() => {
 <template>
   <div class="app-page">
     <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
+    <QueryError v-else-if="isError" :error="loadError" @retry="retryLoad()" />
     <template v-else-if="loan">
       <LoanConflictWarnings v-if="loan.warnings?.length" :warnings="loan.warnings" />
       <LoanMailStatus v-if="loan.mails?.length" :loan-id="loan.id" :mails="loan.mails" />

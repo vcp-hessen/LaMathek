@@ -112,7 +112,7 @@ export function publicHolidays(year: number, state: BundeslandCode): Map<string,
     [`${year}-12-26`, '2. Weihnachtstag'],
   ]
 
-  if (state === 'BY') {
+  if (state === 'BW' || state === 'BY' || state === 'ST') {
     entries.push([`${year}-01-06`, 'Heilige Drei Könige'])
   }
   if (state === 'BE' || state === 'MV') {

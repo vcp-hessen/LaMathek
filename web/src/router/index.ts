@@ -1,26 +1,14 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
-import ImpressumView from '../views/ImpressumView.vue'
-import PrivacyView from '../views/PrivacyView.vue'
-import InventoriesListView from '../views/InventoriesListView.vue'
-import InstallationSettingsView from '../views/InstallationSettingsView.vue'
-import DiagnosticsView from '../views/DiagnosticsView.vue'
-import UsersView from '../views/UsersView.vue'
-import InventoryMaterialTypesView from '../views/InventoryMaterialTypesView.vue'
-import InventoryMaterialView from '../views/InventoryMaterialView.vue'
-import PieceDetailView from '../views/PieceDetailView.vue'
-import StockLotDetailView from '../views/StockLotDetailView.vue'
-import InventoryLoansView from '../views/InventoryLoansView.vue'
-import InventorySetsView from '../views/InventorySetsView.vue'
-import LoanDetailView from '../views/LoanDetailView.vue'
-import MyLoansView from '../views/MyLoansView.vue'
-import SetDetailView from '../views/SetDetailView.vue'
-import HelpGlossaryView from '../views/HelpGlossaryView.vue'
-import CalendarFeedsView from '../views/CalendarFeedsView.vue'
-import CalendarView from '../views/CalendarView.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
+  // "/hilfe#verleih" from the context help scrolls to the glossary entry.
+  scrollBehavior(to, _from, saved) {
+    if (saved) return saved
+    if (to.hash) return { el: to.hash, top: 16, behavior: 'smooth' }
+    return { top: 0 }
+  },
   routes: [
     {
       path: '/',
@@ -30,62 +18,62 @@ export const router = createRouter({
     {
       path: '/settings',
       name: 'installation-settings',
-      component: InstallationSettingsView,
+      component: () => import('../views/InstallationSettingsView.vue'),
     },
     {
       path: '/diagnose',
       name: 'diagnostics',
-      component: DiagnosticsView,
+      component: () => import('../views/DiagnosticsView.vue'),
     },
     {
       path: '/users',
       name: 'users',
-      component: UsersView,
+      component: () => import('../views/UsersView.vue'),
     },
     {
       path: '/impressum',
       name: 'impressum',
-      component: ImpressumView,
+      component: () => import('../views/ImpressumView.vue'),
     },
     {
       path: '/datenschutz',
       name: 'privacy',
-      component: PrivacyView,
+      component: () => import('../views/PrivacyView.vue'),
     },
     {
       path: '/hilfe',
       name: 'help-glossary',
-      component: HelpGlossaryView,
+      component: () => import('../views/HelpGlossaryView.vue'),
     },
     {
       path: '/inventories',
       name: 'inventories',
-      component: InventoriesListView,
+      component: () => import('../views/InventoriesListView.vue'),
     },
     {
       path: '/calendar',
       name: 'calendar',
-      component: CalendarView,
+      component: () => import('../views/CalendarView.vue'),
     },
     {
       path: '/calendar/feeds',
       name: 'calendar-feeds',
-      component: CalendarFeedsView,
+      component: () => import('../views/CalendarFeedsView.vue'),
     },
     {
       path: '/my-loans',
       name: 'my-loans',
-      component: MyLoansView,
+      component: () => import('../views/MyLoansView.vue'),
     },
     {
       path: '/inventories/:id/material-types',
       name: 'inventory-material-types',
-      component: InventoryMaterialTypesView,
+      component: () => import('../views/InventoryMaterialTypesView.vue'),
     },
     {
       path: '/inventories/:id/material',
       name: 'inventory-material',
-      component: InventoryMaterialView,
+      component: () => import('../views/InventoryMaterialView.vue'),
     },
     {
       path: '/inventories/:id/pieces',
@@ -94,12 +82,12 @@ export const router = createRouter({
     {
       path: '/inventories/:id/pieces/:pieceId',
       name: 'piece-detail',
-      component: PieceDetailView,
+      component: () => import('../views/PieceDetailView.vue'),
     },
     {
       path: '/inventories/:id/stock-lots/:lotId',
       name: 'stock-lot-detail',
-      component: StockLotDetailView,
+      component: () => import('../views/StockLotDetailView.vue'),
     },
     {
       path: '/inventories/:id/stock',
@@ -108,18 +96,18 @@ export const router = createRouter({
     {
       path: '/inventories/:id/sets',
       name: 'inventory-sets',
-      component: InventorySetsView,
+      component: () => import('../views/InventorySetsView.vue'),
     },
     {
       path: '/inventories/:id/loans',
       name: 'inventory-loans',
-      component: InventoryLoansView,
+      component: () => import('../views/InventoryLoansView.vue'),
       props: (route) => ({ inventoryId: Number(route.params.id) }),
     },
     {
       path: '/inventories/:id/loans/:loanId',
       name: 'loan-detail',
-      component: LoanDetailView,
+      component: () => import('../views/LoanDetailView.vue'),
     },
     {
       path: '/inventories/:id/loans/:loanId/mail-preview',
@@ -129,11 +117,16 @@ export const router = createRouter({
     {
       path: '/inventories/:id/sets/:setId',
       name: 'set-detail',
-      component: SetDetailView,
+      component: () => import('../views/SetDetailView.vue'),
     },
     {
       path: '/inventories/:id',
       redirect: '/inventories',
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('../views/NotFoundView.vue'),
     },
   ],
 })

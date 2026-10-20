@@ -2,7 +2,7 @@
 
 Revision ID: 20261020_0001
 Revises: 
-Create Date: 2026-10-20 11:06:09.319869
+Create Date: 2026-10-20 11:17:38.311159
 
 """
 from typing import Sequence, Union
@@ -130,7 +130,7 @@ def upgrade() -> None:
     op.create_table('loans',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('inventory_id', sa.Integer(), nullable=False),
-    sa.Column('group_id', sa.Integer(), nullable=False),
+    sa.Column('group_id', sa.Integer(), nullable=True),
     sa.Column('borrower_user_id', sa.Integer(), nullable=False),
     sa.Column('contact_user_id', sa.Integer(), nullable=True),
     sa.Column('event_id', sa.Integer(), nullable=True),

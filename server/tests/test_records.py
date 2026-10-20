@@ -147,3 +147,28 @@ def test_dashboard_cards_for_materialwarte():
         assert mine["cards"]["conflicts"] == [] and mine["canManage"] is False
     finally:
         w.close()
+
+
+def test_draft_needs_no_group_but_a_request_does():
+    w = World()
+    try:
+        kohte = w.piece()
+        w.as_("borrower")
+        draft = w.client.post(
+            f"/api/inventories/{w.inv}/loans/draft-lines", json={"pieceId": kohte}
+        ).get_json()
+        assert draft["groupName"] == ""
+        refused = w.client.post(
+            f"/api/loans/{draft['id']}/actions/request",
+            json={"pickupOn": _day(5), "returnOn": _day(7)},
+        )
+        assert refused.status_code == 400
+        assert refused.get_json()["error"] == "group_required"
+        assert w.client.patch(f"/api/loans/{draft['id']}", json={"groupName": "Stamm Falke"}).status_code == 200
+        ok = w.client.post(
+            f"/api/loans/{draft['id']}/actions/request",
+            json={"pickupOn": _day(5), "returnOn": _day(7)},
+        )
+        assert ok.status_code == 200, ok.get_json()
+    finally:
+        w.close()

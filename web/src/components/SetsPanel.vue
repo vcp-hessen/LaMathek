@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { activateOnKey } from './data-table/rowKeys'
+import ContextHelp from './ContextHelp.vue'
+import QueryError from './QueryError.vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { ColumnDef } from '@tanstack/vue-table'
 import { computed, ref } from 'vue'
@@ -28,7 +31,7 @@ const newShortName = ref('')
 
 const setsQueryKey = useInventoryQueryKey('sets', () => props.inventoryId)
 
-const { data: sets, isLoading } = useQuery({
+const { data: sets, isLoading, isError, error: loadError, refetch: retryLoad } = useQuery({
   queryKey: setsQueryKey,
   queryFn: () => fetchSets(props.inventoryId),
 })
@@ -58,6 +61,7 @@ const {
   pageTo,
   goToPage,
   setPageSize,
+  sortedState,
 } = useClientTable<SetSummary>({
   data: () => sets.value ?? [],
   columns,
@@ -89,26 +93,23 @@ const createMutation = useMutation({
   },
 })
 
-function sortedState(columnId: string): false | 'asc' | 'desc' {
-  return table.getColumn(columnId)?.getIsSorted() ?? false
-}
 
 function openSet(setId: number) {
   void router.push(`/inventories/${props.inventoryId}/sets/${setId}`)
 }
 
 function onRowKeydown(event: KeyboardEvent, setId: number) {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault()
-    openSet(setId)
-  }
+  activateOnKey(event, () => openSet(setId))
 }
 </script>
 
 <template>
   <div class="flex flex-col gap-4 text-left">
-    <h2 class="app-section-header app-page-title">{{ t('sets.heading') }}</h2>
+    <h2 class="app-section-header app-page-title">
+      {{ t('sets.heading') }} <ContextHelp anchor="set" />
+    </h2>
     <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
+    <QueryError v-else-if="isError" :error="loadError" @retry="retryLoad()" />
     <template v-else>
       <p v-if="!(sets?.length)" class="text-sm opacity-70">{{ t('sets.empty') }}</p>
       <div v-else class="rounded-lg border border-base-200">

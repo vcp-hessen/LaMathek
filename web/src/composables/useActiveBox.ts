@@ -42,8 +42,11 @@ export function useActiveBox(inventoryId: MaybeRefOrGetter<number>) {
     return ok ? stored : null
   })
 
-  watch([eligibleLoans, invId], ([list, id]) => {
+  watch([loans, eligibleLoans, invId], ([loaded, list, id]) => {
     if (!Number.isFinite(id)) return
+    // While this Inventar's Verleihe are still loading the list is empty; deciding
+    // now would drop the box chosen earlier.
+    if (!loaded) return
     const current = activeLoanStore.getActiveLoanId(id)
     if (current !== null && !list.some((loan) => loan.id === current)) {
       activeLoanStore.clearActiveLoan(id)

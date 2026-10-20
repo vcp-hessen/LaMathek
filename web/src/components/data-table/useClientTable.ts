@@ -102,8 +102,14 @@ export function useClientTable<T>(options: {
     table.setPageSize(size)
   }
 
+  /** Sort direction of a column for SortHeaderButton. */
+  function sortedState(columnId: string): false | 'asc' | 'desc' {
+    return table.getColumn(columnId)?.getIsSorted() ?? false
+  }
+
   return {
     table,
+    sortedState,
     globalFilter,
     sorting,
     columnFilters,

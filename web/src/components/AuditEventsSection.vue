@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import QueryError from './QueryError.vue'
+import { queryKeys } from '../api/queryKeys'
 import { useQuery } from '@tanstack/vue-query'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -8,8 +10,8 @@ import { userLabel } from '../utils/userLabel'
 
 const { t, locale } = useI18n()
 
-const { data: events, isLoading } = useQuery({
-  queryKey: ['audit-events'],
+const { data: events, isLoading, isError, error: loadError, refetch: retryLoad } = useQuery({
+  queryKey: queryKeys.auditEvents,
   queryFn: fetchAuditEvents,
 })
 
@@ -49,6 +51,7 @@ function detailSummary(event: AuditEvent): string {
   <section class="space-y-3">
     <h2 class="text-lg font-semibold">{{ t('audit.heading') }}</h2>
     <p v-if="isLoading" class="text-sm opacity-70">{{ t('auth.loading') }}</p>
+    <QueryError v-else-if="isError" :error="loadError" @retry="retryLoad()" />
     <p v-else-if="!(events?.length)" class="text-sm opacity-70">{{ t('audit.empty') }}</p>
     <div v-else class="overflow-x-auto rounded-lg border border-base-200">
       <table class="table table-sm">

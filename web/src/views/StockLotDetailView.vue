@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import QueryError from '../components/QueryError.vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -36,7 +37,7 @@ const { canManage } = useInventoryCanManage(inventoryId)
 
 const stocksQueryKey = useInventoryQueryKey('stocks', inventoryId)
 
-const { data: stocks, isLoading } = useQuery({
+const { data: stocks, isLoading, isError, error: loadError, refetch: retryLoad } = useQuery({
   queryKey: stocksQueryKey,
   queryFn: () => fetchStocks(inventoryId.value),
   enabled: () => Number.isFinite(inventoryId.value),
@@ -126,6 +127,7 @@ const deleteMutation = useMutation({
 <template>
   <div class="app-page space-y-6">
     <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
+    <QueryError v-else-if="isError" :error="loadError" @retry="retryLoad()" />
     <template v-else-if="lot">
       <div class="flex justify-end">
         <AddToBoxButton

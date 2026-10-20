@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime } from '../../utils/dates'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -10,7 +11,7 @@ import type { OutboxMail } from '../../schemas/loan'
 /** Mails of a Verleih for its Materialwart*innen: stuck ones prominently, with resend. */
 const props = defineProps<{ loanId: number; mails: OutboxMail[] }>()
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const { messageFor } = useApiErrorMessage()
 const queryClient = useQueryClient()
 const expanded = ref(false)
@@ -32,11 +33,7 @@ const resend = useMutation({
   },
 })
 
-function when(iso: string | null): string {
-  return iso
-    ? new Date(iso).toLocaleString(locale.value, { dateStyle: 'short', timeStyle: 'short' })
-    : ''
-}
+const when = formatDateTime
 </script>
 
 <template>

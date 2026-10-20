@@ -1,21 +1,19 @@
 <script setup lang="ts">
+import { useMe } from '../composables/useMe'
+import { queryKeys } from '../api/queryKeys'
 import { useQuery } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { fetchInstallationSettings } from '../api/settings'
-import { fetchMe } from '../api/me'
 import InstallationSettingsForm from '../components/InstallationSettingsForm.vue'
 
 const { t } = useI18n()
 
 const { data: settings, isLoading: settingsLoading } = useQuery({
-  queryKey: ['settings'],
+  queryKey: queryKeys.settings,
   queryFn: fetchInstallationSettings,
 })
 
-const { data: me, isLoading: meLoading } = useQuery({
-  queryKey: ['me'],
-  queryFn: fetchMe,
-})
+const { data: me, isLoading: meLoading } = useMe()
 </script>
 
 <template>

@@ -182,6 +182,8 @@ def submit_loan_request(
         raise ValueError("loan_not_editable")
     if not loan.lines:
         raise ValueError("empty_loan")
+    if loan.group_id is None:
+        raise ValueError("group_required")
     borrower = loan.borrower_user
     _borrower_phone_required(borrower)
     _validate_dates(kind=loan.kind, pickup_on=pickup_on, return_on=return_on)
@@ -896,6 +898,8 @@ def hand_draft_to_borrower(
     if not any(line.status == LINE_STATUS_DRAFT for line in loan.lines):
         # An empty request would sit in review with nothing to confirm.
         raise ValueError("empty_loan")
+    if loan.group_id is None:
+        raise ValueError("group_required")
     _borrower_phone_required(borrower)
     loan.borrower_user_id = borrower_user_id
     loan.contact_user_id = actor.id

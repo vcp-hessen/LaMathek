@@ -1,3 +1,4 @@
+import { queryKeys } from '../api/queryKeys'
 import { useQuery } from '@tanstack/vue-query'
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { fetchInventories } from '../api/inventories'
@@ -6,7 +7,7 @@ export function useInventoryCanManage(
   inventoryId: MaybeRefOrGetter<number | null | undefined>,
 ) {
   const { data: inventories } = useQuery({
-    queryKey: ['inventories'],
+    queryKey: queryKeys.inventories,
     queryFn: fetchInventories,
   })
 

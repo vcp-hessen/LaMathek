@@ -1,32 +1,31 @@
 <script setup lang="ts">
+import { useMe } from '../composables/useMe'
+import { queryKeys } from '../api/queryKeys'
 import { useQuery } from '@tanstack/vue-query'
 import { computed, reactive, watchEffect } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { fetchAuthMode } from '../api/authMode'
 import { DASHBOARD_CARDS, fetchDashboard, type DashboardCard } from '../api/dashboard'
 import { fetchInstallationSettings } from '../api/settings'
-import { fetchMe } from '../api/me'
 import ContextHelp from '../components/ContextHelp.vue'
 
 const { t } = useI18n()
+const route = useRoute()
 const { data: settings, isLoading: settingsLoading } = useQuery({
-  queryKey: ['settings'],
+  queryKey: queryKeys.settings,
   queryFn: fetchInstallationSettings,
 })
 
 const { data: authMode } = useQuery({
-  queryKey: ['authMode'],
+  queryKey: queryKeys.authMode,
   queryFn: fetchAuthMode,
 })
 
-const { data: me, isLoading: meLoading } = useQuery({
-  queryKey: ['me'],
-  queryFn: fetchMe,
-})
+const { data: me, isLoading: meLoading } = useMe()
 
 const { data: dashboard } = useQuery({
-  queryKey: ['dashboard'],
+  queryKey: queryKeys.dashboard,
   queryFn: fetchDashboard,
   enabled: () => Boolean(me.value),
 })
@@ -73,7 +72,12 @@ watchEffect(() => {
       <p v-else-if="me" class="mt-2 text-lg">
         {{ t('auth.signedInAs', { name: displayName }) }}
       </p>
-      <a v-else class="btn btn-primary mt-4" href="/login">{{ t('auth.signIn') }}</a>
+      <template v-else>
+        <p v-if="route.query.sessionExpired" class="mt-2 text-sm text-warning">
+          {{ t('app.sessionExpired') }}
+        </p>
+        <a class="btn btn-primary mt-4" href="/login">{{ t('auth.signIn') }}</a>
+      </template>
       <p v-if="authMode?.devBypass" class="mt-4 text-xs text-warning">
         {{ t('dev.authBypass') }}
       </p>

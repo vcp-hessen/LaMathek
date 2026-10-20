@@ -138,7 +138,10 @@ class Loan(Base):
     inventory_id: Mapped[int] = mapped_column(
         ForeignKey("inventories.id", ondelete="CASCADE")
     )
-    group_id: Mapped[int] = mapped_column(ForeignKey("groups.id", ondelete="RESTRICT"))
+    # Optional while the Verleih is a draft; required to request it (D0003).
+    group_id: Mapped[int | None] = mapped_column(
+        ForeignKey("groups.id", ondelete="RESTRICT"), nullable=True
+    )
     borrower_user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT")
     )

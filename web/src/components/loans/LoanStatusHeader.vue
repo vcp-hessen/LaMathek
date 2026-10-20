@@ -222,7 +222,7 @@ function stepPdfKind(step: string): LoanPdfKind | null {
         <h1 class="app-page-title">{{ displayTitle }}</h1>
         <p class="flex items-center gap-1.5 text-sm font-medium text-base-content/90">
           <span>{{ t(statusLineKey) }}</span>
-          <ContextHelp anchor="verleih" :label="t('help.glossary.verleih.title')" />
+          <ContextHelp anchor="phase" />
         </p>
       </div>
       <LoanPhaseCloseCluster

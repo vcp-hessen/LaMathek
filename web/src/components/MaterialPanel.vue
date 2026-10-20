@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import ContextHelp from './ContextHelp.vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   createPiece,
@@ -46,6 +47,7 @@ type ExpandedKey = typeof NEW_ROW | typeof BATCH_ROW | typeof NEW_LOT | null
 const props = defineProps<{ inventoryId: number; canManage?: boolean }>()
 
 const route = useRoute()
+const router = useRouter()
 const { t } = useI18n()
 const { messageFor } = useApiErrorMessage()
 const queryClient = useQueryClient()
@@ -292,12 +294,17 @@ function openBatchRow() {
   formError.value = null
 }
 
+// "?openCreate=piece|batch" from the command palette: wait until the material
+// types (and the role) are loaded, open the form once, then drop the parameter
+// so the next palette call triggers again.
 watch(
-  () => route.query.openCreate,
-  (value) => {
-    if (!props.canManage) return
+  () => [route.query.openCreate, props.canManage, canAddPieces.value] as const,
+  ([value, canManage, ready]) => {
+    if ((value !== 'piece' && value !== 'batch') || !canManage || !ready) return
     if (value === 'piece') openNewRow()
-    if (value === 'batch') openBatchRow()
+    else openBatchRow()
+    const { openCreate: _done, ...rest } = route.query
+    void router.replace({ query: rest })
   },
   { immediate: true },
 )
@@ -415,7 +422,9 @@ const createLotMutation = useMutation({
 <template>
   <div class="flex flex-col gap-4 text-left">
       <div class="app-section-header flex flex-wrap items-center justify-between gap-2 gap-y-1">
-        <h2 class="app-page-title shrink-0">{{ t('material.materialHeading') }}</h2>
+        <h2 class="app-page-title shrink-0">
+          {{ t('material.materialHeading') }} <ContextHelp anchor="material" />
+        </h2>
         <div
           v-if="canManage && !isLoading && (canAddPieces || canAddLots)"
           class="dropdown dropdown-end"

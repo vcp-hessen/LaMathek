@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { queryKeys } from '../api/queryKeys'
 import { useQuery } from '@tanstack/vue-query'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -7,7 +8,7 @@ import { websiteHref } from '../composables/useWebsiteHref'
 
 const { t } = useI18n()
 const { data: settings, isLoading } = useQuery({
-  queryKey: ['settings'],
+  queryKey: queryKeys.settings,
   queryFn: fetchInstallationSettings,
 })
 

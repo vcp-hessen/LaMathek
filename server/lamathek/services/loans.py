@@ -140,6 +140,16 @@ def normalize_label(name: str) -> str:
     return cleaned
 
 
+_NO_GROUP = {"", "—", "-"}
+
+
+def group_or_none(session: Session, name: str | None) -> Group | None:
+    """Blank (or the old "—" placeholder) means: no Gruppe yet."""
+    if name is None or name.strip() in _NO_GROUP:
+        return None
+    return get_or_create_group(session, name)
+
+
 def get_or_create_group(session: Session, name: str) -> Group:
     trimmed = normalize_label(name)
     group = session.scalar(select(Group).where(Group.name == trimmed))
@@ -173,7 +183,7 @@ def create_loan(
     session: Session,
     inventory: Inventory,
     *,
-    group_name: str,
+    group_name: str | None,
     borrower_user_id: int,
     event_name: str | None,
     pickup_on: date | None,
@@ -195,13 +205,13 @@ def create_loan(
         return_on = None
     elif pickup_on is not None and return_on is not None and return_on < pickup_on:
         raise ValueError("invalid_date_range")
-    group = get_or_create_group(session, group_name)
+    group = group_or_none(session, group_name)
     event = None
     if event_name is not None and event_name.strip():
         event = get_or_create_event(session, event_name)
     loan = Loan(
         inventory_id=inventory.id,
-        group_id=group.id,
+        group_id=group.id if group is not None else None,
         borrower_user_id=borrower_user_id,
         contact_user_id=actor.id if for_other and actor is not None else None,
         event_id=event.id if event else None,
@@ -221,7 +231,7 @@ def create_loan(
             session,
             "loan.created",
             actor,
-            {"kind": kind, "forOther": for_other, "group": group.name},
+            {"kind": kind, "forOther": for_other, "group": group.name if group else None},
             loan_id=loan.id,
         )
     session.commit()
@@ -233,7 +243,7 @@ def get_or_create_draft_loan(
     inventory: Inventory,
     borrower_user_id: int,
     *,
-    group_name: str = "—",
+    group_name: str | None = None,
     actor: User | None = None,
 ) -> Loan:
     draft = get_draft_loan(session, inventory.id, borrower_user_id)
@@ -331,7 +341,7 @@ def update_loan(
             raise ValueError("invalid_date_range")
     meta_editable = allow_shared_meta or manager_edit
     if group_name is not None and meta_editable:
-        loan.group = get_or_create_group(session, group_name)
+        loan.group = group_or_none(session, group_name)
         updated_fields.append("group")
     if borrower_user_id is not None and meta_editable:
         _validate_borrower(session, borrower_user_id)

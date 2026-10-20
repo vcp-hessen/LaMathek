@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { queryKeys } from '../api/queryKeys'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useForm } from 'vee-validate'
@@ -89,13 +90,17 @@ async function onLegalAddressBlur() {
 const mutation = useMutation({
   mutationFn: updateInstallationSettings,
   onSuccess: async () => {
-    await queryClient.invalidateQueries({ queryKey: ['settings'] })
+    await queryClient.invalidateQueries({ queryKey: queryKeys.settings })
   },
 })
 
 const onSubmit = handleSubmit(async (values) => {
-  await mutation.mutateAsync(values)
-  resetForm({ values })
+  try {
+    await mutation.mutateAsync(values)
+    resetForm({ values })
+  } catch {
+    // shown below via mutation.isError
+  }
 })
 </script>
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { activateOnKey } from '../data-table/rowKeys'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -137,6 +138,7 @@ const {
   pageTo,
   goToPage,
   setPageSize,
+  sortedState,
 } = useClientTable<LoanLine>({
   data: () => props.lines,
   columns,
@@ -203,9 +205,6 @@ function onHeaderCheckboxChange(event: Event) {
   else deselectFiltered()
 }
 
-function sortedState(columnId: string): false | 'asc' | 'desc' {
-  return table.getColumn(columnId)?.getIsSorted() ?? false
-}
 
 function isSelected(lineId: number): boolean {
   return props.selectedLineIds.includes(lineId)
@@ -227,10 +226,7 @@ function rowKeydownIgnoresSelection(event: KeyboardEvent): boolean {
 
 function onRowKeydown(event: KeyboardEvent, line: LoanLine) {
   if (rowKeydownIgnoresSelection(event)) return
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault()
-    toggleRow(line)
-  }
+  activateOnKey(event, () => toggleRow(line))
 }
 
 function reasonDisplay(line: LoanLine): string {

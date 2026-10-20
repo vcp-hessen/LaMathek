@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDate, formatDateTime } from '../../utils/dates'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { JournalEntry } from '../../schemas/journal'
@@ -9,7 +10,7 @@ const props = defineProps<{
   title: string
 }>()
 
-const { t, te, tm, rt, locale } = useI18n()
+const { t, te, tm, rt } = useI18n()
 
 type JournalRow = JournalEntry & { items: string[] }
 
@@ -64,7 +65,7 @@ function fieldLabel(field: string): string {
 function show(value: unknown): string {
   if (value === null || value === undefined || value === '') return t('journal.empty_value')
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return new Date(`${value}T00:00:00`).toLocaleDateString(locale.value)
+    return formatDate(value)
   }
   return String(value)
 }
@@ -95,10 +96,7 @@ function payloadSummary(entry: JournalRow): string {
   return parts.join(' · ')
 }
 
-function when(iso: string | null): string {
-  if (!iso) return ''
-  return new Date(iso).toLocaleString(locale.value, { dateStyle: 'short', timeStyle: 'short' })
-}
+const when = formatDateTime
 </script>
 
 <template>

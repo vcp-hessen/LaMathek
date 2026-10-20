@@ -285,7 +285,7 @@ def post_loan(user, inventory_id: int):
     body = request.get_json(silent=True) or {}
     group_name = body.get("groupName")
     borrower_user_id = body.get("borrowerUserId", user.id)
-    if not isinstance(group_name, str) or not group_name.strip():
+    if group_name is not None and not isinstance(group_name, str):
         return jsonify({"error": "invalid_group"}), 400
     if not isinstance(borrower_user_id, int):
         return jsonify({"error": "invalid_borrower"}), 400
@@ -347,8 +347,8 @@ def post_draft_line(user, inventory_id: int):
         return jsonify({"error": "invalid_borrower"}), 400
     if borrower_user_id != user.id:
         return jsonify({"error": "forbidden"}), 403
-    group_name = body.get("groupName") or "—"
-    if not isinstance(group_name, str):
+    group_name = body.get("groupName")
+    if group_name is not None and not isinstance(group_name, str):
         return jsonify({"error": "invalid_group"}), 400
     loan = get_or_create_draft_loan(
         session, inventory, borrower_user_id, group_name=group_name, actor=user
@@ -531,11 +531,11 @@ def patch_loan(user, loan_id: int):
         kwargs["allow_shared_meta"] = True
     if "groupName" in body:
         name = body["groupName"]
-        if not isinstance(name, str) or not name.strip():
+        if name is not None and not isinstance(name, str):
             return jsonify({"error": "invalid_group"}), 400
         if not can_edit_draft_meta():
             return jsonify({"error": "invalid_loan_state"}), 409
-        kwargs["group_name"] = name
+        kwargs["group_name"] = name or ""  # "" clears; None would mean "unchanged"
         mark_manager_edit()
     if "borrowerUserId" in body:
         borrower_user_id = body["borrowerUserId"]

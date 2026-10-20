@@ -48,7 +48,7 @@ export async function fetchDraftLoan(
 export async function createLoan(
   inventoryId: number,
   payload: {
-    groupName: string
+    groupName?: string
     borrowerUserId: number
     kind?: 'short' | 'permanent'
     eventName?: string

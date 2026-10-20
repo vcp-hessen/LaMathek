@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { useApiErrorMessage } from '../composables/useApiErrorMessage'
+import QueryError from '../components/QueryError.vue'
+import { useMe } from '../composables/useMe'
+import { queryKeys } from '../api/queryKeys'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -10,7 +14,6 @@ import {
   type CalendarFeedScope,
 } from '../api/calendarFeeds'
 import { fetchInventories } from '../api/inventories'
-import { fetchMe } from '../api/me'
 import { calendarInventoryLabel } from '../utils/calendarContent'
 
 type ContentOption = {
@@ -22,6 +25,7 @@ type ContentOption = {
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
+const { messageFor } = useApiErrorMessage()
 
 const label = ref('')
 const contentKey = ref('borrower')
@@ -29,10 +33,10 @@ const createdUrl = ref<string | null>(null)
 const copyDone = ref(false)
 const formError = ref<string | null>(null)
 
-const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
+const { data: me } = useMe()
 
 const { data: inventories } = useQuery({
-  queryKey: ['inventories'],
+  queryKey: queryKeys.inventories,
   queryFn: fetchInventories,
   enabled: () => !!me.value,
 })
@@ -78,8 +82,8 @@ watch(
   { immediate: true },
 )
 
-const { data: feeds, isLoading } = useQuery({
-  queryKey: ['calendar-feeds'],
+const { data: feeds, isLoading, isError, error: loadError, refetch: retryLoad } = useQuery({
+  queryKey: queryKeys.calendarFeeds,
   queryFn: fetchCalendarFeeds,
   enabled: () => !!me.value,
 })
@@ -90,7 +94,7 @@ const createMutation = useMutation({
     createdUrl.value = `${window.location.origin}${created.path}`
     label.value = ''
     formError.value = null
-    void queryClient.invalidateQueries({ queryKey: ['calendar-feeds'] })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.calendarFeeds })
   },
   onError: () => {
     formError.value = t('calendar.feedsCreateFailed')
@@ -100,7 +104,11 @@ const createMutation = useMutation({
 const deleteMutation = useMutation({
   mutationFn: deleteCalendarFeed,
   onSuccess: async () => {
-    await queryClient.invalidateQueries({ queryKey: ['calendar-feeds'] })
+    formError.value = null
+    await queryClient.invalidateQueries({ queryKey: queryKeys.calendarFeeds })
+  },
+  onError: (error) => {
+    formError.value = messageFor(error)
   },
 })
 
@@ -221,6 +229,7 @@ function onDelete(feed: CalendarFeed) {
       <section class="mt-8 max-w-3xl">
         <h2 class="text-sm font-medium">{{ t('calendar.feedsListHeading') }}</h2>
         <p v-if="isLoading" class="mt-2 text-sm">{{ t('auth.loading') }}</p>
+        <QueryError v-else-if="isError" :error="loadError" @retry="retryLoad()" />
         <p v-else-if="!feeds?.length" class="mt-2 text-sm text-base-content/70">
           {{ t('calendar.feedsEmpty') }}
         </p>

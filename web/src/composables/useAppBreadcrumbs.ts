@@ -1,3 +1,5 @@
+import { useMe } from './useMe'
+import { queryKeys } from '../api/queryKeys'
 import { useQuery } from '@tanstack/vue-query'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
@@ -6,7 +8,6 @@ import { fetchInventories } from '../api/inventories'
 import { fetchPiece, fetchStocks } from '../api/material'
 import { fetchLoan } from '../api/loans'
 import { fetchSet } from '../api/sets'
-import { fetchMe } from '../api/me'
 import { loanDisplayName } from '../utils/loanDisplayName'
 
 export type BreadcrumbItem = {
@@ -25,10 +26,10 @@ export function useAppBreadcrumbs() {
   const route = useRoute()
   const { t } = useI18n()
 
-  const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
+  const { data: me } = useMe()
 
   const { data: inventories } = useQuery({
-    queryKey: ['inventories'],
+    queryKey: queryKeys.inventories,
     queryFn: fetchInventories,
     enabled: () => !!me.value,
   })

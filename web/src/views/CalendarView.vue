@@ -1,11 +1,19 @@
 <script setup lang="ts">
+import { useMe } from '../composables/useMe'
+import { queryKeys } from '../api/queryKeys'
 import { useQueries, useQuery } from '@tanstack/vue-query'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { api } from '../api/client'
+import {
+  type CalendarItem,
+  fetchBorrowerCalendar,
+  fetchContactCalendar,
+  fetchInventoryCalendar,
+} from '../api/calendar'
+import QueryError from '../components/QueryError.vue'
+import { formatDate } from '../utils/dates'
 import { fetchInventories } from '../api/inventories'
-import { fetchMe } from '../api/me'
 import { fetchInstallationSettings } from '../api/settings'
 import ContextHelp from '../components/ContextHelp.vue'
 import UiIcon from '../components/UiIcon.vue'
@@ -19,18 +27,7 @@ import {
   publicHolidays,
 } from '../utils/germanPublicHolidays'
 
-type CalItem = {
-  loanId: number
-  inventoryId: number
-  inventoryName: string
-  title: string
-  phase: string
-  pickupOn: string
-  returnOn: string | null
-  permanent: boolean
-  asBorrower: boolean
-  asContact: boolean
-}
+type CalItem = CalendarItem
 
 type CalRole = 'borrower' | 'contact' | 'steward'
 
@@ -74,13 +71,10 @@ const inventoryScope = ref<Record<number, InventoryCalendarScope>>({})
 const showBorrower = computed(() => borrowerScope.value === 'borrower')
 const layersPanelRef = ref<HTMLDetailsElement | null>(null)
 
-const { data: me, isLoading: meLoading } = useQuery({
-  queryKey: ['me'],
-  queryFn: fetchMe,
-})
+const { data: me, isLoading: meLoading } = useMe()
 
 const { data: inventories, isLoading: inventoriesLoading } = useQuery({
-  queryKey: ['inventories'],
+  queryKey: queryKeys.inventories,
   queryFn: fetchInventories,
   enabled: () => !!me.value,
 })
@@ -113,19 +107,13 @@ const inventoriesForAllLoans = computed(() =>
 
 const borrowerQuery = useQuery({
   queryKey: ['calendar', 'borrower'],
-  queryFn: async () => {
-    const response = await api.get('/api/me/calendar/borrower')
-    return response.data.items as CalItem[]
-  },
+  queryFn: fetchBorrowerCalendar,
   enabled: () => !!me.value && showBorrower.value,
 })
 
 const contactQuery = useQuery({
   queryKey: ['calendar', 'contact'],
-  queryFn: async () => {
-    const response = await api.get('/api/me/calendar/contact')
-    return response.data.items as CalItem[]
-  },
+  queryFn: fetchContactCalendar,
   enabled: () => !!me.value && needsContactCalendar.value,
 })
 
@@ -133,20 +121,17 @@ const inventoryQueries = useQueries({
   queries: computed(() =>
     inventoriesForAllLoans.value.map((inventory) => ({
       queryKey: ['calendar', 'inventory', inventory.id] as const,
-      queryFn: async () => {
-        const response = await api.get(`/api/inventories/${inventory.id}/calendar`)
-        return {
-          inventoryId: inventory.id,
-          items: response.data.items as CalItem[],
-        }
-      },
+      queryFn: async () => ({
+        inventoryId: inventory.id,
+        items: await fetchInventoryCalendar(inventory.id),
+      }),
       enabled: !!me.value,
     })),
   ),
 })
 
 const { data: installationSettings } = useQuery({
-  queryKey: ['settings'],
+  queryKey: queryKeys.settings,
   queryFn: fetchInstallationSettings,
 })
 
@@ -158,6 +143,21 @@ const dataLoading = computed(
     (needsContactCalendar.value && contactQuery.isLoading.value) ||
     inventoryQueries.value.some((query) => query.isLoading),
 )
+
+// A failed layer must not look like an empty calendar.
+const dataError = computed(
+  () =>
+    (showBorrower.value && borrowerQuery.error.value) ||
+    (needsContactCalendar.value && contactQuery.error.value) ||
+    inventoryQueries.value.find((query) => query.error)?.error ||
+    null,
+)
+
+function retryCalendar() {
+  void borrowerQuery.refetch()
+  void contactQuery.refetch()
+  for (const query of inventoryQueries.value) void query.refetch()
+}
 
 const totalLayerCount = computed(() => 1 + calendarInventories.value.length)
 
@@ -496,6 +496,7 @@ function barStyle(bar: Bar) {
     </div>
 
     <p v-if="me && dataLoading" class="mt-4 text-sm">{{ t('auth.loading') }}</p>
+    <QueryError v-else-if="me && dataError" class="mt-4" :error="dataError" @retry="retryCalendar()" />
 
     <template v-else-if="me">
       <div v-if="mode === 'month'" class="mt-3 overflow-x-auto">
@@ -569,8 +570,8 @@ function barStyle(bar: Bar) {
               </RouterLink>
               <span v-if="item.permanent" class="ml-2 text-xs opacity-70">{{ t('loans.kindPermanent') }}</span>
             </td>
-            <td>{{ item.pickupOn }}</td>
-            <td>{{ item.returnOn ?? '—' }}</td>
+            <td>{{ formatDate(item.pickupOn) }}</td>
+            <td>{{ formatDate(item.returnOn) }}</td>
           </tr>
           <tr v-if="monthItems.length === 0">
             <td :colspan="showInventoryColumn ? 4 : 3" class="py-3 text-base-content/60">

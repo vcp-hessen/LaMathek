@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { localIsoDate } from '../utils/dates'
+import QueryError from '../components/QueryError.vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -49,7 +51,7 @@ const { data: materialTypes } = useQuery({
   enabled: () => Number.isFinite(inventoryId.value),
 })
 
-const { data: piece, isLoading } = useQuery({
+const { data: piece, isLoading, isError, error: loadError, refetch: retryLoad } = useQuery({
   queryKey: ['piece', pieceId],
   queryFn: () => fetchPiece(pieceId.value),
   enabled: () => Number.isFinite(pieceId.value),
@@ -113,7 +115,7 @@ watch(
   { immediate: true },
 )
 
-const damageRecordedOn = ref(new Date().toISOString().slice(0, 10))
+const damageRecordedOn = ref(localIsoDate())
 const damageNote = ref('')
 const damageSevere = ref(false)
 
@@ -183,12 +185,18 @@ const damageMutation = useMutation({
   onSuccess: async () => {
     damageNote.value = ''
     damageSevere.value = false
+    damageError.value = null
     await invalidate()
+  },
+  onError: (error) => {
+    damageError.value = messageFor(error)
   },
 })
 
+const damageError = ref<string | null>(null)
+
 function repairDateFor(damage: Damage): string {
-  return repairDates.value[damage.id] ?? new Date().toISOString().slice(0, 10)
+  return repairDates.value[damage.id] ?? localIsoDate()
 }
 
 function setRepairDate(damageId: number, value: string) {
@@ -201,7 +209,13 @@ const repairMutation = useMutation({
       recordedOn: repairDateFor(damage),
       note: repairNotes.value[damage.id]?.trim() || undefined,
     }),
-  onSuccess: invalidate,
+  onSuccess: async () => {
+    damageError.value = null
+    await invalidate()
+  },
+  onError: (error) => {
+    damageError.value = messageFor(error)
+  },
 })
 
 function damageStatusLabel(damage: Damage): string {
@@ -230,6 +244,7 @@ const writeOffMutation = useMutation({
 <template>
   <div class="app-page space-y-6">
     <p v-if="isLoading" class="text-sm">{{ t('auth.loading') }}</p>
+    <QueryError v-else-if="isError" :error="loadError" @retry="retryLoad()" />
     <template v-else-if="piece">
       <div class="flex justify-end">
         <AddToBoxButton
@@ -421,6 +436,7 @@ const writeOffMutation = useMutation({
             </li>
           </ul>
           <p v-else class="text-sm opacity-70">{{ t('damage.historyEmpty') }}</p>
+          <p v-if="damageError" role="alert" class="text-sm text-error">{{ damageError }}</p>
       </section>
 
       <section

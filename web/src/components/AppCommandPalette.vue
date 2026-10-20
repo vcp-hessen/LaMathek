@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useApiErrorMessage } from '../composables/useApiErrorMessage'
 import { useCreateMinimalLoan } from '../composables/useCreateMinimalLoan'
 
 const props = defineProps<{
@@ -14,8 +15,10 @@ const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
 const { t } = useI18n()
 const router = useRouter()
+const { messageFor } = useApiErrorMessage()
 
-const createLoan = useCreateMinimalLoan(props.inventoryId)
+// A getter: the active Inventar can change while the palette stays mounted.
+const createLoan = useCreateMinimalLoan(() => props.inventoryId)
 
 type CommandId = 'materialType' | 'piece' | 'batch' | 'loan'
 
@@ -42,19 +45,30 @@ const commands = computed(() => {
       id: 'loan' as CommandId,
       label: t('commandPalette.newLoan'),
       run: async () => {
-        const loan = await createLoan.mutateAsync()
-        await router.push(`/inventories/${id}/loans/${loan.id}`)
+        try {
+          const loan = await createLoan.mutateAsync()
+          await router.push(`/inventories/${loan.inventoryId}/loans/${loan.id}`)
+        } catch (error) {
+          runError.value = messageFor(error)
+          emit('update:open', true)
+        }
       },
     },
   ]
 })
 
 const activeIndex = ref(0)
+const runError = ref<string | null>(null)
 
 watch(
   () => props.open,
   (isOpen) => {
-    if (isOpen) activeIndex.value = 0
+    if (isOpen) {
+      activeIndex.value = 0
+      if (!runError.value) return
+    } else {
+      runError.value = null
+    }
   },
 )
 
@@ -111,6 +125,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
         <p class="text-sm font-medium">{{ t('commandPalette.title') }}</p>
         <p class="text-xs text-base-content/60">{{ t('commandPalette.hint') }}</p>
       </div>
+      <p v-if="runError" role="alert" class="px-4 pt-2 text-sm text-error">{{ runError }}</p>
       <ul class="menu p-2">
         <li v-for="(cmd, index) in commands" :key="cmd.id">
           <button
@@ -129,7 +144,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       </div>
     </div>
     <form method="dialog" class="modal-backdrop">
-      <button type="button" aria-label="close" @click="close" />
+      <button type="button" :aria-label="t('destructive.cancel')" @click="close" />
     </form>
   </dialog>
 </template>

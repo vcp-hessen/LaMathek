@@ -1,17 +1,23 @@
 <script setup lang="ts">
+import { setUnauthorizedHandler } from '../api/client'
+import { useIdentitySwitch } from '../composables/useIdentitySwitch'
+import { useMe } from '../composables/useMe'
+import { queryKeys } from '../api/queryKeys'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
-import { computed, watch } from 'vue'
+import { computed, watch, onUnmounted } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { fetchInventories } from '../api/inventories'
 import { fetchInstallationSettings } from '../api/settings'
 import { stopImpersonation } from '../api/impersonation'
-import { fetchMe, logout } from '../api/me'
+import { logout } from '../api/me'
 import ActiveBoxPicker from './loans/ActiveBoxPicker.vue'
 import AppBreadcrumbs from './AppBreadcrumbs.vue'
 import { INVENTORY_WORKSPACE_ROUTE_NAMES } from '../utils/inventoryWorkspaceRoutes'
 import AppFooter from './AppFooter.vue'
 import AppSidebarChrome from './AppSidebarChrome.vue'
+import AppCommandPalette from './AppCommandPalette.vue'
+import { useCommandPalette } from '../composables/useCommandPalette'
 import UiIcon from './UiIcon.vue'
 import { useInventoryStore } from '../stores/inventory'
 import { useUiStore } from '../stores/ui'
@@ -20,26 +26,37 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
+const identityChanged = useIdentitySwitch()
+
+// Expired session: forget everything cached and show the signed-out start page.
+setUnauthorizedHandler(() => {
+  queryClient.clear()
+  void router.push({ path: '/', query: { sessionExpired: '1' } })
+})
+onUnmounted(() => setUnauthorizedHandler(null))
 const ui = useUiStore()
 const inventoryStore = useInventoryStore()
 
 const { data: settings } = useQuery({
-  queryKey: ['settings'],
+  queryKey: queryKeys.settings,
   queryFn: fetchInstallationSettings,
 })
 
-const { data: me } = useQuery({
-  queryKey: ['me'],
-  queryFn: fetchMe,
-})
+const { data: me } = useMe()
 
 const { data: inventories, isLoading: inventoriesLoading } = useQuery({
-  queryKey: ['inventories'],
+  queryKey: queryKeys.inventories,
   queryFn: fetchInventories,
   enabled: () => !!me.value,
 })
 
 const title = computed(() => settings.value?.title ?? t('app.productName'))
+const { open: paletteOpen } = useCommandPalette()
+const canManageActiveInventory = computed(
+  () =>
+    (inventories.value ?? []).find((inv) => inv.id === inventoryStore.activeInventoryId)?.canManage ??
+    false,
+)
 const inventoriesListActive = computed(
   () => route.path === '/inventories',
 )
@@ -98,11 +115,7 @@ const sidebarShellClass = computed(() =>
 
 async function onStopImpersonation() {
   await stopImpersonation()
-  inventoryStore.setActiveInventory(null)
-  await queryClient.invalidateQueries({ queryKey: ['me'] })
-  await queryClient.invalidateQueries({ queryKey: ['inventories'] })
-  await queryClient.invalidateQueries({ queryKey: ['users'] })
-  await queryClient.invalidateQueries({ queryKey: ['audit-events'] })
+  identityChanged()
 }
 
 async function onSidebarSignOut() {
@@ -152,6 +165,13 @@ async function onSidebarSignOut() {
         </aside>
       </div>
     </Teleport>
+
+    <AppCommandPalette
+      v-if="inventoryStore.activeInventoryId"
+      v-model:open="paletteOpen"
+      :inventory-id="inventoryStore.activeInventoryId"
+      :can-manage="canManageActiveInventory"
+    />
 
     <aside
       class="sticky top-0 z-10 hidden h-dvh shrink-0 flex-col border-r transition-[width] duration-200 md:flex"
