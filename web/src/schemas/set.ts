@@ -20,6 +20,7 @@ export const setStockLineSchema = z.object({
   id: z.number(),
   materialTypeId: z.number(),
   materialTypeName: z.string(),
+  stockVariant: z.record(z.string(), z.string()).default({}),
   role: z.enum(['assignment', 'optional']),
   quantity: z.number(),
 })

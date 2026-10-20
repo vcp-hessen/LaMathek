@@ -91,7 +91,7 @@ _English_: stock
 _Avoid_: Bestand, Vorrat
 
 **Mengenposten**:
-One counted portion of a Menge: an Anzahl, an optional Variante, and an optional Bezeichnung (for example a box name). Several Posten of the same Variante may exist. A box is not an Einzelteil. It may carry the same optional Angaben and Status as an Einzelteil; a retired Posten's Anzahl does not count toward available stock.
+One counted portion of a Menge: an Anzahl of exactly one Variante (every Variantenbezeichner of the Materialart is set, never a mix) and an optional Bezeichnung (for example a box name). Several Posten of the same Variante may exist and add up. A box is not an Einzelteil. It may carry the same optional Angaben and Status as an Einzelteil; a retired Posten's Anzahl does not count toward available stock.
 _English_: stock lot
 _Avoid_: Kiste, Behälter, Einzelteil (for the container)
 
@@ -106,7 +106,7 @@ _English_: variant dimension
 _Avoid_: Attribut, Merkmal, option group
 
 **Variante**:
-On an Einzelteil, one chosen value per Variantenbezeichner of its Materialart (a combination). On a Mengenposten, each Variantenbezeichner may be unset; set values must be allowed on the Materialart.
+On an Einzelteil, one chosen value per Variantenbezeichner of its Materialart (a combination). On a Mengenposten, a Set line of a Menge and a Verleih Position of a Menge, likewise one value per Variantenbezeichner; Mengen are counted and booked per Variante.
 _English_: variant
 _Avoid_: version, Ausführung, option
 

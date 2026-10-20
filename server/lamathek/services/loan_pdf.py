@@ -139,7 +139,9 @@ def _pdf_row(line) -> PdfRow | None:
         item_label = line.piece.name.strip()
         return PdfRow(item_label, mt_name, origin, status, (mt_name.casefold(), item_label.casefold()))
     if line.material_type is not None and line.quantity is not None:
-        mt_name = line.material_type.name.strip()
+        from lamathek.services.variants import line_stock_name
+
+        mt_name = line_stock_name(line)
         return PdfRow(
             f"{line.quantity} ×", mt_name, origin, status, (mt_name.casefold(), f"{line.quantity:06d}")
         )

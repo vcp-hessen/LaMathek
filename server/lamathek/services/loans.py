@@ -544,6 +544,7 @@ def _place_set_stock(
     loan: Loan,
     *,
     material_type_id: int,
+    stock_variant: str,
     quantity: int,
     status: str,
     origin: dict,
@@ -552,6 +553,7 @@ def _place_set_stock(
         select(LoanLine).where(
             LoanLine.loan_id == loan.id,
             LoanLine.material_type_id == material_type_id,
+            LoanLine.stock_variant == stock_variant,
             LoanLine.origin_set_id == origin["origin_set_id"],
             LoanLine.origin_set_role == origin["origin_set_role"],
         )
@@ -570,6 +572,7 @@ def _place_set_stock(
         LoanLine(
             loan_id=loan.id,
             material_type_id=material_type_id,
+            stock_variant=stock_variant,
             quantity=quantity,
             status=status,
             **origin,
@@ -614,6 +617,7 @@ def _add_set_lines(
             session,
             loan,
             material_type_id=stock_line.material_type_id,
+            stock_variant=stock_line.stock_variant,
             quantity=stock_line.quantity,
             status=status,
             origin=origin,
@@ -680,23 +684,28 @@ def add_stock_line(
     material_type_id: int,
     quantity: int,
     *,
+    variant=None,
     reason: str | None = None,
     actor: User | None = None,
 ) -> LoanLine:
+    """Add (or change) a quantity of one Materialart and variant combination (#12)."""
     if not _loan_editable_for_lines(loan):
         raise ValueError("loan_not_editable")
     if quantity <= 0:
         raise ValueError("invalid_quantity")
     from lamathek.models.material import MaterialType, TRACKING_STOCK
+    from lamathek.services.variants import validate_stock_variant
 
     mt = session.get(MaterialType, material_type_id)
     if mt is None or mt.inventory_id != loan.inventory_id or mt.tracking != TRACKING_STOCK:
         raise ValueError("invalid_material_type")
+    stock_variant = validate_stock_variant(mt, variant)
     status = new_line_status_for_loan(loan)
     existing = session.scalar(
         select(LoanLine).where(
             LoanLine.loan_id == loan.id,
             LoanLine.material_type_id == material_type_id,
+            LoanLine.stock_variant == stock_variant,
             LoanLine.origin_set_id.is_(None),
             LoanLine.status.in_((LINE_STATUS_DRAFT, LINE_STATUS_REQUESTED)),
         )
@@ -732,6 +741,7 @@ def add_stock_line(
         select(LoanLine).where(
             LoanLine.loan_id == loan.id,
             LoanLine.material_type_id == material_type_id,
+            LoanLine.stock_variant == stock_variant,
             LoanLine.origin_set_id.is_(None),
             LoanLine.status == LINE_STATUS_WITHDRAWN,
         )
@@ -748,6 +758,7 @@ def add_stock_line(
     line = LoanLine(
         loan_id=loan.id,
         material_type_id=material_type_id,
+        stock_variant=stock_variant,
         quantity=quantity,
         status=status,
     )

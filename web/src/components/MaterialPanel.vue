@@ -729,7 +729,6 @@ const createLotMutation = useMutation({
               v-if="newTypeAxes.length"
               v-model="newLot.variant"
               :axes="newTypeAxes"
-              optional
               compact
               inline
             />

@@ -134,6 +134,7 @@ def _lines(
     statuses: Iterable[str],
     piece_id: int | None = None,
     material_type_id: int | None = None,
+    stock_variant: str | None = None,
     exclude_line_ids: Iterable[int] = (),
 ) -> list[tuple[Loan, LoanLine]]:
     stmt = (
@@ -146,6 +147,8 @@ def _lines(
         stmt = stmt.where(LoanLine.piece_id == piece_id)
     if material_type_id is not None:
         stmt = stmt.where(LoanLine.material_type_id == material_type_id)
+    if stock_variant is not None:
+        stmt = stmt.where(LoanLine.stock_variant == stock_variant)
     excluded = tuple(exclude_line_ids)
     if excluded:
         stmt = stmt.where(LoanLine.id.not_in(excluded))
@@ -158,6 +161,7 @@ def overlapping_blocking_lines(
     *,
     piece_id: int | None = None,
     material_type_id: int | None = None,
+    stock_variant: str | None = None,
     exclude_line_ids: Iterable[int] = (),
     today: date | None = None,
 ) -> list[tuple[Loan, LoanLine, Interval]]:
@@ -168,6 +172,7 @@ def overlapping_blocking_lines(
         statuses=LINE_STATUSES_BLOCKING,
         piece_id=piece_id,
         material_type_id=material_type_id,
+        stock_variant=stock_variant,
         exclude_line_ids=exclude_line_ids,
     ):
         occupied = line_interval(loan, line, today=today)
@@ -176,11 +181,13 @@ def overlapping_blocking_lines(
     return found
 
 
-def available_stock_quantity(session: Session, material_type_id: int) -> int:
-    """Stock that can be lent at all (active lots minus open losses)."""
+def available_stock_quantity(
+    session: Session, material_type_id: int, stock_variant: str | None = None
+) -> int:
+    """Stock that can be lent at all (active lots minus open losses), per combination (#12)."""
     from lamathek.services.stock_losses import available_stock_quantity as available
 
-    return available(session, material_type_id)
+    return available(session, material_type_id, stock_variant)
 
 
 def stock_peak(
@@ -188,14 +195,16 @@ def stock_peak(
     material_type_id: int,
     interval: Interval,
     *,
+    stock_variant: str | None = None,
     exclude_line_ids: Iterable[int] = (),
     today: date | None = None,
 ) -> int:
-    """Highest quantity of this Materialart occupied on any single day of ``interval``."""
+    """Highest quantity of this Materialart (and combination) occupied on any day of ``interval``."""
     occupied = overlapping_blocking_lines(
         session,
         interval,
         material_type_id=material_type_id,
+        stock_variant=stock_variant,
         exclude_line_ids=exclude_line_ids,
         today=today,
     )
@@ -264,11 +273,18 @@ def stock_conflicts(
     quantity: int,
     interval: Interval,
     *,
+    stock_variant: str = "{}",
     exclude_line_ids: Iterable[int] = (),
     line_id: int | None = None,
 ) -> list[Conflict]:
-    available = available_stock_quantity(session, material_type_id)
-    peak = stock_peak(session, material_type_id, interval, exclude_line_ids=exclude_line_ids)
+    available = available_stock_quantity(session, material_type_id, stock_variant)
+    peak = stock_peak(
+        session,
+        material_type_id,
+        interval,
+        stock_variant=stock_variant,
+        exclude_line_ids=exclude_line_ids,
+    )
     if peak + quantity <= available:
         return []
     return [
@@ -299,6 +315,7 @@ def line_conflicts(
             line.material_type_id,
             line.quantity,
             interval,
+            stock_variant=line.stock_variant or "{}",
             exclude_line_ids=exclude,
             line_id=line.id,
         )
@@ -331,9 +348,18 @@ def assert_loan_lines_available(session: Session, loan: Loan) -> None:
 
 
 def stock_occupied_from(
-    session: Session, material_type_id: int, day: date, *, exclude_line_ids: Iterable[int] = ()
+    session: Session,
+    material_type_id: int,
+    day: date,
+    *,
+    stock_variant: str | None = None,
+    exclude_line_ids: Iterable[int] = (),
 ) -> int:
     """Peak quantity occupied from ``day`` on (floor for lowering stock by hand)."""
     return stock_peak(
-        session, material_type_id, Interval(day, None), exclude_line_ids=exclude_line_ids
+        session,
+        material_type_id,
+        Interval(day, None),
+        stock_variant=stock_variant,
+        exclude_line_ids=exclude_line_ids,
     )

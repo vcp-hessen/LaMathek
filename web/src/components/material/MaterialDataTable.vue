@@ -404,6 +404,7 @@ function onRowKeydown(event: KeyboardEvent, row: MaterialRow) {
                 v-else
                 :inventory-id="inventoryId"
                 :material-type-id="row.original.lot.materialTypeId"
+                :stock-variant="row.original.lot.variant"
                 :quantity="1"
                 size="xs"
                 :show-label="false"

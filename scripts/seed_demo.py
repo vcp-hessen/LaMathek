@@ -189,9 +189,20 @@ def seed(app, session) -> None:
     zursula = create_piece(session, donnerskopf, zarge.id, "Zursula", None)
     zarge_2 = create_piece(session, donnerskopf, zarge.id, "Zarge 2", None)
 
-    # Stock lines on a Set or Verleih carry no variant, so lengths are own Materialarten.
-    seil_3 = stock_type("Seil 3 m", 20, category="Zelt")
-    seil_4 = stock_type("Seil 4 m", 6, category="Zelt")
+    # One Materialart with Variante Länge; each Mengenposten is one length (#12).
+    seil = create_material_type(
+        session,
+        donnerskopf,
+        "Seil",
+        "stock",
+        [{"label": "Länge", "values": ["3 m", "4 m"]}],
+        unit="Stück",
+        category_name="Zelt",
+    )
+    for length, quantity in (("3 m", 20), ("4 m", 6)):
+        create_stock_lot(
+            session, donnerskopf, seil.id, label=None, variant={"Länge": length}, quantity=quantity
+        )
     teleskop = stock_type("Teleskopstange 2 m", 20, category="Zelt")
     steckstange = stock_type("Steckstange 4,5 m", 2, category="Zelt")
     hering = stock_type("Hering", 40, category="Zelt")
@@ -200,8 +211,14 @@ def seed(app, session) -> None:
     jurte = create_set(session, donnerskopf, "Jurte 1", short_name="J1")
     for piece in [*halbdaecher[:2], *dvs[:6], abdecks[0], zursula]:
         set_piece_membership(session, jurte, piece.id, SET_ROLE_ASSIGNMENT)
-    for mt, qty in ((seil_3, 12), (seil_4, 3), (teleskop, 12), (steckstange, 1), (hering, 12)):
-        upsert_stock_line(session, jurte, mt.id, SET_ROLE_ASSIGNMENT, qty)
+    for mt, qty, variant in (
+        (seil, 12, {"Länge": "3 m"}),
+        (seil, 3, {"Länge": "4 m"}),
+        (teleskop, 12, None),
+        (steckstange, 1, None),
+        (hering, 12, None),
+    ):
+        upsert_stock_line(session, jurte, mt.id, SET_ROLE_ASSIGNMENT, qty, variant=variant)
 
     # --- Material Landesbüro -----------------------------------------------------
     beamer = create_material_type(session, buero, "Beamer", "piece", None, category_name="Technik")

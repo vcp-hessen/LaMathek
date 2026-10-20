@@ -300,7 +300,9 @@
       "piece_has_history": "Das Einzelteil war schon auf einem Verleih. Löschen würde die Verleih-Historie zerstören – bitte aussortieren.",
       "lot_has_history": "Dieser Mengenposten hat verbuchte Verluste und bleibt als deren Nachweis erhalten.",
       "loss_not_open": "Dieser Verlust ist schon erledigt.",
-      "total_loss_not_repairable": "Ein Totalverlust wird nicht repariert, sondern wiedergefunden oder ausgebucht."
+      "total_loss_not_repairable": "Ein Totalverlust wird nicht repariert, sondern wiedergefunden oder ausgebucht.",
+      "variant_required": "Bitte für jeden Variantenbezeichner einen Wert wählen – ein Mengenposten besteht aus genau einer Variante.",
+      "variant_in_use": "Diese Variante ist noch an Einzelteilen oder Mengenposten vergeben."
     },
     "writeOffAction": "Endgültig ausbuchen",
     "foundAgainAfterLoan": "Wieder einbuchen geht, sobald der Verleih mit dem Verlust abgeschlossen ist.",
@@ -690,10 +692,10 @@
     "listEmpty": "Nichts zugeordnet.",
     "addPiece": "Einzelteil zuordnen",
     "pickPiece": "Einzelteil wählen",
-    "addStock": "Menge reservieren",
+    "addStock": "Menge zuordnen",
     "pickStockType": "Materialart (Menge)",
     "add": "Hinzufügen",
-    "reserve": "Reservieren",
+    "reserve": "Hinzufügen",
     "remove": "Entfernen",
     "onSet": "Set {name}",
     "onThisSet": "bereits hier"

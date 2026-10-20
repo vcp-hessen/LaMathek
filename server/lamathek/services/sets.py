@@ -116,12 +116,14 @@ def delete_set(session: Session, material_set: MaterialSet) -> None:
     session.commit()
 
 
-def _validate_set_stock_quantity(session: Session, material_type_id: int, quantity: int) -> None:
+def _validate_set_stock_quantity(
+    session: Session, material_type_id: int, stock_variant: str, quantity: int
+) -> None:
     """A Set only describes what belongs together and reserves nothing (D0007);
-    one Set line just cannot ask for more than the Inventar has at all."""
-    from lamathek.services.material import total_stock_quantity
+    one Set line just cannot ask for more than the Inventar has of that combination."""
+    from lamathek.services.stock_losses import active_lots
 
-    if quantity > total_stock_quantity(session, material_type_id):
+    if quantity > sum(lot.quantity for lot in active_lots(session, material_type_id, stock_variant)):
         raise ValueError("over_reserved")
 
 
@@ -173,7 +175,11 @@ def upsert_stock_line(
     material_type_id: int,
     role: str,
     quantity: int,
+    variant=None,
 ) -> SetStockLine | None:
+    """Set the quantity of one Materialart and variant combination on a Set (0 removes it)."""
+    from lamathek.services.variants import validate_stock_variant
+
     material_set = _load_set(session, material_set.id)
     if material_set is None:
         raise ValueError("not_found")
@@ -186,11 +192,13 @@ def upsert_stock_line(
         raise ValueError("invalid_material_type")
     if material_type.tracking != TRACKING_STOCK:
         raise ValueError("not_stock_tracking")
+    stock_variant = validate_stock_variant(material_type, variant)
 
     existing = session.scalar(
         select(SetStockLine).where(
             SetStockLine.set_id == material_set.id,
             SetStockLine.material_type_id == material_type_id,
+            SetStockLine.stock_variant == stock_variant,
             SetStockLine.role == role,
         )
     )
@@ -202,16 +210,17 @@ def upsert_stock_line(
         return None
 
     if existing is not None:
-        _validate_set_stock_quantity(session, material_type_id, quantity)
+        _validate_set_stock_quantity(session, material_type_id, stock_variant, quantity)
         existing.quantity = quantity
         session.commit()
         session.refresh(existing)
         return existing
 
-    _validate_set_stock_quantity(session, material_type_id, quantity)
+    _validate_set_stock_quantity(session, material_type_id, stock_variant, quantity)
     line = SetStockLine(
         set_id=material_set.id,
         material_type_id=material_type_id,
+        stock_variant=stock_variant,
         role=role,
         quantity=quantity,
     )

@@ -23,7 +23,7 @@ Die meisten Verleihe kommen pünktlich und vollständig zurück. Material soll d
 - **Nur bestätigtes Material belegt** (Status bestätigt, gepackt, abgeholt, Rückgabe gemeldet). Entwürfe und Anfragen belegen nichts; dasselbe Einzelteil darf in mehreren Entwürfen und Anfragen liegen.
 - **Überfällig:** Ist Material nach dem Rückgabedatum noch draußen, belegt es bis **heute** (Instanz-Zeitzone). Es kann also jetzt nicht erneut raus; spätere Zeiträume bleiben verleihbar und zeigen einen Hinweis.
 - **Einzelteile:** frei, wenn keine andere belegende Position den Zeitraum berührt und das Teil nicht aussortiert, als Totalverlust verbucht oder schwer beschädigt ist (letzteres gilt unabhängig vom Datum).
-- **Mengen:** Für jeden Tag des Zeitraums wird die belegte Anzahl über **alle** Verleihe summiert (auch weitere Positionen desselben Verleihs). Die höchste Tageslast plus die neue Anzahl darf die Menge der aktiven Mengenposten nicht übersteigen.
+- **Mengen:** Je Materialart **und Variante** (#12) wird für jeden Tag des Zeitraums die belegte Anzahl über **alle** Verleihe summiert (auch weitere Positionen desselben Verleihs). Die höchste Tageslast plus die neue Anzahl darf die Menge der aktiven Mengenposten nicht übersteigen.
 - **Sets reservieren nichts.** Ein Set beschreibt nur, was zusammengehört; geprüft werden seine Einzelteile und Mengen wie jede andere Position.
 - **Bestätigung braucht Termine:** ohne Abholung (und bei kurzem Verleih ohne Rückgabe) keine Bestätigung.
 

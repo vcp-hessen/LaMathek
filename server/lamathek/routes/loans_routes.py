@@ -163,6 +163,7 @@ def _add_lines_from_body(session, loan, body: dict, actor):
                 loan,
                 body["materialTypeId"],
                 body["quantity"],
+                variant=body.get("variant"),
                 reason=reason if isinstance(reason, str) else None,
                 actor=actor,
             )

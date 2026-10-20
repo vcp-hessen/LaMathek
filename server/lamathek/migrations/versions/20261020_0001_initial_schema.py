@@ -2,7 +2,7 @@
 
 Revision ID: 20261020_0001
 Revises: 
-Create Date: 2026-10-19 23:31:18.248578
+Create Date: 2026-10-20 11:06:09.319869
 
 """
 from typing import Sequence, Union
@@ -240,11 +240,12 @@ def upgrade() -> None:
     sa.Column('material_type_id', sa.Integer(), nullable=False),
     sa.Column('role', sa.String(length=16), nullable=False),
     sa.Column('quantity', sa.Integer(), nullable=False),
+    sa.Column('stock_variant', sa.Text(), server_default='{}', nullable=False),
     sa.CheckConstraint('quantity > 0', name='ck_set_stock_line_quantity_positive'),
     sa.ForeignKeyConstraint(['material_type_id'], ['material_types.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['set_id'], ['sets.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('set_id', 'material_type_id', 'role', name='uq_set_stock_line')
+    sa.UniqueConstraint('set_id', 'material_type_id', 'stock_variant', 'role', name='uq_set_stock_line')
     )
     op.create_table('stock_lots',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -268,6 +269,7 @@ def upgrade() -> None:
     sa.Column('piece_id', sa.Integer(), nullable=True),
     sa.Column('material_type_id', sa.Integer(), nullable=True),
     sa.Column('quantity', sa.Integer(), nullable=True),
+    sa.Column('stock_variant', sa.Text(), server_default='{}', nullable=False),
     sa.Column('origin_set_id', sa.Integer(), nullable=True),
     sa.Column('origin_set_name', sa.String(length=255), nullable=True),
     sa.Column('origin_set_role', sa.String(length=16), nullable=True),

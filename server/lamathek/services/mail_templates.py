@@ -186,7 +186,9 @@ def _line_item(line, locale: str, *, changed: bool = False) -> dict:
             else t("mail.linePiece", locale=locale, name=name)
         )
     elif line.material_type is not None:
-        name = line.material_type.name
+        from lamathek.services.variants import line_stock_name
+
+        name = line_stock_name(line)
         quantity = line.quantity
         title = (
             t(
@@ -308,7 +310,9 @@ def _loan_display_title(loan) -> str:
 
 def _line_material_type_name(line) -> str:
     if line.material_type is not None:
-        return (line.material_type.name or "").strip()
+        from lamathek.services.variants import line_stock_name
+
+        return line_stock_name(line)
     piece = line.piece
     if piece is not None and piece.material_type is not None:
         return (piece.material_type.name or "").strip()

@@ -43,34 +43,65 @@ def open_lost_by_lot(session: Session, lot_ids: list[int]) -> dict[int, int]:
     return {lot_id: int(total or 0) for lot_id, total in rows}
 
 
-def _active_lots(session: Session, material_type_id: int) -> list[StockLot]:
-    return list(
+def active_lots(
+    session: Session, material_type_id: int, variant_key: str | None = None
+) -> list[StockLot]:
+    """Active lots of a Materialart, optionally only one variant combination (#12)."""
+    from lamathek.services.variants import lot_variant_key
+
+    lots = list(
         session.scalars(
             select(StockLot)
             .where(
                 StockLot.material_type_id == material_type_id,
                 StockLot.status == ITEM_STATUS_ACTIVE,
             )
-            .options(selectinload(StockLot.variant_selections))
+            .options(
+                selectinload(StockLot.variant_selections),
+                selectinload(StockLot.material_type),
+            )
             .order_by(StockLot.id)
         ).all()
     )
+    if variant_key is None:
+        return lots
+    return [lot for lot in lots if lot_variant_key(lot) == variant_key]
 
 
 def lot_available_quantity(lot: StockLot, open_lost: int) -> int:
     return max(0, lot.quantity - open_lost)
 
 
-def available_stock_quantity(session: Session, material_type_id: int) -> int:
-    """What can be lent at all: active lots minus open losses."""
-    lots = _active_lots(session, material_type_id)
+def available_stock_quantity(
+    session: Session, material_type_id: int, variant_key: str | None = None
+) -> int:
+    """What can be lent at all: active lots minus open losses (of one combination if given)."""
+    lots = active_lots(session, material_type_id, variant_key)
     lost = open_lost_by_lot(session, [lot.id for lot in lots])
     return sum(lot_available_quantity(lot, lost.get(lot.id, 0)) for lot in lots)
 
 
-def _allocate(session: Session, material_type_id: int, quantity: int) -> list[tuple[StockLot, int]]:
-    """Spread ``quantity`` over the active lots that still have something (oldest first)."""
-    lots = _active_lots(session, material_type_id)
+def available_by_variant(session: Session, material_type_id: int) -> dict[str, int]:
+    """Lendable quantity per variant combination of a Materialart."""
+    from lamathek.services.variants import lot_variant_key
+
+    lots = active_lots(session, material_type_id)
+    lost = open_lost_by_lot(session, [lot.id for lot in lots])
+    result: dict[str, int] = {}
+    for lot in lots:
+        key = lot_variant_key(lot)
+        result[key] = result.get(key, 0) + lot_available_quantity(lot, lost.get(lot.id, 0))
+    return result
+
+
+def _allocate(
+    session: Session, material_type_id: int, quantity: int, variant_key: str | None
+) -> list[tuple[StockLot, int]]:
+    """Spread ``quantity`` over active lots of the combination that still have something."""
+    lots = active_lots(session, material_type_id, variant_key)
+    if not lots and variant_key is not None:
+        # Nothing of that combination on record (any more): book on any lot of the type.
+        lots = active_lots(session, material_type_id)
     lost = open_lost_by_lot(session, [lot.id for lot in lots])
     remaining = quantity
     parts: list[tuple[StockLot, int]] = []
@@ -97,6 +128,7 @@ def book_stock_loss(
     *,
     kind: str = STOCK_LOSS_LOST,
     loan_line_id: int | None = None,
+    variant_key: str | None = None,
     reason: str = "",
     recorded_on: date | None = None,
 ) -> list[StockLoss]:
@@ -104,7 +136,7 @@ def book_stock_loss(
     if quantity <= 0:
         raise ValueError("invalid_quantity")
     entries = []
-    for lot, take in _allocate(session, material_type_id, quantity):
+    for lot, take in _allocate(session, material_type_id, quantity, variant_key):
         entry = StockLoss(
             stock_lot_id=lot.id,
             material_type_id=material_type_id,

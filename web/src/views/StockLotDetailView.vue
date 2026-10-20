@@ -131,6 +131,7 @@ const deleteMutation = useMutation({
         <AddToBoxButton
           :inventory-id="inventoryId"
           :material-type-id="lot.materialTypeId"
+          :stock-variant="lot.variant"
           :quantity="1"
           size="md"
         />
@@ -170,7 +171,6 @@ const deleteMutation = useMutation({
             v-if="lot.variants.length"
             v-model="draft.variant"
             :axes="lot.variants"
-            optional
             compact
             inline
           />

@@ -51,6 +51,7 @@ export async function upsertSetStockLine(
     materialTypeId: number
     role: 'assignment' | 'optional'
     quantity: number
+    variant?: Record<string, string>
   },
 ): Promise<SetDetail> {
   const response = await api.put(`/api/sets/${setId}/stock-lines`, payload)

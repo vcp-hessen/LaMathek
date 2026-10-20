@@ -11,6 +11,7 @@ from lamathek.models.damage import Damage, Repair
 from lamathek.models.category import Category
 from lamathek.models.material import MaterialType, Piece, StockLot
 from lamathek.services.variants import (
+    variant_from_key,
     piece_variant_to_json,
     stock_lot_variant_to_json,
     variants_to_json,
@@ -266,6 +267,7 @@ def set_detail_to_json(material_set: MaterialSet, *, cover_photo_id: int | None 
             "id": line.id,
             "materialTypeId": line.material_type_id,
             "materialTypeName": material_type.name,
+            "stockVariant": variant_from_key(line.stock_variant),
             "role": line.role,
             "quantity": line.quantity,
         }
@@ -329,6 +331,7 @@ def _loan_line_to_json(line: LoanLine, *, warnings: list[dict] | None = None) ->
             "kind": "stock",
             "materialTypeId": line.material_type_id,
             "materialTypeName": line.material_type.name,
+            "stockVariant": variant_from_key(line.stock_variant),
             "quantity": line.quantity,
             "consumable": line.material_type.consumable,
         }

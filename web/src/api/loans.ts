@@ -121,10 +121,12 @@ export async function addLoanStockLine(
   loanId: number,
   materialTypeId: number,
   quantity: number,
+  variant?: Record<string, string>,
 ): Promise<LoanDetail> {
   const response = await api.post(`/api/loans/${loanId}/lines`, {
     materialTypeId,
     quantity,
+    variant: variant ?? {},
   })
   return loanDetailSchema.parse(response.data)
 }

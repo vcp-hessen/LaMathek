@@ -37,3 +37,16 @@ export function syncVariantMapKeys(
   }
   return next
 }
+
+/** Same canonical key as the server: compares a stock line's combination with a lot's (#12). */
+export function variantKey(map: Record<string, string> | undefined | null): string {
+  const entries = Object.entries(map ?? {}).filter(([, value]) => value)
+  entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+  return JSON.stringify(Object.fromEntries(entries))
+}
+
+/** "Seil (3 m)" for a Menge with a combination, the plain name without. */
+export function stockName(name: string, variant: Record<string, string> | undefined | null): string {
+  const values = Object.values(variant ?? {}).filter(Boolean)
+  return values.length ? `${name} (${values.join(', ')})` : name
+}

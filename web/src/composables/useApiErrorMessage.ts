@@ -35,6 +35,8 @@ const KNOWN_CODES = new Set([
   'invalid_variants',
   'duplicate_variant_label',
   'invalid_variant',
+  'variant_required',
+  'variant_in_use',
   'piece_on_other_set',
   'short_name_taken',
   'unit_not_for_piece',

@@ -103,6 +103,8 @@ export const loanLineSchema = z.discriminatedUnion('kind', [
     kind: z.literal('stock'),
     materialTypeId: z.number(),
     materialTypeName: z.string(),
+    /** Variant combination of the Menge (#12); empty without variants. */
+    stockVariant: z.record(z.string(), z.string()).default({}),
     quantity: z.number(),
     consumable: z.boolean().optional(),
     ...loanLineOriginSchema.shape,

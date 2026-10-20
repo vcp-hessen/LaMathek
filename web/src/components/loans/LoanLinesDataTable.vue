@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import type { ColumnDef } from '@tanstack/vue-table'
 import type { LoanLine } from '../../schemas/loan'
+import { stockName } from '../../utils/variantDisplay'
 import UiIcon from '../UiIcon.vue'
 import { useApiErrorMessage } from '../../composables/useApiErrorMessage'
 import ContextHelp from '../ContextHelp.vue'
@@ -45,7 +46,7 @@ function lineDisplayName(line: LoanLine): string {
 }
 
 function lineMaterialTypeName(line: LoanLine): string {
-  return line.materialTypeName
+  return line.kind === 'stock' ? stockName(line.materialTypeName, line.stockVariant) : line.materialTypeName
 }
 
 function lineQuantitySort(line: LoanLine): number {

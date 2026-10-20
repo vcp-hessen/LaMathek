@@ -186,7 +186,7 @@ def put_set_stock_line(user, set_id: int):
 
     try:
         upsert_stock_line(
-            session, material_set, material_type_id, role, quantity
+            session, material_set, material_type_id, role, quantity, variant=body.get("variant")
         )
     except ValueError as exc:
         return _set_error(exc)

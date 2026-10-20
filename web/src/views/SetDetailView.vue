@@ -7,6 +7,9 @@ import { fetchMaterialTypes, fetchPieces } from '../api/material'
 import SuperuserDestructiveDelete from '../components/SuperuserDestructiveDelete.vue'
 import AddToBoxButton from '../components/loans/AddToBoxButton.vue'
 import PhotoGallery from '../components/PhotoGallery.vue'
+import VariantAxisSelects from '../components/VariantAxisSelects.vue'
+import type { SetDetail } from '../schemas/set'
+import { stockName } from '../utils/variantDisplay'
 import { useApiErrorMessage } from '../composables/useApiErrorMessage'
 import { useInventoryCanManage } from '../composables/useInventoryCanManage'
 import { useInventoryQueryKey } from '../composables/useInventoryQueryKey'
@@ -79,6 +82,13 @@ const addPieceRole = ref<'assignment' | 'optional'>('assignment')
 const addStockTypeId = ref<string>('')
 const addStockRole = ref<'assignment' | 'optional'>('optional')
 const addStockQty = ref(1)
+const addStockVariant = ref<Record<string, string>>({})
+const addStockAxes = computed(
+  () => stockTypes.value.find((mt) => mt.id === Number(addStockTypeId.value))?.variants ?? [],
+)
+watch(addStockTypeId, () => {
+  addStockVariant.value = {}
+})
 
 async function invalidateAll() {
   await queryClient.invalidateQueries({ queryKey: ['set', setId] })
@@ -128,6 +138,24 @@ const stockMutation = useMutation({
       materialTypeId: Number(addStockTypeId.value),
       role: addStockRole.value,
       quantity: addStockQty.value,
+      variant: addStockVariant.value,
+    }),
+  onSuccess: async () => {
+    formError.value = null
+    await invalidateAll()
+  },
+  onError: (error) => {
+    formError.value = messageFor(error)
+  },
+})
+
+const removeStockMutation = useMutation({
+  mutationFn: (row: SetDetail['assignmentStock'][number]) =>
+    upsertSetStockLine(setId.value, {
+      materialTypeId: row.materialTypeId,
+      role: row.role,
+      quantity: 0,
+      variant: row.stockVariant,
     }),
   onSuccess: async () => {
     formError.value = null
@@ -214,7 +242,16 @@ function addPiece() {
                 </button>
               </li>
               <li v-for="row in setDetail.assignmentStock" :key="row.id" class="flex justify-between gap-2">
-                <span>{{ row.materialTypeName }} × {{ row.quantity }}</span>
+                <span>{{ stockName(row.materialTypeName, row.stockVariant) }} × {{ row.quantity }}</span>
+                <button
+                  v-if="canManage"
+                  type="button"
+                  class="btn btn-ghost btn-xs"
+                  :disabled="removeStockMutation.isPending.value"
+                  @click="removeStockMutation.mutate(row)"
+                >
+                  {{ t('sets.remove') }}
+                </button>
               </li>
               <li v-if="!setDetail.assignmentPieces.length && !setDetail.assignmentStock.length" class="opacity-60">
                 {{ t('sets.listEmpty') }}
@@ -249,8 +286,17 @@ function addPiece() {
                   {{ t('sets.remove') }}
                 </button>
               </li>
-              <li v-for="row in setDetail.optionalStock" :key="row.id">
-                {{ row.materialTypeName }} × {{ row.quantity }}
+              <li v-for="row in setDetail.optionalStock" :key="row.id" class="flex justify-between gap-2">
+                <span>{{ stockName(row.materialTypeName, row.stockVariant) }} × {{ row.quantity }}</span>
+                <button
+                  v-if="canManage"
+                  type="button"
+                  class="btn btn-ghost btn-xs"
+                  :disabled="removeStockMutation.isPending.value"
+                  @click="removeStockMutation.mutate(row)"
+                >
+                  {{ t('sets.remove') }}
+                </button>
               </li>
               <li v-if="!setDetail.optionalPieces.length && !setDetail.optionalStock.length" class="opacity-60">
                 {{ t('sets.listEmpty') }}
@@ -305,6 +351,13 @@ function addPiece() {
               type="number"
               min="1"
               class="input input-bordered w-24"
+            />
+            <VariantAxisSelects
+              v-if="addStockAxes.length"
+              v-model="addStockVariant"
+              :axes="addStockAxes"
+              compact
+              inline
             />
             <select v-model="addStockRole" class="select select-bordered">
               <option value="assignment">{{ t('sets.assignment') }}</option>

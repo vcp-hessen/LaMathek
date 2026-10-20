@@ -198,6 +198,8 @@ class LoanLine(Base):
         ForeignKey("material_types.id", ondelete="CASCADE"), nullable=True
     )
     quantity: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Variant combination of a stock line as canonical JSON ("{}" without variants, #12).
+    stock_variant: Mapped[str] = mapped_column(Text(), default="{}", server_default="{}")
     origin_set_id: Mapped[int | None] = mapped_column(
         ForeignKey("sets.id", ondelete="SET NULL"), nullable=True
     )

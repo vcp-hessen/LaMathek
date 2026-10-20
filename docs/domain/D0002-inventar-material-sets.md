@@ -27,16 +27,17 @@ Material liegt ortsgebunden in Inventaren (z. B. Donnerskopf, Landesbüro). Se
 
 - Materialarten sind in der Anwendung konfigurierbar.
 - Pro Inventar wird eine Materialart als **Einzelteile** oder als **Menge** geführt.
-- Materialarten können **Variantenbezeichner** mit geordneten Werten haben; Einzelteile speichern je einen Wert, Mengenposten können leer lassen.
+- Materialarten können **Variantenbezeichner** mit geordneten Werten haben; Einzelteile und Mengenposten speichern je einen Wert pro Bezeichner. Ein Mengenposten ist genau **eine Materialart in einer Variante**, nie eine Mischung (#12).
 - Einzelteile einer Materialart passen zusammen (Kohte vs. Wanderkohte = zwei Materialarten; unterschiedliche Randstreifen = Varianten einer Kohtenplane).
-- Stangen/Heringe etc. sind Mengen mit Posten (Anzahl, optionale Variante, optionale Bezeichnung); ein Lagerkasten ist nur Bezeichnung am Posten, kein Einzelteil.
+- Stangen/Heringe etc. sind Mengen mit Posten (Anzahl, Variante falls die Materialart Varianten hat, optionale Bezeichnung); ein Lagerkasten ist nur Bezeichnung am Posten, kein Einzelteil.
 
 **Sets**
 
 - Ein Set hat eine **Zuordnung** aus Einzelteilen und Mengen sowie optionale **Optionals**.
 - Ein Einzelteil liegt in höchstens einem Set (oder keinem).
 - Ein Set **reserviert nichts**: Die Anzahl einer Set-Zeile beschreibt nur, wie viel zum Set gehört (höchstens die Menge des Inventars). Belegt wird erst beim Bestätigen eines Verleihs (D0007).
-- Set- und Verleih-Positionen benennen keine Variante.
+- Set-Zeilen und Verleih-Positionen einer Menge benennen die Variante (z. B. „12 × Seil (3 m)“, „3 × Seil (4 m)“). Anzahl, Verfügbarkeit (D0007) und Verluste (D0009) zählen je Variante.
+- Ändern sich die Variantenbezeichner einer Materialart später, behalten bestehende Positionen ihre damalige Bezeichnung (Historie); neu angelegte Posten müssen die neue Kombination vollständig angeben.
 - Beispiel Jurte: Zuordnung mit Planen; Seile/Heringe/Stangen als Optionals mit je einer Anzahl.
 
 **Verleih-Inhalt**

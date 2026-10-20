@@ -554,15 +554,13 @@ def total_stock_quantity(session: Session, material_type_id: int) -> int:
 def assert_can_retire_stock_lot(session: Session, lot: StockLot) -> None:
     if lot.status != ITEM_STATUS_ACTIVE:
         return
-    from lamathek.services.stock_losses import (
-        available_stock_quantity,
-        lot_available_quantity,
-        open_lost_by_lot,
-    )
+    from lamathek.services.stock_losses import lot_available_quantity, open_lost_by_lot
+    from lamathek.services.variants import lot_variant_key
 
+    key = lot_variant_key(lot)
     lot_share = lot_available_quantity(lot, open_lost_by_lot(session, [lot.id]).get(lot.id, 0))
-    remaining = available_stock_quantity(session, lot.material_type_id) - lot_share
-    if remaining < _stock_occupied_from_today(session, lot.material_type_id):
+    remaining = _lendable(session, lot.material_type_id).get(key, 0) - lot_share
+    if remaining < _stock_occupied_from_today(session, lot.material_type_id, key):
         raise ValueError("below_loaned")
 
 
@@ -577,30 +575,35 @@ def _stock_material_type(
     return material_type
 
 
-def _stock_occupied_from_today(session: Session, material_type_id: int) -> int:
+def _stock_occupied_from_today(session: Session, material_type_id: int, variant_key: str) -> int:
     from lamathek.services.availability import stock_occupied_from
     from lamathek.timezone import instance_today
 
-    return stock_occupied_from(session, material_type_id, instance_today())
+    return stock_occupied_from(
+        session, material_type_id, instance_today(), stock_variant=variant_key
+    )
 
 
-def _lendable(session: Session, material_type_id: int) -> int:
-    from lamathek.services.stock_losses import available_stock_quantity
+def _lendable(session: Session, material_type_id: int) -> dict[str, int]:
+    """Lendable quantity per variant combination."""
+    from lamathek.services.stock_losses import available_by_variant
 
-    return available_stock_quantity(session, material_type_id)
+    return available_by_variant(session, material_type_id)
 
 
-def _assert_stock_floor(session: Session, material_type_id: int, previous_total: int) -> None:
+def _assert_stock_floor(
+    session: Session, material_type_id: int, previous: dict[str, int]
+) -> None:
     """Lowering stock by hand must leave enough for every confirmed Verleih from today on.
 
-    Only checked when the total goes down: renaming a lot or adding stock must
-    never fail because of an earlier loss.
+    Checked per variant combination, and only where the quantity went down:
+    renaming a lot or adding stock must never fail because of an earlier loss.
     """
-    new_total = _lendable(session, material_type_id)
-    if new_total >= previous_total:
-        return
-    if new_total < _stock_occupied_from_today(session, material_type_id):
-        raise ValueError("below_loaned")
+    current = _lendable(session, material_type_id)
+    for key, before in previous.items():
+        now = current.get(key, 0)
+        if now < before and now < _stock_occupied_from_today(session, material_type_id, key):
+            raise ValueError("below_loaned")
 
 
 def list_stocks(session: Session, inventory_id: int) -> list[MaterialType]:
@@ -646,7 +649,7 @@ def create_stock_lot(
         raise ValueError("invalid_quantity")
     material_type = _stock_material_type(session, inventory, material_type_id)
     variant_map = validate_lot_variant_map(material_type, variant)
-    previous_total = _lendable(session, material_type.id)
+    previous_by_variant = _lendable(session, material_type.id)
     if quantity > 0:
         lot = StockLot(
             material_type_id=material_type.id,
@@ -659,7 +662,7 @@ def create_stock_lot(
         if item_fields:
             apply_item_fields_on_create(lot, **item_fields)
         session.flush()
-    _assert_stock_floor(session, material_type.id, previous_total)
+    _assert_stock_floor(session, material_type.id, previous_by_variant)
     session.commit()
     return _stock_material_type(session, inventory, material_type.id)
 
@@ -681,7 +684,7 @@ def update_stock_lot(
     material_type = _stock_material_type(session, inventory, lot.material_type_id)
     if lot.material_type_id != material_type.id:
         raise ValueError("not_found")
-    previous_total = _lendable(session, material_type.id)
+    previous_by_variant = _lendable(session, material_type.id)
     if label_sent:
         lot.label = _normalize_optional_text(label)
     if variant_sent:
@@ -703,19 +706,19 @@ def update_stock_lot(
         # An empty lot without history goes; one with losses stays as their record.
         session.delete(lot)
         session.flush()
-    _assert_stock_floor(session, material_type.id, previous_total)
+    _assert_stock_floor(session, material_type.id, previous_by_variant)
     session.commit()
     return _stock_material_type(session, inventory, material_type.id)
 
 
 def delete_stock_lot(session: Session, inventory: Inventory, lot: StockLot) -> MaterialType:
     material_type = _stock_material_type(session, inventory, lot.material_type_id)
-    previous_total = _lendable(session, material_type.id)
+    previous_by_variant = _lendable(session, material_type.id)
     if lot_has_losses(session, lot.id):
         raise ValueError("lot_has_history")
     session.delete(lot)
     session.flush()
-    _assert_stock_floor(session, material_type.id, previous_total)
+    _assert_stock_floor(session, material_type.id, previous_by_variant)
     session.commit()
     return _stock_material_type(session, inventory, material_type.id)
 

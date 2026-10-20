@@ -1,4 +1,4 @@
-from sqlalchemy import CheckConstraint, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from lamathek.db import Base
@@ -45,6 +45,7 @@ class SetStockLine(Base):
         UniqueConstraint(
             "set_id",
             "material_type_id",
+            "stock_variant",
             "role",
             name="uq_set_stock_line",
         ),
@@ -58,6 +59,8 @@ class SetStockLine(Base):
     )
     role: Mapped[str] = mapped_column(String(16))
     quantity: Mapped[int] = mapped_column(Integer)
+    # Variant combination as canonical JSON ("{}" without variants, #12).
+    stock_variant: Mapped[str] = mapped_column(Text(), default="{}", server_default="{}")
 
     material_set: Mapped["MaterialSet"] = relationship(back_populates="stock_lines")
     material_type: Mapped["MaterialType"] = relationship()

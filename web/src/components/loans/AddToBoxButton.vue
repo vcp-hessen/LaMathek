@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { variantKey } from '../../utils/variantDisplay'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -32,6 +33,8 @@ const props = defineProps<{
   inventoryId: number
   pieceId?: number
   materialTypeId?: number
+  /** Variant combination of the Mengenposten being added (#12). */
+  stockVariant?: Record<string, string>
   quantity?: number
   setId?: number
   setScope?: 'assignment' | 'optionals'
@@ -68,7 +71,11 @@ function lineMatches(line: LoanLine) {
     return line.originSetId === props.setId && line.originSetRole === role
   }
   if (props.materialTypeId != null) {
-    return line.kind === 'stock' && line.materialTypeId === props.materialTypeId
+    return (
+      line.kind === 'stock' &&
+      line.materialTypeId === props.materialTypeId &&
+      variantKey(line.stockVariant) === variantKey(props.stockVariant)
+    )
   }
   return false
 }
@@ -161,7 +168,7 @@ async function addToBox(loanId: number) {
     return addLoanSetAssignmentLines(loanId, props.setId)
   }
   if (props.materialTypeId != null) {
-    return addLoanStockLine(loanId, props.materialTypeId, props.quantity ?? 1)
+    return addLoanStockLine(loanId, props.materialTypeId, props.quantity ?? 1, props.stockVariant)
   }
   throw new Error('invalid_payload')
 }

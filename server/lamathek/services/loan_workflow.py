@@ -387,7 +387,10 @@ def _replacement_line(
             or material_type.tracking != TRACKING_STOCK
         ):
             raise ValueError("invalid_material_type")
+        from lamathek.services.variants import validate_stock_variant
+
         new_line.material_type_id = material_type_id
+        new_line.stock_variant = validate_stock_variant(material_type, replacement.get("variant"))
         new_line.quantity = quantity
         return new_line
     raise ValueError("invalid_replacement")
@@ -638,6 +641,7 @@ def _split_off(
         loan_id=loan.id,
         material_type_id=line.material_type_id,
         quantity=quantity,
+        stock_variant=line.stock_variant,
         status=status,
         status_before_end=line.status,
         reason=reason,
@@ -679,6 +683,7 @@ def _restock_stock_line(
             missing,
             kind=STOCK_LOSS_CONSUMED,
             loan_line_id=line.id,
+            variant_key=line.stock_variant,
             reason=reason,
         )
         line.returned_quantity = returned
@@ -707,7 +712,7 @@ def _restock_stock_line(
         line.status = LINE_STATUS_RESTOCKED
         journal_line_action(session, actor=actor, loan_id=loan.id, line=line, action="restock")
         ids = [line.id, lost_line.id]
-    book_stock_loss(session, line.material_type_id, missing, loan_line_id=lost_line.id, reason=reason)
+    book_stock_loss(session, line.material_type_id, missing, loan_line_id=lost_line.id, variant_key=line.stock_variant, reason=reason)
     journal_line_action(
         session, actor=actor, loan_id=loan.id, line=lost_line, action="restock_loss", reason=reason
     )
@@ -797,7 +802,7 @@ def record_loss_lines(
                     session, loan, line, qty, status=LINE_STATUS_NOT_RETURNED, reason=reason
                 )
                 book_stock_loss(
-                    session, line.material_type_id, qty, loan_line_id=lost.id, reason=reason
+                    session, line.material_type_id, qty, loan_line_id=lost.id, variant_key=line.stock_variant, reason=reason
                 )
                 journal_line_action(
                     session, actor=actor, loan_id=loan.id, line=lost, action="record_loss", reason=reason
@@ -805,7 +810,7 @@ def record_loss_lines(
                 line_ids.append(lost.id)
                 continue
             book_stock_loss(
-                session, line.material_type_id, qty, loan_line_id=line.id, reason=reason
+                session, line.material_type_id, qty, loan_line_id=line.id, variant_key=line.stock_variant, reason=reason
             )
         _end_as_not_returned(line, reason)
         if line.piece_id is not None:

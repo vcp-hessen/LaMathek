@@ -61,7 +61,9 @@ def line_item_label(line: LoanLine) -> str:
     if line.piece is not None:
         return line.piece.name
     if line.material_type is not None:
-        return f"{line.quantity or 0} × {line.material_type.name}"
+        from lamathek.services.variants import line_stock_name
+
+        return f"{line.quantity or 0} × {line_stock_name(line)}"
     return ""
 
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from sqlalchemy import delete
 from sqlalchemy.orm import Session, selectinload
 
@@ -151,27 +153,40 @@ def validate_piece_variant_map(
 def validate_lot_variant_map(
     material_type: MaterialType, raw_variant
 ) -> dict[str, str]:
-    axes = ordered_variants(material_type)
-    if not axes:
-        body = _parse_variant_body(raw_variant, required_all=False)
-        if body:
-            raise ValueError("variant_not_allowed")
-        return {}
+    """A Mengenposten is exactly one combination: every Variantenbezeichner is set (#12)."""
+    return validate_piece_variant_map(material_type, raw_variant)
 
-    body = _parse_variant_body(raw_variant, required_all=False)
-    result: dict[str, str] = {}
-    for axis in axes:
-        chosen = body.get(axis.label)
-        if chosen is None or not chosen:
-            continue
-        allowed = [v.value for v in axis.values]
-        if chosen not in allowed:
-            raise ValueError("invalid_variant")
-        result[axis.label] = chosen
-    for label in body:
-        if label not in {a.label for a in axes}:
-            raise ValueError("invalid_variant")
-    return result
+
+def validate_stock_variant(material_type: MaterialType, raw_variant) -> str:
+    """Full combination for a Set line or Verleih line of a Menge, as its canonical key."""
+    return variant_key(validate_piece_variant_map(material_type, raw_variant))
+
+
+def variant_key(mapping: dict[str, str] | None) -> str:
+    """Canonical JSON of a combination: stored on lines, compared with lots.
+
+    It keeps the labels, so a Verleih stays readable even if the Materialart's
+    Variantenbezeichner change later.
+    """
+    return json.dumps(dict(sorted((mapping or {}).items())), ensure_ascii=False, separators=(",", ":"))
+
+
+def variant_from_key(key: str | None) -> dict[str, str]:
+    try:
+        parsed = json.loads(key or "{}")
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def lot_variant_key(lot: StockLot) -> str:
+    return variant_key(_selection_map_from_lot(lot))
+
+
+def variant_label(key_or_mapping: str | dict | None) -> str:
+    """Values only, for labels like "12 × Seil (3 m)"."""
+    mapping = variant_from_key(key_or_mapping) if isinstance(key_or_mapping, str) or key_or_mapping is None else key_or_mapping
+    return ", ".join(str(v) for v in mapping.values())
 
 
 def set_piece_variant_map(session: Session, piece: Piece, variant_map: dict[str, str]) -> None:
@@ -295,3 +310,17 @@ def stock_lot_variant_load_options():
             MaterialTypeVariant.values
         ),
     )
+
+
+def stock_name(material_type_name: str, stock_variant: str | None) -> str:
+    """Name of a Menge with its combination, e.g. "Seil (3 m)"; plain name without variants."""
+    label = variant_label(stock_variant)
+    name = (material_type_name or "").strip()
+    return f"{name} ({label})" if label else name
+
+
+def line_stock_name(line) -> str:
+    """``stock_name`` for a stock Position (LoanLine or SetStockLine)."""
+    if line.material_type is None:
+        return ""
+    return stock_name(line.material_type.name, getattr(line, "stock_variant", None))
