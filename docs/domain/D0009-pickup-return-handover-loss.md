@@ -31,6 +31,6 @@ Siehe [CONTEXT.md](../../CONTEXT.md) — **Verleih**, **Verlust**, **Rückgabe**
 
 ## Konsequenzen
 
-- Phasen `handover`, `return`, `restock`, `closed`; Bestandsbuchung bei Verlust.
+- Phasen `handover`, `return`, `restock`, `closed`; Verlust- und Verbrauchsereignisse an Einzelteil bzw. Mengenposten.
 - Einzelteil-Verlust legt zusätzlich ein **Totalverlust-Ereignis** am Stück an; die Zeile `not_returned` bleibt Verleih-Historie.
 - **Wieder im Bestand** nach abgeschlossenem Verleih: Auflösung des Ereignisses am Stück, alter Verleih unverändert.

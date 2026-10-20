@@ -6,9 +6,9 @@ LaMathek dokumentiert Material von VCP Hessen. Verbindliche **Produktregeln** st
 
 ## Auf einen Blick
 
-LaMathek erfasst nur Material von VCP Hessen (nicht Stamm/Bezirk/Bund). Verleihe laufen über Entwurf, Prüfung, Packen, Abholung, Rückgabe und Übernahme; Positionen haben eigene Status; Mail-Receipts schließen Phasen ab. Details in den Domain-Records unten.
+LaMathek erfasst nur Material von VCP Hessen (nicht Stamm/Bezirk/Bund). Verleihe laufen über Entwurf, Prüfung, Packen, Abholung, Rückgabe und Übernahme; Positionen haben eigene Status. Material ist datumsbasiert belegt (D0007), Verluste sind Ereignisse (D0009), Mails gehen über eine Outbox (D0012). Details in den Domain-Records unten.
 
-## Domain-Records (D0001–D0013)
+## Domain-Records (D0001–D0017)
 
 | ID | Titel | Datei |
 |----|--------|--------|
@@ -27,5 +27,7 @@ LaMathek erfasst nur Material von VCP Hessen (nicht Stamm/Bezirk/Bund). Verleihe
 | D0013 | Oberfläche und Roadmap | [domain/D0013-ui-language-roadmap.md](domain/D0013-ui-language-roadmap.md) |
 | D0014 | Verleih-Journal | [domain/D0014-loan-journal.md](domain/D0014-loan-journal.md) |
 | D0015 | Kalender | [domain/D0015-calendar.md](domain/D0015-calendar.md) |
+| D0016 | Startseite | [domain/D0016-dashboard.md](domain/D0016-dashboard.md) |
+| D0017 | Befehlspalette und Kontext-Hilfe | [domain/D0017-command-palette-help.md](domain/D0017-command-palette-help.md) |
 
 Einstieg und Pflegehinweise: [domain/README.md](domain/README.md).

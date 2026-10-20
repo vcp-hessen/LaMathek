@@ -1,6 +1,15 @@
 # LaMathek
 
-Material inventory for VCP Hessen.
+Material inventory and lending for VCP Hessen.
+
+**What it does**
+
+- **Inventare** at several places, with Materialarten (with variants), named **Einzelteile**, counted **Mengen** and **Sets** (e.g. a Jurte).
+- **Verleih** from request to restock: availability per date range, packing, pickup and return lists as PDF, losses and corrections as events, a journal of every change.
+- Mails to borrowers and Materialwart*innen through a retrying outbox; a dashboard, a calendar with iCal feeds, and context help.
+- Roles per Inventar (manage or read), superusers for the installation; OpenID Connect login.
+
+Domain terms are German on purpose; [CONTEXT.md](CONTEXT.md) defines them.
 
 **Documentation**
 

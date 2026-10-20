@@ -41,7 +41,7 @@
       },
       "restock": {
         "borrower": "Die Materialwart*innen übernehmen die zurückgegebenen Positionen.",
-        "managers": "Übernimm die zurückgegebenen Positionen in den Bestand."
+        "managers": "Übernimm die zurückgegebenen Positionen wieder ins Inventar."
       },
       "closed": {
         "borrower": "Der Verleih ist abgeschlossen.",
@@ -53,7 +53,7 @@
         "borrower": {
           "subject": "Zusage",
           "heading": "Material ist zugesagt",
-          "body": ["{actor} hat die genannten Positionen für deine Ausleihe bestätigt."]
+          "body": ["{actor} hat die genannten Positionen für deinen Verleih bestätigt."]
         },
         "managers": {
           "subject": "Freigabe erledigt",
@@ -94,14 +94,14 @@
         "managers": {
           "subject": "Rückgabe erledigt",
           "heading": "Übernahme",
-          "body": ["Die Rückgabe ist abgeschlossen. Bitte übernimm die Positionen in den Bestand."]
+          "body": ["Die Rückgabe ist abgeschlossen. Bitte übernimm die Positionen wieder ins Inventar."]
         }
       },
       "restock": {
         "borrower": {
           "subject": "Übernahme",
           "heading": "Material übernommen",
-          "body": ["{actor} hat die genannten Positionen wieder in den Bestand übernommen."]
+          "body": ["{actor} hat die genannten Positionen wieder ins Inventar übernommen."]
         },
         "managers": {
           "subject": "Übernahme erledigt",
@@ -170,14 +170,14 @@
           "subject": "Änderungen am Verleih",
           "heading": "Änderungen mitgeteilt",
           "body": [
-            "{actor} teilt dir Änderungen an deiner Ausleihe mit (Phase: {step})."
+            "{actor} teilt dir Änderungen an deinem Verleih mit (Phase: {step})."
           ]
         },
         "managers": {
           "subject": "Änderungen am Verleih",
           "heading": "Änderungen mitgeteilt",
           "body": [
-            "{actor} teilt Änderungen an der Ausleihe mit (Phase: {step})."
+            "{actor} teilt Änderungen am Verleih mit (Phase: {step})."
           ]
         }
       },
@@ -202,12 +202,12 @@
           "subject": "Anfrage für {borrower}",
           "heading": "Anfrage angelegt",
           "body": [
-            "{actor} hat für {borrower} eine Ausleihe bei {inventory} als Anfrage angelegt."
+            "{actor} hat für {borrower} einen Verleih bei {inventory} als Anfrage angelegt."
           ]
         },
         "borrowerFromManager": {
-          "subject": "Ausleihe für dich",
-          "heading": "Eine Ausleihe wurde für dich angelegt",
+          "subject": "Verleih für dich",
+          "heading": "Ein Verleih wurde für dich angelegt",
           "body": [
             "{actor} hat bei {inventory} Material für dich angefragt und ist Ansprechperson.",
             "Die genannten Positionen gelten, sobald sie bestätigt sind."
@@ -219,7 +219,7 @@
           "subject": "Weitere Positionen angefragt",
           "heading": "Nachträglich angefragt",
           "body": [
-            "{borrower} hat weitere Positionen zur Ausleihe hinzugefügt.",
+            "{borrower} hat weitere Positionen zum Verleih hinzugefügt.",
             "Bitte prüfe sie. Sie sind noch nicht zugesagt."
           ]
         },
@@ -235,7 +235,7 @@
           "subject": "Weitere Positionen angelegt",
           "heading": "Nachträglich angefragt",
           "body": [
-            "{actor} hat weitere Positionen zur Ausleihe von {borrower} gelegt.",
+            "{actor} hat weitere Positionen zum Verleih von {borrower} gelegt.",
             "Sie sind noch nicht zugesagt."
           ]
         },
@@ -243,7 +243,7 @@
           "subject": "Weitere Positionen für dich",
           "heading": "Nachträglich angefragt",
           "body": [
-            "{actor} hat weitere Positionen zu deiner Ausleihe gelegt.",
+            "{actor} hat weitere Positionen zu deinem Verleih gelegt.",
             "Sie gelten erst nach der Zusage."
           ]
         }
@@ -253,7 +253,7 @@
           "subject": "Zusage",
           "heading": "Material ist zugesagt",
           "body": [
-            "{actor} hat die genannten Positionen für deine Ausleihe bestätigt."
+            "{actor} hat die genannten Positionen für deinen Verleih bestätigt."
           ]
         }
       },
@@ -280,14 +280,14 @@
           "subject": "Zurückgezogen",
           "heading": "Positionen zurückgezogen",
           "body": [
-            "{borrower} hat die genannten Positionen von der Ausleihe genommen. Das Material ist wieder frei."
+            "{borrower} hat die genannten Positionen vom Verleih genommen. Das Material ist wieder frei."
           ]
         },
         "borrower": {
           "subject": "Zurückgezogen",
           "heading": "Positionen zurückgezogen",
           "body": [
-            "{actor} hat die genannten Positionen von deiner Ausleihe genommen."
+            "{actor} hat die genannten Positionen von deinem Verleih genommen."
           ]
         }
       },
@@ -366,8 +366,8 @@
       "restock": {
         "borrower": {
           "subject": "Übernommen",
-          "heading": "Wieder im Bestand",
-          "body": ["{actor} hat die genannten Positionen wieder in den Bestand übernommen."]
+          "heading": "Wieder im Inventar",
+          "body": ["{actor} hat die genannten Positionen wieder ins Inventar übernommen."]
         }
       },
       "loss": {
@@ -375,7 +375,7 @@
           "subject": "Verlust",
           "heading": "Nicht zurückgebracht",
           "body": [
-            "{actor} hat die genannten Positionen als Verlust verbucht. Sie sind aus dem Bestand geschrieben."
+            "{actor} hat die genannten Positionen als Verlust verbucht. Taucht etwas wieder auf, melde dich bitte bei der Ansprechperson."
           ]
         }
       },
@@ -383,12 +383,12 @@
         "managers": {
           "subject": "Verleih abgebrochen",
           "heading": "Verleih abgebrochen",
-          "body": ["{borrower} hat die Ausleihe abgebrochen, bevor etwas gepackt war."]
+          "body": ["{borrower} hat den Verleih abgebrochen, bevor etwas gepackt war."]
         },
         "borrower": {
           "subject": "Verleih abgebrochen",
           "heading": "Verleih abgebrochen",
-          "body": ["{actor} hat die Ausleihe abgebrochen, bevor etwas gepackt war."]
+          "body": ["{actor} hat den Verleih abgebrochen, bevor etwas gepackt war."]
         }
       },
       "skip_pickup": {

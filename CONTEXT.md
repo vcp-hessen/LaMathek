@@ -7,7 +7,7 @@ LaMathek is the record of material held by VCP Hessen. Headwords are the German 
 | What | Where |
 |------|--------|
 | **Terms** (this file) | Definitions only — not workflow rules |
-| **Product rules** | [docs/domain/README.md](docs/domain/README.md) (German, D0001–D0013) |
+| **Product rules** | [docs/domain/README.md](docs/domain/README.md) (German, D0001–D0017) |
 | **Index** | [docs/software.md](docs/software.md) |
 | **Technical stack** | [docs/adr/](docs/adr/) |
 
@@ -126,7 +126,7 @@ _English_: optional
 _Avoid_: Zubehör, Zusatz, Vorschlag
 
 **Schaden**:
-A recorded harm on an Einzelteil, kept after repair. Severe Schaden means that Einzelteil must not be handed out.
+A recorded harm on an Einzelteil, kept after repair. Severe Schaden means that Einzelteil must not be handed out. A lost Einzelteil is recorded as a Totalverlust, not as a Schaden.
 _English_: damage
 _Avoid_: Defekt, Zustand, condition
 
@@ -136,7 +136,7 @@ _English_: photo
 _Avoid_: Bild, Anhang, attachment
 
 **Reparatur**:
-The repair of a Schaden, kept with that Schaden.
+The repair of a Schaden, kept with that Schaden. A Totalverlust is never repaired; it ends as found again, written off or a mistake.
 _English_: repair
 _Avoid_: fix, Instandsetzung
 
@@ -234,3 +234,18 @@ _Avoid_: Rolle, job title
 A Berechtigung to read an internal Inventar (material, Sets, photos) and to request Verleihe from it, without managing anything. Active Inventare need no Leserecht.
 _English_: read permission
 _Avoid_: Gastzugang, viewer role
+
+**Journal**:
+The append-only history of a Verleih and of an Einzelteil: who did what to which Position, when, and why.
+_English_: journal
+_Avoid_: Log, Protokoll, audit (the audit log is for superuser actions)
+
+**Kalender-Abo**:
+A named, revocable link with which a calendar program shows Verleihe (own ones, as Ansprechperson, or all of an Inventar).
+_English_: calendar feed
+_Avoid_: Export, Sync
+
+**Mailversand**:
+Mails about a Verleih are queued with the change they report and sent by the server afterwards, with retries. A step never waits for a mail.
+_English_: mail outbox
+_Avoid_: Benachrichtigung (for the mechanism), Newsletter

@@ -36,7 +36,7 @@ Ein Verleih gehört zu einem Inventar, einer Gruppe und meist einer Veranstaltun
 
 **Platzhalter-Benutzer**
 
-- Person ohne Login nur als Platzhalter für eine Ausleihe: keine Berechtigung, keine Ansprechperson.
+- Person ohne Login nur als Ausleihende*r eines Verleihs: keine Berechtigung, keine Ansprechperson.
 - **Merge** Platzhalter auf Login-Konto: Verleihe werden umgeschrieben, Platzhalter gelöscht.
 
 (Die API kann einen Verleih weiterhin direkt mit `borrowerUserId` anlegen — z. B. Tests/Import; die UI folgt dem Entwurfs-Weg.)

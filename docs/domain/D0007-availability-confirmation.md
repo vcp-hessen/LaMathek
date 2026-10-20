@@ -32,7 +32,7 @@ Die meisten Verleihe kommen pünktlich und vollständig zurück. Material soll d
 - Bestätigen und Ersetzen einer Position.
 - Wiederherstellen einer beendeten Position, wenn sie dadurch wieder belegt.
 - Terminänderung oder Wechsel Dauerleihgabe ↔ Verleih bei einem Verleih mit belegenden Positionen.
-- Menge von Hand senken: nur wenn der neue Bestand unter der höchsten Belegung ab heute läge (`below_loaned`). Ein Verlust wird dagegen immer verbucht und erzeugt Hinweise.
+- Menge von Hand senken: nur wenn die neue Anzahl unter der höchsten Belegung ab heute läge (`below_loaned`). Ein Verlust wird dagegen immer verbucht und erzeugt Hinweise.
 
 **Wo gewarnt wird (Speichern erlaubt):** An jeder offenen Position erscheint, was eine Bestätigung verhindern würde, mit Link auf den anderen Verleih; dazu Hinweise auf parallele Anfragen desselben Einzelteils und auf offene leichte Schäden. Auf der Seite eines verlorenen oder schwer beschädigten Einzelteils stehen die Verleihe, die es noch eingeplant haben.
 

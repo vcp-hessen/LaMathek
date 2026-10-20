@@ -34,8 +34,10 @@ Hier stehen **verbindliche Produktregeln** für LaMathek — wer darf was, Verle
 | Abhol-/Rückgabeinfo, Fotos | [D0010](D0010-pickup-return-info-photos.md) |
 | Phasen, Mail, Chevron-Aktionen, Löschen | [D0012](D0012-workflow-phase-mail.md) |
 | Journal (Verlauf) | [D0014](D0014-loan-journal.md) |
+| Kalender, iCal-Abos | [D0015](D0015-calendar.md) |
+| Startseite | [D0016](D0016-dashboard.md) |
 
-Material, Inventar, Sets: [D0002](D0002-inventar-material-sets.md). Rollen: [D0001](D0001-scope-roles.md). Schaden: [D0011](D0011-damage.md).
+Material, Inventar, Sets, Varianten: [D0002](D0002-inventar-material-sets.md). Rollen und Rechte: [D0001](D0001-scope-roles.md). Schaden und Totalverlust: [D0011](D0011-damage.md). Befehlspalette und Hilfe: [D0017](D0017-command-palette-help.md).
 
 ## Alle Records
 
@@ -56,5 +58,7 @@ Material, Inventar, Sets: [D0002](D0002-inventar-material-sets.md). Rollen: [D00
 | D0013 | Oberfläche und Roadmap | [D0013-ui-language-roadmap.md](D0013-ui-language-roadmap.md) |
 | D0014 | Verleih-Journal | [D0014-loan-journal.md](D0014-loan-journal.md) |
 | D0015 | Kalender | [D0015-calendar.md](D0015-calendar.md) |
+| D0016 | Startseite | [D0016-dashboard.md](D0016-dashboard.md) |
+| D0017 | Befehlspalette und Kontext-Hilfe | [D0017-command-palette-help.md](D0017-command-palette-help.md) |
 
 Vorlage für neue Records: [_template.md](_template.md).

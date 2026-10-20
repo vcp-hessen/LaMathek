@@ -18,7 +18,7 @@
     "sets": "Sets",
     "loans": "Verleih",
     "calendar": "Kalender",
-    "myLoans": "Meine Ausleihen"
+    "myLoans": "Meine Verleihe"
   },
   "shell": {
     "menu": "Menü",
@@ -204,7 +204,7 @@
     "piecesNoSearchResults": "Keine Treffer für Suche oder Filter.",
     "piecesVariantFilterPickAxis": "Variante hinzufügen …",
     "piecesVariantFilterRemove": "{label} entfernen",
-    "piecesVariantFilterHelp": "Mehrere Varianten gleichzeitig: ein Stück muss alle gewählten Varianten erfüllen; pro Variante zählt jeder angehakte Wert.",
+    "piecesVariantFilterHelp": "Mehrere Varianten gleichzeitig: ein Einzelteil muss alle gewählten Varianten erfüllen; pro Variante zählt jeder angehakte Wert.",
     "piecesTablePhoto": "Foto",
     "piecesTableName": "Bezeichnung",
     "piecesTableMaterialType": "Materialart",
@@ -357,8 +357,8 @@
   },
   "calendar": {
     "hubSignIn": "Melde dich an, um deinen Kalender zu sehen.",
-    "contentBorrower": "Eigene Ausleihen",
-    "contentContact": "Nur Verantwortlich",
+    "contentBorrower": "Eigene Verleihe",
+    "contentContact": "Nur als Ansprechperson",
     "contentAllLoans": "Alle Verleihe",
     "contentOff": "Aus",
     "contentInventoryLine": "{name}: {scope}",
@@ -400,7 +400,7 @@
     "searchPlaceholder": "Titel, Gruppe, Ausleihende*r …",
     "searchPlaceholderBorrower": "Titel, Gruppe, Phase …",
     "myLoansInInventoryHint": "Hier siehst du deine Verleihe in diesem Inventar.",
-    "myLoansHeading": "Meine Ausleihen",
+    "myLoansHeading": "Meine Verleihe",
     "myLoansHint": "Alle deine Verleihe über alle Inventare hinweg.",
     "columnInventory": "Inventar",
     "columnTitle": "Titel",
@@ -449,7 +449,7 @@
       "piece_unavailable_detail": "Das Einzelteil kann nicht verliehen werden: Es ist aussortiert, als Totalverlust verbucht, schwer beschädigt oder im Zeitraum schon an einen anderen Verleih vergeben.",
       "over_loaned": "Im Zeitraum ist nicht genug von dieser Menge frei.",
       "line_exists": "Diese Position ist schon in der Box.",
-      "set_unavailable": "Set kann nicht hinzugefügt werden (Bestand oder Verfügbarkeit).",
+      "set_unavailable": "Set kann nicht hinzugefügt werden.",
       "invalid_line_status": "Für die gewählten Positionen ist diese Aktion gerade nicht möglich.",
       "workflow_step_mismatch": "Diese Aktion gehört zu einem anderen Verleihschritt. Bitte den aktuellen Schritt oben zu Ende führen.",
       "invalid_loan_state": "Für diesen Verleih ist die Aktion im aktuellen Stand nicht möglich.",
@@ -468,7 +468,7 @@
     "returnOnWish": "Rückgabe (Wunsch)",
     "pickupOnDate": "Abholung (Termin)",
     "returnOnDate": "Rückgabe (Termin)",
-    "metaSectionLoan": "Ausleihe",
+    "metaSectionLoan": "Verleih",
     "metaSectionCare": "Betreuung",
     "metaSectionDetails": "Stammdaten",
     "disclosureToggle": "Zum Auf- oder Zuklappen anklicken",
@@ -591,7 +591,7 @@
     "shortcutNotPickedUpAllReasonHint": "Grund für alle betroffenen Positionen:",
     "shortcutExecute": "Ausführen",
     "shortcutDeleteConfirm": "Diesen Verleih unwiderruflich löschen? Alle Positionen und Fotos gehen verloren.",
-    "shortcutDeleteSuperuserConfirm": "Verleih als Superuser*in unwiderruflich löschen — auch bei laufendem Workflow? Material- und Bestandsstände werden nicht automatisch zurückgebucht.",
+    "shortcutDeleteSuperuserConfirm": "Verleih als Superuser*in unwiderruflich löschen? Das geht nur, solange noch kein Material abgeholt wurde.",
     "shortcutCancelConfirm": "Verleih stornieren? Bestätigte und offene Positionen werden zurückgezogen, der Vorgang gilt als abgeschlossen.",
     "shortcutSkipPickupConfirm": "Abholung überspringen und gepacktes Material direkt zur Rückgabe melden?",
     "phaseCloseRequest": "Anfrage senden",
@@ -606,7 +606,7 @@
     "phaseCloseNeedsLines": "Lege zuerst Material in die Box.",
     "phaseClosePending": "Bitte warten, die Aktion läuft …",
     "actionBlockedWrongStep": "Erst den aktuellen Verleihschritt oben abschließen oder alle Positionen in diesem Schritt bearbeiten.",
-    "restockConsumableHint": "Wie viele Stück sind tatsächlich zurückgekommen?",
+    "restockConsumableHint": "Wie viel ist tatsächlich zurückgekommen? Der Rest wird als Verbrauch gebucht.",
     "restockReturnedOf": "zurück von {total}",
     "mails": {
       "stuck": "{count} Mail(s) noch nicht zugestellt",
@@ -677,7 +677,7 @@
     "detail": "Inventar",
     "rename": "Speichern",
     "permissionsHeading": "Materialwart*innen",
-    "readersHeading": "Leserecht (Ansicht und eigene Ausleihe)",
+    "readersHeading": "Leserecht (ansehen und eigene Verleihe anfragen)",
     "permissionsEmpty": "Noch niemand mit Berechtigung für dieses Inventar.",
     "permissionSearchLabel": "Nutzer*in hinzufügen",
     "permissionSearchPlaceholder": "Name oder E-Mail suchen …",
@@ -809,11 +809,11 @@
       },
       "einzelteil": {
         "title": "Einzelteil",
-        "body": "Ein benanntes Stück einer Materialart in einem Inventar — im Gegensatz zur anonym gezählten Menge."
+        "body": "Ein benanntes Teil einer Materialart in einem Inventar (z. B. „DV 3“) – im Gegensatz zur nur gezählten Menge."
       },
       "menge": {
         "title": "Menge",
-        "body": "Materialart, die nur über Anzahlen geführt wird, ohne jedes Stück einzeln zu benennen."
+        "body": "Materialart, die nur über Anzahlen geführt wird, ohne jedes Teil einzeln zu benennen (z. B. Heringe)."
       },
       "set": {
         "title": "Set",
@@ -845,7 +845,7 @@
       },
       "inventar": {
         "title": "Inventar",
-        "body": "Bestand an Material an einem Ort (z. B. Donnerskopf). Verleihe beziehen sich immer auf genau ein Inventar."
+        "body": "Das Material an einem Ort (z. B. Donnerskopf). Ein Verleih bezieht sich immer auf genau ein Inventar."
       },
       "uebernahme": {
         "title": "Übernahme",
